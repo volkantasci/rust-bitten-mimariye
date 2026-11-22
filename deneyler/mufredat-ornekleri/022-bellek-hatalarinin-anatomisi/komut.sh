@@ -9,7 +9,7 @@ k ./target/tasma "bu metin sekiz bayttan cok daha uzun"
 # 2) Çift iade: glibc'nin ayırıcısı fark eder
 k gcc -O0 -o target/cift_birak c/cift_birak.c
 k ./target/cift_birak
-# 3) Kullanım-sonrası-iade: AddressSanitizer ile derleyince yakalanır
+# 3) İade-sonrası-kullanım: AddressSanitizer ile derleyince yakalanır
 k gcc -O0 -g -fsanitize=address -o target/uaf_asan c/kullan_sonra_birak.c
 ks './target/uaf_asan 2>&1 | head -n 30'
 # 4) Rust: dizinin dışına erişim tanımlı bir panikle durur
