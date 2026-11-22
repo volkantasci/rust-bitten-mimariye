@@ -1,0 +1,17 @@
+$ cargo run -q
+iç kapsam bitiyor
+  C bırakıldı
+  B bırakıldı
+  D bırakıldı
+main bitiyor
+  A bırakıldı
+$ python3 --version
+Python 3.13.5
+$ python3 python/gc_ornek.py
+a'nın referans sayısı: 1
+  a silindi
+--- döngü kuruluyor
+del sonrası: hiçbir şey silinmedi
+  x silindi
+  y silindi
+gc.collect() bulduğu erişilemez nesne: 2

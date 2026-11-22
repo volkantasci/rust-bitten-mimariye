@@ -1,0 +1,16 @@
+$ cargo run -q
+1² = 1
+2² = 4
+3² = 9
+4² = 16
+5² = 25
+[   0 ms] üretici 1 gönderdi
+[   0 ms] üretici 2 gönderdi
+[ 300 ms] yavaş tüketici 1 aldı
+[ 300 ms] üretici 3 gönderdi
+[ 400 ms] yavaş tüketici 2 aldı
+[ 400 ms] üretici 4 gönderdi
+[ 500 ms] yavaş tüketici 3 aldı
+[ 500 ms] üretici 5 gönderdi
+[ 600 ms] yavaş tüketici 4 aldı
+[ 700 ms] yavaş tüketici 5 aldı

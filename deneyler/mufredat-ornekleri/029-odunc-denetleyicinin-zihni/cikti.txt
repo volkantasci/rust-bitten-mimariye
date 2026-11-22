@@ -1,0 +1,24 @@
+$ cargo run -q
+ilk = 1
+v = [1, 2, 3, 4]
+$ cargo build -q
+error[E0502]: cannot borrow `*harita` as mutable because it is also borrowed as immutable
+ --> src/main.rs:8:5
+  |
+4 | fn al_veya_ekle(harita: &mut HashMap<u32, String>, anahtar: u32) -> &String {
+  |                         - let's call the lifetime of this reference `'1`
+5 |     if let Some(deger) = harita.get(&anahtar) {
+  |                          ------ immutable borrow occurs here
+6 |         return deger;
+  |                ----- returning this value requires that `*harita` is borrowed for `'1`
+7 |     }
+8 |     harita.insert(anahtar, String::from("yeni"));
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+
+For more information about this error, try `rustc --explain E0502`.
+error: could not compile `temkinli` (bin "temkinli") due to 1 previous error
+[çıkış kodu: 101]
+$ rustc +nightly -Z help | grep -i polonius
+    -Z                                      polonius=val -- enable polonius-based borrow-checker (default: next)
+$ RUSTFLAGS="-Zpolonius=next" cargo +nightly run -q --target-dir target/polonius
+yeni

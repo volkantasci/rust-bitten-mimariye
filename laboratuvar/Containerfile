@@ -1,0 +1,8 @@
+# NewKindLearn Rust deney imajı. Taban: resmî Docker Hub "rust" imajı (Debian trixie).
+FROM docker.io/library/rust:1.100.0
+RUN rustup component add clippy rustfmt \
+ && rustup toolchain install nightly --profile minimal --component miri,rust-src \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends valgrind strace gdb hyperfine time \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /work

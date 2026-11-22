@@ -1,0 +1,11 @@
+$ cargo build -q --release
+$ ./target/release/profil
+bulunan: 2000 / 2000
+$ valgrind --tool=callgrind --callgrind-out-file=/tmp/cg.out ./target/release/profil 2>&1 | grep -E "Collected|bulunan"
+bulunan: 2000 / 2000
+==20456== Collected : 24591969
+$ callgrind_annotate --inclusive=yes /tmp/cg.out 2>/dev/null | grep -E "PROGRAM TOTALS|=> .*profil::(yavas_arama|hizli_hazirlik|hizli_arama) " | sed -E "s#=> .*:(profil::[a-z_]+) #=> \1 #"
+24,591,969 (100.0%)  PROGRAM TOTALS
+21,276,515 (86.52%)  => profil::yavas_arama (1x)
+2,671,669 (10.86%)  => profil::hizli_hazirlik (1x)
+292,013 ( 1.19%)  => profil::hizli_arama (1x)

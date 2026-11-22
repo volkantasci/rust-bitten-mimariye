@@ -1,0 +1,25 @@
+$ cargo run -q
+warning: incorrect NaN comparison, NaN cannot be directly compared to itself
+  --> src/main.rs:15:41
+   |
+15 |     println!("NaN == NaN         → {}", f64::NAN == f64::NAN);
+   |                                         ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(invalid_nan_comparisons)]` on by default
+help: use `f32::is_nan()` or `f64::is_nan()` instead
+   |
+15 -     println!("NaN == NaN         → {}", f64::NAN == f64::NAN);
+15 +     println!("NaN == NaN         → {}", f64::NAN.is_nan());
+   |
+
+0.1 + 0.2          = 0.30000000000000004
+0.1 + 0.2 == 0.3   → false
+0.1'in tam değeri  = 0.1000000000000000055511151231257827021181583404541015625
+0.1 bitleri        = 0011111110111001100110011001100110011001100110011001100110011010
+  işaret           = 0
+  üs               = 01111111011 (1019 - 1023 = -4)
+  kesir            = 1001100110011001100110011001100110011001100110011010
+16777217 → f32     = 16777216
+NaN == NaN         → false
+1.0 / 0.0          = inf
+(0.1+0.2-0.3).abs() < f64::EPSILON → true

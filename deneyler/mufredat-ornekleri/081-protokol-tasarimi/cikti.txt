@@ -1,0 +1,6 @@
+$ cargo run -q
+tel üzerindeki baytlar: [00, 00, 00, 07, 6d, 65, 72, 68, 61, 62, 61]
+saf sunucu tek read'de 48 bayt aldı (3 mesaj yapışık geldi)
+çerçeveli sunucu mesaj aldı: "GET anahtar"
+çerçeveli sunucu mesaj aldı: "SET anahtar 42"
+çerçeveli sunucu mesaj aldı: "DEL anahtar"

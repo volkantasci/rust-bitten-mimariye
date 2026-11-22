@@ -1,0 +1,24 @@
+$ rustc +nightly --edition 2024 -Zunpretty=ast-tree ifade.rs | grep -E "kind: (Binary|Lit)|Add|Mul|symbol" 
+                                                    kind: Binary(
+                                                            node: Add,
+                                                            kind: Lit(
+                                                                    symbol: "1",
+                                                            kind: Binary(
+                                                                    node: Mul,
+                                                                    kind: Lit(
+                                                                            symbol: "2",
+                                                                    kind: Lit(
+                                                                            symbol: "3",
+$ echo "fn main() { let x = (1 + 2; }" > /tmp/bozuk.rs && rustc --edition 2024 /tmp/bozuk.rs
+error: mismatched closing delimiter: `}`
+ --> /tmp/bozuk.rs:1:21
+  |
+1 | fn main() { let x = (1 + 2; }
+  |           -         ^       ^ mismatched closing delimiter
+  |           |         |
+  |           |         unclosed delimiter
+  |           closing delimiter possibly meant for this
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]

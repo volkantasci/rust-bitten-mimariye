@@ -1,0 +1,4 @@
+$ cargo run -q --release
+n =        1000: doğrusal        1000 karşılaştırma | ikili 11 (log2 n = 10.0)
+n =     1000000: doğrusal     1000000 karşılaştırma | ikili 21 (log2 n = 19.9)
+n =   100000000: doğrusal   100000000 karşılaştırma | ikili 28 (log2 n = 26.6)

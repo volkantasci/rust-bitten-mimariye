@@ -1,0 +1,7 @@
+$ cargo run -q
+Ok(42)
+Err(ParseIntError { kind: InvalidDigit })
+Err(ParseIntError { kind: PosOverflow })
+toplam = 6
+Error: ParseIntError { kind: InvalidDigit }
+[çıkış kodu: 1]

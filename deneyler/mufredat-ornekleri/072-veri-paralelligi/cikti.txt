@@ -1,0 +1,6 @@
+$ cargo run -q --release
+rayon iş parçacığı: 12
+sıralı  :   112.0 ms
+paralel :    15.4 ms  (hızlanma 7.28×, sonuç aynı: true)
+yanlış paylaşım (aynı satır):   982.0 ms
+ayrı önbellek satırları     :    87.8 ms

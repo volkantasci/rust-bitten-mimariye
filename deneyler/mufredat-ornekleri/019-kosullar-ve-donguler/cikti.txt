@@ -1,0 +1,6 @@
+$ cargo run -q --release
+n =   6:   8 adım, en yüksek değer 16
+n =   7:  16 adım, en yüksek değer 52
+n =  27: 111 adım, en yüksek değer 9232
+n =  97: 118 adım, en yüksek değer 9232
+1..1_000_000 arasında en uzun: n = 837799, 524 adım

@@ -1,0 +1,4 @@
+$ cargo run -q
+daire (alan 12.57)
+3 kenarlı kare
+Daire { r: 2.0 } == Daire { r: 2.0 } → true

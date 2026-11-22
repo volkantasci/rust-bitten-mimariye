@@ -1,0 +1,9 @@
+[package]
+name = "profil"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[profile.release]
+debug = true # profil aracı fonksiyon adlarını ve satırları görsün

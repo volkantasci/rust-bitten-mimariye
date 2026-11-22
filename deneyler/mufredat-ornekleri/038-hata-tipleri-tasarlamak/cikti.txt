@@ -1,0 +1,17 @@
+$ cargo build -q
+$ ./target/debug/ayar ayarlar/iyi.conf
+port → 8080
+ad → ambar
+$ ./target/debug/ayar ayarlar/bozuk.conf
+Error: sunucu başlatılamadı (ayarlar/bozuk.conf)
+
+Caused by:
+    satır 2: "hatali satir" anahtar=değer biçiminde değil
+[çıkış kodu: 1]
+$ ./target/debug/ayar ayarlar/yok.conf
+Error: sunucu başlatılamadı (ayarlar/yok.conf)
+
+Caused by:
+    0: ayar dosyası okunamadı: ayarlar/yok.conf
+    1: No such file or directory (os error 2)
+[çıkış kodu: 1]

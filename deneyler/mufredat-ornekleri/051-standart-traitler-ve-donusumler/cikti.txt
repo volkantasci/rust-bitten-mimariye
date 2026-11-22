@@ -1,0 +1,10 @@
+$ cargo run -q
+eşit mi: true
+kümede 2 eleman var
+100 °C = 212 °F
+total_cmp ile: [-1.0, 0.0, 2.5, NaN]
+
+thread 'main' (4683) panicked at src/main.rs:41:46:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]

@@ -1,0 +1,5 @@
+$ cargo test -q 2>&1 | grep -E "^---- |minimal failing input|successes|^test result"
+---- testler::saf_surum_aralikta stdout ----
+minimal failing input: a = 2903406468, b = 1391560828
+	successes: 0
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s

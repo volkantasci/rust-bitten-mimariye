@@ -1,0 +1,25 @@
+$ cargo build -q
+$ ./target/debug/ozyineleme
+fib(10) =     55  saf:       177 çağrı   hafızalı:  19 çağrı  (aynı mı: true)
+fib(20) =   6765  saf:     21891 çağrı   hafızalı:  39 çağrı  (aynı mı: true)
+fib(30) = 832040  saf:   2692537 çağrı   hafızalı:  59 çağrı  (aynı mı: true)
+$ ulimit -s
+8192
+$ ./target/debug/ozyineleme derin 1000
+derin(1000) = 124948
+$ ./target/debug/ozyineleme derin 100000
+
+thread 'main' (182) has overflowed its stack
+fatal runtime error: stack overflow, aborting
+[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
+$ ./target/debug/ozyineleme buyuk-yigin 100000
+512 MiB yığınlı iş parçacığında derin(100000) = 12742480
+$ cargo build -q 2>&1 | head -n 8
+error[E0658]: `become` expression is experimental
+ --> src/main.rs:6:5
+  |
+6 |     become say(n - 1, birikim + 1)
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: see issue #112788 <https://github.com/rust-lang/rust/issues/112788> for more information
+

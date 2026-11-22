@@ -1,0 +1,7 @@
+$ cargo run -q --release
+sıralı      : {"Ada": 64, "Ali": 72, "Can": 85, "Ece": 91, "Naz": 78}
+'B'..'D'    : [("Can", 85)]
+ilk / son   : Some(("Ada", 64)) / Some(("Naz", 78))
+1e6 arama   : HashMap   66.2 ms, BTreeMap  129.3 ms
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^const B: usize\|^pub const CAPACITY" $S/alloc/src/collections/btree/node.rs
+43:const B: usize = 6;

@@ -1,0 +1,11 @@
+$ cargo run -q
+size_of_val(bos())                  = 1 bayt
+size_of_val(tampon_await_boyunca()) = 4098 bayt
+size_of_val(tampon_await_oncesi())  = 16 bayt
+async blok oluşturuldu; henüz hiçbir şey olmadı
+async blok çalıştı
+ilk poll → Ready(())
+poll 1 → Pending
+poll 2 → Pending
+poll 3 → Pending
+poll 4 → Ready("bitti")

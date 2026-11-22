@@ -1,0 +1,33 @@
+$ rustc --edition 2024 --crate-type=lib -C opt-level=0 --emit=mir -o target/mir.mir mir.rs
+$ sed -n "/fn uzunluk/,/^}/p" target/mir.mir
+fn uzunluk(_1: String) -> usize {
+    debug s => _1;
+    let mut _0: usize;
+    let _2: std::string::String;
+    let mut _3: &std::string::String;
+    scope 1 {
+        debug t => _2;
+    }
+
+    bb0: {
+        _2 = move _1;
+        _3 = &_2;
+        _0 = String::len(move _3) -> [return: bb1, unwind: bb3];
+    }
+
+    bb1: {
+        drop(_2) -> [return: bb2, unwind continue];
+    }
+
+    bb2: {
+        return;
+    }
+
+    bb3 (cleanup): {
+        drop(_2) -> [return: bb4, unwind terminate(cleanup)];
+    }
+
+    bb4 (cleanup): {
+        resume;
+    }
+}

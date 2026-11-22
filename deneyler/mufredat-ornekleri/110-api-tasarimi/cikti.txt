@@ -1,0 +1,41 @@
+$ cargo build -q -p istemci --bin istemci
+error[E0004]: non-exhaustive patterns: `_` not covered
+  --> istemci/src/main.rs:4:11
+   |
+ 4 |     match h {
+   |           ^ pattern `_` not covered
+   |
+note: `Hata` defined here
+  --> kutuphane/src/lib.rs:23:1
+   |
+23 | pub enum Hata {
+   | ^^^^^^^^^^^^^
+   = note: the matched value is of type `Hata`
+   = note: `Hata` is marked as non-exhaustive, so a wildcard `_` is necessary to match exhaustively
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+   |
+ 6 ~         Hata::YetkiYok => "yetki yok",
+ 7 ~         _ => todo!(),
+   |
+
+For more information about this error, try `rustc --explain E0004`.
+error: could not compile `istemci` (bin "istemci") due to 1 previous error
+[çıkış kodu: 101]
+$ cargo run -q -p istemci --bin duzgun
+warning: unused return value of `Kullanici::yeniden_adlandir` that must be used
+  --> istemci/src/bin/duzgun.rs:17:5
+   |
+17 |     k.yeniden_adlandir("Cem"); // dönüş değeri atıldı
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: yeni bir Kullanici döndürür, mevcut olanı değiştirmez
+   = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+   |
+17 |     let _ = k.yeniden_adlandir("Cem"); // dönüş değeri atıldı
+   |     +++++++
+
+Merhaba, Ali!
+Merhaba, Ayşe!
+Merhaba, Ayşe!
+Can bulunamadı

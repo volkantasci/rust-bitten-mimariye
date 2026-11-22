@@ -1,0 +1,22 @@
+$ cat Cargo.toml
+[package]
+name = "json_ornek"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+$ cargo run -q
+{"ad":"Ferris","bacak":10,"tur":"yengeç"}
+$ cargo tree
+json_ornek v0.1.0 (/work/mufredat-ornekleri/057-crateler-ve-bagimliliklar)
+└── serde_json v1.0.154
+    ├── itoa v1.0.19
+    ├── memchr v2.8.3
+    ├── serde_core v1.0.229
+    └── zmij v1.0.23
+$ grep -A3 "name = \"serde_json\"" Cargo.lock
+name = "serde_json"
+version = "1.0.154"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"

@@ -1,0 +1,9 @@
+$ cargo run -q
+()                      0 bayt  1 değer
+bool                    1 bayt  2 değer
+(bool, bool)            2 bayt  2 × 2 = 4 değer
+Option<bool>            1 bayt  2 + 1 = 3 değer
+Result<bool, ()>        1 bayt  2 + 1 = 3 değer
+Hic                     0 bayt  0 değer
+Option<Hic>             0 bayt  0 + 1 = 1 değer
+Result<u32, Infallible> 4 bayt  (u32 ile aynı: hata kolu boş)

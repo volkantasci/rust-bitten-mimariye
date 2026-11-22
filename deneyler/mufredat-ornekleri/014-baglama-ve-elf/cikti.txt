@@ -1,0 +1,30 @@
+$ cargo build -q --release
+$ ldd target/release/merhaba
+	linux-vdso.so.1 (0x00007f26ddea4000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f26dde13000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f26ddc1f000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f26ddea6000)
+$ readelf -h target/release/merhaba | grep -E "Class|Type|Machine|Entry"
+  Class:                             ELF64
+  Type:                              DYN (Position-Independent Executable file)
+  Machine:                           Advanced Micro Devices X86-64
+  Entry point address:               0x14a10
+$ readelf -S -W target/release/merhaba | grep -E " \.(text|rodata|data|bss) "
+  [11] .rodata           PROGBITS        0000000000004dc0 004dc0 005594 00 AMS  0   0 16
+  [15] .text             PROGBITS        0000000000014a10 013a10 03b063 00  AX  0   0 16
+  [29] .data             PROGBITS        00000000000540d8 0510d8 000a48 00  WA  0   0  8
+  [30] .bss              NOBITS          0000000000054b20 051b20 0000c2 00  WA  0   0  8
+$ nm target/release/merhaba | grep "merhaba4main"
+0000000000014b30 t _RNvCsjEVuznjrSGG_7merhaba4main
+$ nm -C target/release/merhaba | grep "merhaba::main"
+0000000000014b30 t merhaba::main
+$ RUSTFLAGS="-C target-feature=+crt-static" cargo build -q --release --target-dir target/statik
+$ file target/statik/release/merhaba
+target/statik/release/merhaba: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), static-pie linked, for GNU/Linux 3.2.0, BuildID[sha1]=6fbaffb53b017931e0f55d8f9a6583d8f38faad1, not stripped
+$ ldd target/statik/release/merhaba
+	statically linked
+$ stat -c "%s bayt  %n" target/release/merhaba target/statik/release/merhaba
+445024 bayt  target/release/merhaba
+1380472 bayt  target/statik/release/merhaba
+$ ./target/statik/release/merhaba
+Merhaba, dünya!

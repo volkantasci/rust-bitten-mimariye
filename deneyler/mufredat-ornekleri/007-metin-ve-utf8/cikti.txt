@@ -1,0 +1,10 @@
+$ cargo run -q
+A  U+0041  1 bayt  [41]
+ç  U+00E7  2 bayt  [c3, a7]
+ğ  U+011F  2 bayt  [c4, 9f]
+€  U+20AC  3 bayt  [e2, 82, ac]
+🦀  U+1F980  4 bayt  [f0, 9f, a6, 80]
+"Iğdır": len() = 7 bayt, chars().count() = 5 karakter
+"istanbul".to_uppercase() = "ISTANBUL"
+"İ".to_lowercase()        = "i\u{307}" (2 karakter: ["U+0069", "U+0307"])
+size_of::<char>()          = 4 bayt

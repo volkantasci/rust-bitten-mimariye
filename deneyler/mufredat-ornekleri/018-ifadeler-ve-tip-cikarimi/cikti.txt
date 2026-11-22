@@ -1,0 +1,18 @@
+$ cargo run -q
+y = 26 (çift), sonuc = 20
+i32 f64 alloc::vec::Vec<u8>
+$ cargo build -q
+error[E0282]: type annotations needed for `Vec<_>`
+ --> src/main.rs:2:9
+  |
+2 |     let liste = Vec::new();
+  |         ^^^^^   ---------- type must be known at this point
+  |
+help: consider giving `liste` an explicit type, where the type for type parameter `T` is specified
+  |
+2 |     let liste: Vec<T> = Vec::new();
+  |              ++++++++
+
+For more information about this error, try `rustc --explain E0282`.
+error: could not compile `tip_gerekli` (bin "tip_gerekli") due to 1 previous error
+[çıkış kodu: 101]

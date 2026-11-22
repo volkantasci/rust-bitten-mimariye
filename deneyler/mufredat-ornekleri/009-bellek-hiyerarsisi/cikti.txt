@@ -1,0 +1,19 @@
+$ lscpu | grep -E "^L1d|^L2|^L3"
+L1d cache:                               192 KiB (6 instances)
+L2 cache:                                3 MiB (6 instances)
+L3 cache:                                32 MiB (1 instance)
+$ cargo run -q --release
+çalışma kümesi    ns/erişim
+        16 KiB         1.19   (son=330)
+        32 KiB         1.18   (son=2719)
+        64 KiB         2.12   (son=7641)
+       128 KiB         2.55   (son=15857)
+       256 KiB         3.18   (son=6251)
+       512 KiB         5.01   (son=61778)
+      1024 KiB         8.50   (son=115268)
+      2048 KiB        10.60   (son=43097)
+      8192 KiB        12.58   (son=158047)
+     16384 KiB        19.58   (son=1655160)
+     32768 KiB        58.33   (son=1515190)
+     65536 KiB        65.86   (son=2436746)
+    262144 KiB        87.16   (son=3877667)

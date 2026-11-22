@@ -1,0 +1,19 @@
+$ cargo run -q
+2 kalem gönderildi
+Some("boş sipariş onaylanamaz")
+ayse@ornek.com adresine: 2 kalem gönderildi
+geçersiz e-posta: "ayse.ornek.com"
+$ cargo build -q 2>&1 | head -n 16
+error[E0599]: no method named `gonder` found for struct `Siparis<Taslak>` in the current scope
+  --> src/main.rs:57:47
+   |
+ 8 | struct Siparis<Durum> {
+   | --------------------- method `gonder` not found for this struct
+...
+57 |     let s = Siparis::yeni().ekle("defter", 2).gonder(); // onaylamadan göndermeye çalış
+   |                                               ^^^^^^ method not found in `Siparis<Taslak>`
+   |
+   = note: the method was found for `Siparis<Onayli>`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `yanlis_gecis` (bin "yanlis_gecis") due to 1 previous error

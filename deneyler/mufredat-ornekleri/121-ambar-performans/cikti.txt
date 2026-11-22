@@ -1,0 +1,13 @@
+$ cargo build -q --release
+# fsync kipi: her (veri: ana makinenin diski, btrfs)
+$ ./target/release/ambar yuk 127.0.0.1:7011 16 300
+16 istemci × 300 SET = 4800 yazma, 4.89 s, 981 yazma/s, sunucu: SAYI 4800
+# fsync kipi: toplu (veri: ana makinenin diski, btrfs)
+$ ./target/release/ambar yuk 127.0.0.1:7012 16 300
+16 istemci × 300 SET = 4800 yazma, 0.95 s, 5065 yazma/s, sunucu: SAYI 4800
+# fsync kipi: yok (veri: ana makinenin diski, btrfs)
+$ ./target/release/ambar yuk 127.0.0.1:7013 16 300
+16 istemci × 300 SET = 4800 yazma, 0.04 s, 114916 yazma/s, sunucu: SAYI 4800
+# fsync kipi: her (veri: konteynerin /tmp'si)
+$ ./target/release/ambar yuk 127.0.0.1:7019 16 300
+16 istemci × 300 SET = 4800 yazma, 0.04 s, 135009 yazma/s, sunucu: SAYI 4800

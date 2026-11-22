@@ -1,0 +1,6 @@
+$ cargo run -q
+defter × 3: 200 sipariş alındı, kalan stok 9
+defter × 50: 400 defter: 50 istendi, stokta 12 var
+defter × 0: 400 adet en az 1 olmalı
+silgi × 1: 500 geçici bir sorun oluştu, lütfen tekrar deneyin
+    [günlük] altyapı hatası: No such file or directory (os error 2)

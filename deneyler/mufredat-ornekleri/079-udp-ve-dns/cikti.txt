@@ -1,0 +1,8 @@
+$ cargo run -q
+3 bayt datagram (127.0.0.1:46781 kaynaklı): "bir"
+3 bayt datagram (127.0.0.1:46781 kaynaklı): "iki"
+4 bayt datagram (127.0.0.1:46781 kaynaklı): "üç"
+localhost:80 → [[::1]:80, 127.0.0.1:80]
+$ grep -v "^#" /etc/hosts | grep localhost
+127.0.0.1	localhost
+::1	localhost

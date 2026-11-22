@@ -1,0 +1,4 @@
+$ cargo run -q --release
+sunucu tek read ile 13 bayt aldı: "bir|iki|üç|"
+TCP_NODELAY = false: 20 istek   781.6 ms (istek başına 39.08 ms)
+TCP_NODELAY = true : 20 istek     0.4 ms (istek başına 0.02 ms)

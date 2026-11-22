@@ -1,0 +1,32 @@
+$ rustc +nightly --edition 2024 -Zunpretty=hir seker.rs | sed -n "/fn topla/,/^}/p"
+fn topla(v: &'_ [i32])
+    ->
+        i32 {
+    let mut s = 0;
+    {
+        let _t =
+            match into_iter(v) {
+                mut iter =>
+                    loop {
+                        match next(&mut iter) {
+                            None {} => break,
+                            Some {  0: x } => { s += x; }
+                        }
+                    },
+            };
+        _t
+    };
+    s
+}
+$ rustc +nightly --edition 2024 -Zunpretty=hir seker.rs | sed -n "/fn oku/,/^}/p"
+fn oku(metin: &'_ str)
+    ->
+        Result<i32,
+        std::num::ParseIntError> {
+    let n: i32 =
+        match branch(metin.parse()) {
+            Break {  0: residual } => return from_residual(residual),
+            Continue {  0: val } => val,
+        };
+    Ok(n + 1)
+}

@@ -1,0 +1,24 @@
+$ cargo build -q --release
+$ ./target/release/ambar istemci 127.0.0.1:7001 "SET dil rust" "GET dil" "SET selam merhaba dünya" "GET selam" "DEL dil" "GET dil" SAY "UCUR hepsini"
+> SET dil rust
+< OK
+> GET dil
+< DEGER rust
+> SET selam merhaba dünya
+< OK
+> GET selam
+< DEGER merhaba dünya
+> DEL dil
+< OK
+> GET dil
+< YOK
+> SAY
+< SAYI 1
+> UCUR hepsini
+< HATA bilinmeyen komut: "UCUR hepsini"
+$ exec 3<>/dev/tcp/127.0.0.1/7001; printf "GET selam\nSAY\n" >&3; head -n 2 <&3
+DEGER merhaba dünya
+SAYI 1
+$ cat calisma/sunucu.log
+kurtarıldı: 0 kayıt
+ambar dinliyor: 127.0.0.1:7001

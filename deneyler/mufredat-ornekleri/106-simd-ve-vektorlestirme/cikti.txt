@@ -1,0 +1,17 @@
+$ cargo build -q --release
+$ ./target/release/simd
+f32, basit toplam        11.02 ms  sonuç 21960720
+f32, 8 şeritli toplam     2.12 ms  sonuç 23999998
+i32, toplam               2.14 ms  sonuç 47999995
+$ objdump -d -M intel --no-show-raw-insn -C target/release/simd | awk "/<simd::toplam_basit>:/,/^$/" | grep -oE "\b(addss|addps|vaddps)\b" | sort | uniq -c
+      9 addss
+$ objdump -d -M intel --no-show-raw-insn -C target/release/simd | awk "/<simd::toplam_8_serit>:/,/^$/" | grep -oE "\b(addss|addps|vaddps)\b" | sort | uniq -c
+     10 addps
+      9 addss
+$ RUSTFLAGS="-C target-cpu=native" cargo build -q --release --target-dir target/native && ./target/native/release/simd
+f32, basit toplam        10.85 ms  sonuç 21960720
+f32, 8 şeritli toplam     1.81 ms  sonuç 23999998
+i32, toplam               1.94 ms  sonuç 47999995
+$ objdump -d -M intel --no-show-raw-insn -C target/native/release/simd | awk "/<simd::toplam_8_serit>:/,/^$/" | grep -E "vaddps +ymm" | head -n 2
+   178d0:	vaddps ymm0,ymm0,YMMWORD PTR [rcx]
+   17920:	vaddps ymm0,ymm0,YMMWORD PTR [rcx+rdx*4]

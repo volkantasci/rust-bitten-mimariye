@@ -1,0 +1,21 @@
+[package]
+name = "ayarlar"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+
+# Boyut için ayarlanmış ikinci bir profil
+[profile.kucuk]
+inherits = "release"
+opt-level = "z"     # boyut için optimize et
+lto = "fat"         # tüm crate'leri birlikte optimize et (bağlama anında)
+codegen-units = 1   # tek kod üretim birimi: daha çok optimizasyon fırsatı
+panic = "abort"     # çözülme (unwinding) tabloları yok
+strip = true        # sembolleri at
+
+[profile.hizli]
+inherits = "release"
+lto = "fat"
+codegen-units = 1

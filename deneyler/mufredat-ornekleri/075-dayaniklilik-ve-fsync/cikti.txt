@@ -1,0 +1,22 @@
+$ cargo build -q --release
+$ ./target/release/dayaniklilik olc calisma
+her kayıtta fsync : 200 kayıt   163.71 ms (0.819 ms/kayıt)
+sonda tek fsync   : 200 kayıt     2.62 ms (0.013 ms/kayıt)
+$ ./target/release/dayaniklilik olc /tmp
+her kayıtta fsync : 200 kayıt     1.69 ms (0.008 ms/kayıt)
+sonda tek fsync   : 200 kayıt     1.60 ms (0.008 ms/kayıt)
+$ grep " / " /proc/mounts | grep -oE "^overlay|fsync=[a-z]+"
+overlay
+fsync=volatile
+$ grep " /work " /proc/mounts | cut -d" " -f1-3
+/dev/mapper/root /work btrfs
+$ strace -e trace=openat,write,fsync,fdatasync,rename,renameat2 ./target/release/dayaniklilik atomik calisma 2>&1 | grep -v "/lib\|/etc\|/proc\|/sys"
+openat(AT_FDCWD, "calisma/ayar.json.gecici", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+write(3, "{\"surum\": 2}\n", 13)        = 13
+fsync(3)                                = 0
+rename("calisma/ayar.json.gecici", "calisma/ayar.json") = 0
+openat(AT_FDCWD, "calisma", O_RDONLY|O_CLOEXEC) = 4
+fsync(4)                                = 0
++++ exited with 0 +++
+$ cat calisma/ayar.json
+{"surum": 2}

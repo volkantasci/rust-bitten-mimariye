@@ -1,0 +1,13 @@
+$ cargo build -q
+$ ./target/debug/yigin_obek
+kod    main()            : 0x5583d7018b90
+statik SELAM metni       : 0x5583d70079ec
+öbek   Box<u64>          : 0x5584096b1d60
+öbek   String verisi     : 0x5584096b1d80
+yığın  yerel değişken    : 0x7ffc52625168
+5583d7000000-5583d7018000 r--p 00000000 00:1d 67978390                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5583d7018000-5583d705b000 r-xp 00017000 00:1d 67978390                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5583d705b000-5583d705f000 r--p 00059000 00:1d 67978390                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5583d705f000-5583d7061000 rw-p 0005c000 00:1d 67978390                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5584096b1000-5584096d2000 rw-p 00000000 00:00 0                          [heap]
+7ffc52606000-7ffc52627000 rw-p 00000000 00:00 0                          [stack]

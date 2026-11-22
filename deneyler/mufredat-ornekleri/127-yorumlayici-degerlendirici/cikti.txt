@@ -1,0 +1,27 @@
+$ cargo build -q --release
+$ ./target/release/minik calistir ornekler/fib.mk
+0
+1
+1
+2
+3
+5
+8
+13
+21
+34
+55
+6765
+$ cat ornekler/sifira_bolme.mk
+fn ortalama(toplam, adet) {
+    return toplam / adet;
+}
+print(ortalama(10, 2));
+print(ortalama(10, 0));
+$ ./target/release/minik calistir ornekler/sifira_bolme.mk
+5
+hata: çalışma hatası: sıfıra bölme
+[çıkış kodu: 1]
+$ ./target/release/minik calistir ornekler/sonsuz.mk
+hata: çalışma hatası: çağrı derinliği sınırı aşıldı (2000)
+[çıkış kodu: 1]

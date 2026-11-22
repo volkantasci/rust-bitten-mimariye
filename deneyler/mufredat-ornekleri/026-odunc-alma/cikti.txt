@@ -1,0 +1,18 @@
+$ cargo run -q
+kapasite 3, veri @ 0x56273aab7d60
+kapasite 6, veri @ 0x56273aab7d60
+kapasite 12, veri @ 0x56273aab7da0
+$ cargo build -q
+error[E0502]: cannot borrow `v` as mutable because it is also borrowed as immutable
+ --> src/main.rs:4:5
+  |
+3 |     let ilk = &v[0]; // paylaşılan ödünç
+  |                - immutable borrow occurs here
+4 |     v.push(4); // değiştirmek için özel (mut) ödünç gerekir
+  |     ^^^^^^^^^ mutable borrow occurs here
+5 |     println!("ilk = {ilk}");
+  |                      --- immutable borrow later used here
+
+For more information about this error, try `rustc --explain E0502`.
+error: could not compile `kural` (bin "kural") due to 1 previous error
+[çıkış kodu: 101]

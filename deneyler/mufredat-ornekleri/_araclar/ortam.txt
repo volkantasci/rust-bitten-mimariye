@@ -1,0 +1,19 @@
+tarih: 2026-11-20T16:40:17Z
+rustc 1.100.0 (0ef1bc386 2026-11-09)
+binary: rustc
+commit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a
+commit-date: 2026-11-09
+host: x86_64-unknown-linux-gnu
+release: 1.100.0
+LLVM version: 23.1.5
+cargo 1.100.0 (3acc79c0c 2026-11-05)
+rustc 1.102.0-nightly (6905905bb 2026-11-19)
+miri 0.1.0 (6905905bb7 2026-11-19)
+gcc (Debian 14.2.0-19) 14.2.0
+Model name:                              AMD Ryzen 5 5600 6-Core Processor
+L1d cache:                               192 KiB (6 instances)
+L1i cache:                               192 KiB (6 instances)
+L2 cache:                                3 MiB (6 instances)
+L3 cache:                                32 MiB (1 instance)
+çekirdek: 7.2.15-1-omarchy
+sayfa boyutu: 4096

@@ -1,0 +1,26 @@
+$ cargo run -q
+bakiye: 100
+Ayşe hesabı kapandı
+son bakiye: 100
+$ cargo build -q
+error[E0382]: borrow of moved value: `h`
+  --> src/main.rs:28:5
+   |
+23 |     let mut h = Hesap::yeni("Ayşe");
+   |         ----- move occurs because `h` has type `Hesap`, which does not implement the `Copy` trait
+...
+26 |     let son = h.kapat();
+   |                 ------- `h` moved due to this method call
+27 |     println!("son bakiye: {son}");
+28 |     h.yatir(5); // kapanmış hesaba para yatırmak
+   |     ^ value borrowed here after move
+   |
+note: `Hesap::kapat` takes ownership of the receiver `self`, which moves `h`
+  --> src/main.rs:16:14
+   |
+16 |     fn kapat(self) -> i64 { // self: hesabı tüketir
+   |              ^^^^
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `kapali_hesap` (bin "kapali_hesap") due to 1 previous error
+[çıkış kodu: 101]

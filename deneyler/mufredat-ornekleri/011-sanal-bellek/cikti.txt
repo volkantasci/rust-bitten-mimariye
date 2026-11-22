@@ -1,0 +1,19 @@
+$ getconf PAGESIZE
+4096
+$ cat /sys/kernel/mm/transparent_hugepage/enabled
+[always] madvise never
+$ cargo build -q --release
+$ ./target/release/sanal_bellek
+yığın adresi: 0x7ffe95fa7cb7   öbek adresi: 0x56267cfb3d60
+başlangıç        : VmRSS      2000 kB  sayfa hatası     101
+1 GiB ayrıldı    : VmRSS      2008 kB  sayfa hatası     102
+sayfalara dokundu: VmRSS   1050580 kB  sayfa hatası  261223
+AnonHugePages:      4096 kB   (2 MiB'lik dev sayfalarla karşılanan kısım)
+toplam: 262144
+$ ./target/release/sanal_bellek
+yığın adresi: 0x7fffcce64467   öbek adresi: 0x560dd6644d60
+başlangıç        : VmRSS      1888 kB  sayfa hatası      98
+1 GiB ayrıldı    : VmRSS      1896 kB  sayfa hatası      99
+sayfalara dokundu: VmRSS   1050468 kB  sayfa hatası  261220
+AnonHugePages:      4096 kB   (2 MiB'lik dev sayfalarla karşılanan kısım)
+toplam: 262144

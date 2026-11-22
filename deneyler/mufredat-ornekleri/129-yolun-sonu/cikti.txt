@@ -1,0 +1,10 @@
+$ cd ambar && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/ambar: /'
+ambar: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ cd kapi && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/kapi: /'
+kapi: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ cd minik && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/minik: /'
+minik: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ wc -l ambar/src/*.rs ambar/src/bin/*.rs kapi/src/*.rs kapi/src/bin/*.rs minik/src/*.rs minik/src/bin/*.rs | tail -n 1
+ 1711 total
+$ ls -d ../[0-9][0-9][0-9]-*/ | wc -l
+129

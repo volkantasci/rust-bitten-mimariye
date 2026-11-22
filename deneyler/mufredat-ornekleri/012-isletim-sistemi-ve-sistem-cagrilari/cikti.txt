@@ -1,0 +1,10 @@
+$ cargo build -q --release
+$ ./target/release/sistem_cagrisi
+1000000 fonksiyon çağrısı :     1.42 ns/çağrı
+1000000 getpid() çağrısı  :   273.30 ns/çağrı
+$ strace -c -e trace=getpid ./target/release/sistem_cagrisi 1000 > /dev/null
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.001738           1      1000           getpid
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.001738           1      1000           total

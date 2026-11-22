@@ -1,0 +1,21 @@
+$ cargo build -q
+error[E0072]: recursive type `Liste` has infinite size
+ --> src/main.rs:1:1
+  |
+1 | enum Liste {
+  | ^^^^^^^^^^
+2 |     Bos,
+3 |     Eleman(i32, Liste),
+  |                 ----- recursive without indirection
+  |
+help: insert some indirection (e.g., a `Box`, `Rc`, or `&`) to break the cycle
+  |
+3 |     Eleman(i32, Box<Liste>),
+  |                 ++++     +
+
+For more information about this error, try `rustc --explain E0072`.
+error: could not compile `sonsuz` (bin "sonsuz") due to 1 previous error
+[çıkış kodu: 101]
+$ cargo run -q
+sıralı gezinme: [20, 30, 35, 40, 50, 60, 70, 80], derinlik 4
+size_of::<Box<Agac>>() = 8 bayt, size_of::<Agac>() = 24 bayt

@@ -1,0 +1,23 @@
+$ cargo build -q --release
+$ curl -s -i http://127.0.0.1:8101/
+HTTP/1.1 200 OK
+Content-Length: 23
+Content-Type: text/plain; charset=utf-8
+
+<h1>Merhaba Kapı</h1>
+$ curl -s http://127.0.0.1:8101/belgeler/not.txt
+gizli olmayan not
+$ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8101/yok.html
+404
+$ curl -s --path-as-is -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8101/../../etc/passwd"
+403
+$ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:8101/
+405
+$ exec 3<>/dev/tcp/127.0.0.1/8101; printf "MERHABA\r\n\r\n" >&3; cat <&3
+HTTP/1.1 400 Bad Request
+Content-Length: 28
+Content-Type: text/plain; charset=utf-8
+
+BozukIstekSatiri("MERHABA")
+$ cat /tmp/kapi.log
+havuz sunucusu 8 işçiyle dinliyor: 127.0.0.1:8101

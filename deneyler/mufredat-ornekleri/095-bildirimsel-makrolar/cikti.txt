@@ -1,0 +1,4 @@
+$ cargo run -q
+{"armut": 5, "ayva": 1, "elma": 3}
+en_buyuk!(3, 9, 4, 7) = 9
+iki_kati!(x) = 20 (C önişlemcisi gibi metin yapıştırsaydı 2 * 2 = 4 olurdu)

@@ -1,0 +1,16 @@
+$ cargo run -q
+Cell sayaç: 2
+RefCell: [1, 2, 3]
+--- Rc + RefCell ile döngü:
+x sayaç 2, y sayaç 2
+kapsam bitti, hiçbiri bırakılmadı: bellek sızdı (güvenli ama sızıntı)
+--- Weak geri bağlantı ile:
+ebeveyn güçlü 1, zayıf 1
+  ebeveyn bırakıldı
+kapsam bitti
+--- aynı anda iki borrow_mut:
+
+thread 'main' (6846) panicked at src/main.rs:62:25:
+RefCell already borrowed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]

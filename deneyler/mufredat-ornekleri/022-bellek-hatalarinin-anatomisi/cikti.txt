@@ -1,0 +1,48 @@
+$ gcc -O0 -fstack-protector-strong -o target/tasma c/tasma.c
+$ ./target/tasma Ferris
+tampon = Ferris
+$ ./target/tasma "bu metin sekiz bayttan cok daha uzun"
+*** stack smashing detected ***: terminated
+[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
+$ gcc -O0 -o target/cift_birak c/cift_birak.c
+$ ./target/cift_birak
+free(): double free detected in tcache 2
+[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
+$ gcc -O0 -g -fsanitize=address -o target/uaf_asan c/kullan_sonra_birak.c
+$ ./target/uaf_asan 2>&1 | head -n 30
+=================================================================
+==1891==ERROR: AddressSanitizer: heap-use-after-free on address 0x502000000010 at pc 0x7f321abb379c bp 0x7ffc9ff9b000 sp 0x7ffc9ff9a7c0
+READ of size 2 at 0x502000000010 thread T0
+    #0 0x7f321abb379b in printf_common ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors_format.inc:563
+    #1 0x7f321abdf49a in vprintf ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:1644
+    #2 0x7f321abe108e in printf ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:1702
+    #3 0x55b287cec244 in main c/kullan_sonra_birak.c:16
+    #4 0x7f321a94cca7 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #5 0x7f321a94cd64 in __libc_start_main_impl ../csu/libc-start.c:360
+    #6 0x55b287cec0e0 in _start (/work/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/target/uaf_asan+0x10e0) (BuildId: 95fedd94862cd2cc868a045a076292f8485e9a31)
+
+0x502000000010 is located 0 bytes inside of 16-byte region [0x502000000010,0x502000000020)
+freed by thread T0 here:
+    #0 0x7f321ac0a8f8 in free ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:52
+    #1 0x55b287cec1c0 in temizle c/kullan_sonra_birak.c:6
+    #2 0x55b287cec200 in main c/kullan_sonra_birak.c:11
+    #3 0x7f321a94cca7 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+
+previously allocated by thread T0 here:
+    #0 0x7f321ac0bc57 in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:69
+    #1 0x55b287cec1d5 in main c/kullan_sonra_birak.c:9
+    #2 0x7f321a94cca7 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+
+SUMMARY: AddressSanitizer: heap-use-after-free ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors_format.inc:563 in printf_common
+Shadow bytes around the buggy address:
+  0x501ffffffd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x501ffffffe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x501ffffffe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x501fffffff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x501fffffff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+$ cargo run -q
+
+thread 'main' (1893) panicked at src/main.rs:4:34:
+index out of bounds: the len is 8 but the index is 20
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]

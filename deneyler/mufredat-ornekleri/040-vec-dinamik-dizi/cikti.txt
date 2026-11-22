@@ -1,0 +1,13 @@
+$ cargo run -q
+başlangıç: len 0, cap 0
+len    1 → cap    4
+len    5 → cap    8
+len    9 → cap   16
+len   17 → cap   32
+len   33 → cap   64
+len   65 → cap  128
+len  129 → cap  256
+len  257 → cap  512
+len  513 → cap 1024
+1000 push, yeniden ayırmada en fazla 1020 eleman taşındı (≈ push başına 1.02)
+Vec::with_capacity(1000): cap 1000

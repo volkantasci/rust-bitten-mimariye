@@ -1,0 +1,3 @@
+$ cargo run -q
+BFS: S → E en kısa yol 12 adım
+Dijkstra: İstanbul → Ankara 450 km, yol: İstanbul → Bolu → Ankara

@@ -1,0 +1,57 @@
+$ rustc --edition 2024 -C opt-level=3 --crate-type=lib --emit=obj -o target/islem.o islem.rs
+$ objdump -d -M intel --no-show-raw-insn --disassemble=topla target/islem.o
+
+target/islem.o:     file format elf64-x86-64
+
+
+Disassembly of section .text.topla:
+
+0000000000000000 <topla>:
+   0:	lea    rax,[rdi+rsi*1]
+   4:	ret
+
+Disassembly of section .text.toplam:
+$ objdump -d -M intel --no-show-raw-insn --disassemble=toplam target/islem.o
+
+target/islem.o:     file format elf64-x86-64
+
+
+Disassembly of section .text.topla:
+
+Disassembly of section .text.toplam:
+
+0000000000000000 <toplam>:
+   0:	test   rdi,rdi
+   3:	je     1d <toplam+0x1d>
+   5:	lea    rax,[rdi-0x1]
+   9:	lea    rcx,[rdi-0x2]
+   d:	mul    rcx
+  10:	shld   rdx,rax,0x3f
+  15:	lea    rax,[rdi+rdx*1]
+  19:	dec    rax
+  1c:	ret
+  1d:	xor    eax,eax
+  1f:	ret
+$ rustc --edition 2024 -C opt-level=0 --crate-type=lib --emit=obj -o target/islem_debug.o islem.rs
+$ objdump -d -M intel --no-show-raw-insn -r -C --disassemble=topla target/islem_debug.o
+
+target/islem_debug.o:     file format elf64-x86-64
+
+
+Disassembly of section .text.topla:
+
+0000000000000000 <topla>:
+   0:	push   rax
+   1:	add    rdi,rsi
+   4:	mov    QWORD PTR [rsp],rdi
+   8:	seto   al
+   b:	jo     13 <topla+0x13>
+   d:	mov    rax,QWORD PTR [rsp]
+  11:	pop    rcx
+  12:	ret
+  13:	lea    rdi,[rip+0x0]        # 1a <topla+0x1a>
+			16: R_X86_64_PC32	.data.rel.ro..Lanon.15a2729f09bda4f55a112f95d75d0bf2.1-0x4
+  1a:	call   QWORD PTR [rip+0x0]        # 20 <topla+0x20>
+			1c: R_X86_64_GOTPCREL	core::panicking::panic_const::panic_const_add_overflow-0x4
+
+Disassembly of section .text.toplam:

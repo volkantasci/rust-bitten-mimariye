@@ -1,0 +1,26 @@
+$ cargo build -q
+$ exec 3<>/dev/tcp/127.0.0.1/8099; printf "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" >&3; cat <&3 | od -c | head -n 12
+0000000   H   T   T   P   /   1   .   1       2   0   0       O   K  \r
+0000020  \n   C   o   n   t   e   n   t   -   T   y   p   e   :       t
+0000040   e   x   t   /   p   l   a   i   n   ;       c   h   a   r   s
+0000060   e   t   =   u   t   f   -   8  \r  \n   C   o   n   t   e   n
+0000100   t   -   L   e   n   g   t   h   :       1   5  \r  \n   C   o
+0000120   n   n   e   c   t   i   o   n   :       c   l   o   s   e  \r
+0000140  \n  \r  \n   M   e   r   h   a   b   a   ,       H   T   T   P
+0000160   !  \n
+0000162
+$ curl -sv http://127.0.0.1:8099/ 2>&1 | grep -E "^[<>] |^Merhaba"
+> GET / HTTP/1.1
+> Host: 127.0.0.1:8099
+> User-Agent: curl/8.14.1
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Content-Type: text/plain; charset=utf-8
+< Content-Length: 15
+< Connection: close
+< 
+Merhaba, HTTP!
+$ cat calisma_sunucu.log
+[sunucu] istek: GET / HTTP/1.1
+[sunucu] istek: GET / HTTP/1.1

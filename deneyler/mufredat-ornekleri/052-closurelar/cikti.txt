@@ -1,0 +1,30 @@
+$ cargo run -q
+hiçbir şey yakalamayan :  0 bayt
+&u64 yakalayan         :  8 bayt
+&mut u32 yakalayan     :  8 bayt
+String taşıyan (move)  : 24 bayt
+1 11 1 2
+Ferris
+$ cargo build -q
+error[E0382]: use of moved value: `tuket`
+ --> src/main.rs:5:20
+  |
+4 |     println!("{}", tuket());
+  |                    ------- `tuket` moved due to this call
+5 |     println!("{}", tuket());
+  |                    ^^^^^ value used here after move
+  |
+note: closure cannot be invoked more than once because it moves the variable `ad` out of its environment
+ --> src/main.rs:3:25
+  |
+3 |     let tuket = move || ad; // çağrılınca ad'ı dışarı verir: FnOnce
+  |                         ^^
+note: this value implements `FnOnce`, which causes it to be moved when called
+ --> src/main.rs:4:20
+  |
+4 |     println!("{}", tuket());
+  |                    ^^^^^
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `fnonce` (bin "fnonce") due to 1 previous error
+[çıkış kodu: 101]

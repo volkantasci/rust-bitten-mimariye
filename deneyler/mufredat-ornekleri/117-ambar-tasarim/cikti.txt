@@ -1,0 +1,16 @@
+$ cargo build -q --release
+$ ./target/release/ambar demo calisma/veri
+bellekteki durum: [("dil", "Rust"), ("maskot", "Ferris")]
+$ ./target/release/ambar kurtar calisma/veri
+geçerli kayıt: 5, geçerli bayt: 96, atılan bayt: 0
+anahtar sayısı: 2
+  dil = Rust
+  maskot = Ferris
+$ od -A d -c calisma/veri/gunluk.ambar
+0000000 210 353 301 272 003  \0  \0  \0 004  \0  \0  \0   d   i   l   r
+0000016   u   s   t 021   ] 031 222 003  \0  \0  \0 004  \0  \0  \0   y
+0000032   i   l   2   0   1   5 266   D 363 032 003  \0  \0  \0 004  \0
+0000048  \0  \0   d   i   l   R   u   s   t   .   Y 355   ; 003  \0  \0
+0000064  \0 377 377 377 377   y   i   l   b 031 307   N 006  \0  \0  \0
+0000080 006  \0  \0  \0   m   a   s   k   o   t   F   e   r   r   i   s
+0000096

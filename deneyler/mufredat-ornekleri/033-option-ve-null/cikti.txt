@@ -1,0 +1,11 @@
+$ cargo run -q
+&u64               : 8 bayt
+Option<&u64>       : 8 bayt
+Box<u64>           : 8 bayt
+Option<Box<u64>>   : 8 bayt
+u32                : 4 bayt
+Option<u32>        : 8 bayt
+Option<NonZeroU32> : 4 bayt
+Option<bool>       : 1 bayt
+Ferris: 7 yaşında
+Ali: bulunamadı

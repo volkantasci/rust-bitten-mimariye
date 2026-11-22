@@ -1,0 +1,27 @@
+$ cargo build -q --release
+$ cat ornekler/ifade.mk
+let x = 2 + 3 * (4 - 1);
+print(x);
+$ ./target/release/minik token ornekler/ifade.mk
+ 1:1  Let
+ 1:5  Ad("x")
+ 1:7  Esit
+ 1:9  Sayi(2)
+ 1:11 Arti
+ 1:13 Sayi(3)
+ 1:15 Yildiz
+ 1:17 SolParantez
+ 1:18 Sayi(4)
+ 1:20 Eksi
+ 1:22 Sayi(1)
+ 1:23 SagParantez
+ 1:24 NoktaliVirgul
+ 2:1  Print
+ 2:6  SolParantez
+ 2:7  Ad("x")
+ 2:8  SagParantez
+ 2:9  NoktaliVirgul
+ 3:1  Son
+$ ./target/release/minik token ornekler/garip_karakter.mk
+hata: satır 1, sütun 11: beklenmeyen karakter '@'
+[çıkış kodu: 1]

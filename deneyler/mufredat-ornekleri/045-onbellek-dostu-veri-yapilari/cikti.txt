@@ -1,0 +1,7 @@
+$ cargo run -q --release
+matris satır-öncelikli gezinme         2.75 ms
+matris sütun-öncelikli gezinme        74.55 ms
+Vec<u64> toplamı                       1.84 ms
+LinkedList<u64> toplamı                6.93 ms
+AoS: Vec<Parcacik> içinden kütle       4.03 ms
+SoA: Vec<f32> kütle dizisi             2.72 ms

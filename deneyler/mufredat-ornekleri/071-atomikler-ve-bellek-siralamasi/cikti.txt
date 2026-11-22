@@ -1,0 +1,17 @@
+$ cargo build -q --release
+$ ./target/release/siralama_testi
+Relaxed : 1000000 turda r1 = r2 = 0 sonucu 495535 kez görüldü
+SeqCst  : 1000000 turda r1 = r2 = 0 sonucu 0 kez görüldü
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_oku_gevsek>:"
+00000000000182e0 <siralama_testi::yaz_oku_gevsek>:
+   182e0:	mov    DWORD PTR [rdi],0x1
+   182e6:	mov    eax,DWORD PTR [rsi]
+   182e8:	ret
+   182e9:	int3
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A5 "<siralama_testi::yaz_oku_sirali>:"
+00000000000182f0 <siralama_testi::yaz_oku_sirali>:
+   182f0:	mov    eax,0x1
+   182f5:	xchg   DWORD PTR [rdi],eax
+   182f7:	mov    eax,DWORD PTR [rsi]
+   182f9:	ret
+   182fa:	int3

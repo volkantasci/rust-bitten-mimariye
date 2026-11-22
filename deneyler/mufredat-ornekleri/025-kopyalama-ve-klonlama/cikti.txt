@@ -1,0 +1,19 @@
+$ cargo run -q
+size_of::<String>() = 24 bayt (işaretçi + kapasite + uzunluk)
+a = 5, b = 5
+p = (1, 2), q = (1, 2)
+s verisi @ 0x555642267d60, t verisi @ 0x555642267d80
+$ cargo build -q
+error[E0204]: the trait `Copy` cannot be implemented for this type
+ --> src/main.rs:2:8
+  |
+1 | #[derive(Clone, Copy)]
+  |                 ---- in this derive macro expansion
+2 | struct Kisi {
+  |        ^^^^
+3 |     ad: String,
+  |     ---------- this field does not implement `Copy`
+
+For more information about this error, try `rustc --explain E0204`.
+error: could not compile `copy_olamaz` (bin "copy_olamaz") due to 1 previous error
+[çıkış kodu: 101]

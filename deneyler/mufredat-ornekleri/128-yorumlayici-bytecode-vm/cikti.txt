@@ -1,0 +1,61 @@
+$ cargo build -q --release
+$ cat ornekler/kare.mk
+fn kare(x) {
+    return x * x;
+}
+let t = 0;
+let i = 1;
+while i <= 3 && t < 100 {
+    t = t + kare(i);
+    i = i + 1;
+}
+print(t);
+$ ./target/release/minik listele ornekler/kare.mk
+kare (1 parametre, 1 yerel yuva):
+  0000  YereliOku(0)
+  0001  YereliOku(0)
+  0002  Ikili(Carp)
+  0003  Don
+  0004  DonBos
+<ana> (0 parametre, 2 yerel yuva):
+  0000  Sabit(0)
+  0001  YereleYaz(0)
+  0002  Sabit(1)
+  0003  YereleYaz(1)
+  0004  YereliOku(1)
+  0005  Sabit(3)
+  0006  Ikili(KucukEsit)
+  0007  VeAtla(11)
+  0008  YereliOku(0)
+  0009  Sabit(100)
+  0010  Ikili(Kucuk)
+  0011  YanlissaAtla(22)
+  0012  YereliOku(0)
+  0013  YereliOku(1)
+  0014  Cagir(0, 1)
+  0015  Ikili(Topla)
+  0016  YereleYaz(0)
+  0017  YereliOku(1)
+  0018  Sabit(1)
+  0019  Ikili(Topla)
+  0020  YereleYaz(1)
+  0021  Atla(4)
+  0022  YereliOku(0)
+  0023  Yazdir
+  0024  DonBos
+$ ./target/release/minik vm ornekler/kare.mk
+14
+$ diff <(./target/release/minik calistir ornekler/fib.mk) <(./target/release/minik vm ornekler/fib.mk) && echo "fib.mk: iki motorun çıktısı aynı"
+fib.mk: iki motorun çıktısı aynı
+$ cat ornekler/kiyas.mk
+fn fib(n) {
+    if n < 2 { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+print(fib(27));
+$ ./target/release/minik kiyasla ornekler/kiyas.mk
+196418
+196418
+ağaç yürüten yorumlayıcı:    163.9 ms (5084966 ifade düğümü değerlendirildi)
+bayt kod + yığın makinesi:     36.1 ms (6356210 komut yürütüldü)
+hızlanma: 4.54×

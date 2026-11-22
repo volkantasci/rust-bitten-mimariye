@@ -1,0 +1,8 @@
+$ cargo run -q --release
+eşlendi: 0x7f8bb182e000, ilk 7 bayt: "MERHABA"
+16384 sayfaya dokunuldu → 492 küçük sayfa hatası (toplam = 77)
+$ strace -e trace=openat,mmap,munmap ./target/release/mmap 2>&1 | grep -E "esleme.bin|67108864"
+openat(AT_FDCWD, "/tmp/esleme.bin", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+openat(AT_FDCWD, "/tmp/esleme.bin", O_RDONLY|O_CLOEXEC) = 3
+mmap(NULL, 67108864, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f749b51d000
+munmap(0x7f749b51d000, 67108864)        = 0

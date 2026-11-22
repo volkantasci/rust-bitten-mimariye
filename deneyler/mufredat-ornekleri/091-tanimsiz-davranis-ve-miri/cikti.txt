@@ -1,0 +1,43 @@
+$ cargo run -q --bin sinir_disi
+v[3] = 0
+$ cargo run -q --release --bin birak_sonra_kullan
+değer = 32767
+$ cargo run -q --release --bin gecersiz_bool
+doğru
+$ cargo +nightly miri run -q --bin sinir_disi 2>&1 | head -n 12
+error: Undefined Behavior: memory access failed: attempting to access 1 byte, but got alloc309+0x3 which is at or beyond the end of the allocation of size 3 bytes
+ --> src/bin/sinir_disi.rs:4:27
+  |
+4 |     let disari = unsafe { *p.add(3) }; // 4. eleman yok: tanımsız davranış
+  |                           ^^^^^^^^^ Undefined Behavior occurred here
+  |
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc309 was allocated here:
+ --> src/bin/sinir_disi.rs:2:13
+  |
+2 |     let v = vec![10u8, 20, 30];
+$ cargo +nightly miri run -q --bin birak_sonra_kullan 2>&1 | head -n 12
+error: Undefined Behavior: memory access failed: alloc307 has been freed, so this pointer is dangling
+ --> src/bin/birak_sonra_kullan.rs:6:37
+  |
+6 |     println!("değer = {}", unsafe { *p }); // bırakılmış bellek: tanımsız davranış
+  |                                     ^^ Undefined Behavior occurred here
+  |
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc307 was allocated here:
+ --> src/bin/birak_sonra_kullan.rs:3:20
+  |
+3 |         let kutu = Box::new(5u32);
+$ cargo +nightly miri run -q --bin gecersiz_bool 2>&1 | head -n 10
+error: Undefined Behavior: constructing invalid value of type bool: encountered 0x02, but expected a boolean
+ --> src/bin/gecersiz_bool.rs:2:28
+  |
+2 |     let b: bool = unsafe { std::mem::transmute(2u8) }; // bool yalnızca 0 ya da 1 olabilir
+  |                            ^^^^^^^^^^^^^^^^^^^^^^^^ Undefined Behavior occurred here
+  |
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace

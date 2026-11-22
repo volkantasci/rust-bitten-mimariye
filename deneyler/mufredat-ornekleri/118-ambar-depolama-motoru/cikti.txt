@@ -1,0 +1,31 @@
+$ cargo test -q --lib 2>&1 | grep "test result"
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ cargo build -q --release
+$ ./target/release/ambar doldur calisma/veri 1000
+1000 kayıt yazıldı
+$ stat -c "%s bayt" calisma/veri/gunluk.ambar
+33890 bayt
+$ truncate -s -5 calisma/veri/gunluk.ambar
+$ ./target/release/ambar kurtar calisma/veri
+geçerli kayıt: 999, geçerli bayt: 33856, atılan bayt: 29
+kurtarma notu: 33856. baytta yarım kayıt (29/34 bayt)
+anahtar sayısı: 999
+  anahtar00000 = değer-0
+  anahtar00001 = değer-1
+  anahtar00002 = değer-2
+$ printf "X" | dd of=calisma/veri/gunluk.ambar bs=1 seek=16910 conv=notrunc status=none
+$ ./target/release/ambar kurtar calisma/veri
+geçerli kayıt: 500, geçerli bayt: 16890, atılan bayt: 17000
+kurtarma notu: 16890. baytta CRC uyuşmazlığı (bozuk kayıt)
+anahtar sayısı: 500
+  anahtar00000 = değer-0
+  anahtar00001 = değer-1
+  anahtar00002 = değer-2
+$ printf "X" | dd of=calisma/veri/gunluk.ambar bs=1 seek=16900 conv=notrunc status=none
+$ ./target/release/ambar kurtar calisma/veri
+geçerli kayıt: 500, geçerli bayt: 16890, atılan bayt: 17000
+kurtarma notu: 16890. baytta yarım kayıt (17000/5767202 bayt)
+anahtar sayısı: 500
+  anahtar00000 = değer-0
+  anahtar00001 = değer-1
+  anahtar00002 = değer-2

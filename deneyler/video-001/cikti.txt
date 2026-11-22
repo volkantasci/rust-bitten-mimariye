@@ -1,0 +1,204 @@
+$ rustc --version
+rustc 1.100.0 (0ef1bc386 2026-11-09)
+$ cargo --version
+cargo 1.100.0 (3acc79c0c 2026-11-05)
+$ gcc --version | head -1
+gcc (Debian 14.2.0-19) 14.2.0
+$ valgrind --version
+valgrind-3.24.0
+$ ldd --version | head -1
+ldd (Debian GLIBC 2.41-12+deb13u4) 2.41
+$ cmp c/kullan_sonra_birak2.c ../mufredat-ornekleri/001-neden-rust-neden-bilim/c/kullan_sonra_birak2.c
+$ cmp rust/src/bin/orijinal.rs ../mufredat-ornekleri/001-neden-rust-neden-bilim/rust/src/main.rs
+$ gcc -Wall -Wextra -O0 -g -o target/kullan_sonra_birak2 c/kullan_sonra_birak2.c
+$ ./target/kullan_sonra_birak2; echo "çıkış kodu: $?"
+isim = gizli-123
+çıkış kodu: 0
+$ for i in $(seq 100); do ./target/kullan_sonra_birak2; done | sort | uniq -c
+    100 isim = gizli-123
+$ gcc -Wall -Wextra -O0 -g -o target/adresler c/adresler.c
+$ ./target/adresler
+isim  bloğu: 0x55ae7507d2a0
+sifre bloğu: 0x55ae7507d2a0
+aynı blok mu? evet
+isim = gizli-123
+$ ./target/adresler
+isim  bloğu: 0x55c4740a62a0
+sifre bloğu: 0x55c4740a62a0
+aynı blok mu? evet
+isim = gizli-123
+$ for i in $(seq 100); do ./target/adresler | grep "aynı blok"; done | sort | uniq -c
+    100 aynı blok mu? evet
+$ valgrind -q ./target/adresler 2>/dev/null
+isim  bloğu: 0x4a59040
+sifre bloğu: 0x4a59090
+aynı blok mu? hayır
+isim = Ferris
+$ valgrind --tool=memcheck --help 2>&1 | grep -A3 -- "--freelist-vol"
+    --freelist-vol=<number>          volume of freed blocks queue     [20000000]
+    --freelist-big-blocks=<number>   releases first blocks with size>= [1000000]
+    --workaround-gcc296-bugs=no|yes  self explanatory [no].  Deprecated.
+                                     Use --ignore-range-below-sp instead.
+$ valgrind -q --error-exitcode=1 --freelist-vol=0 ./target/kullan_sonra_birak2
+==367== Invalid read of size 1
+==367==    at 0x484DC86: strlen (vg_replace_strmem.c:505)
+==367==    by 0x48C627F: __printf_buffer (vfprintf-process-arg.c:435)
+==367==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
+==367==    by 0x48BB92A: printf (printf.c:33)
+==367==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
+==367==  Address 0x4a59040 is 0 bytes inside an unallocated block of size 16 in arena "client"
+==367== 
+==367== Invalid read of size 1
+==367==    at 0x484DC94: strlen (vg_replace_strmem.c:505)
+==367==    by 0x48C627F: __printf_buffer (vfprintf-process-arg.c:435)
+==367==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
+==367==    by 0x48BB92A: printf (printf.c:33)
+==367==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
+==367==  Address 0x4a59041 is 1 bytes inside an unallocated block of size 16 in arena "client"
+==367== 
+==367== Invalid read of size 1
+==367==    at 0x48525F0: memmove (vg_replace_strmem.c:1414)
+==367==    by 0x48BC277: memcpy (string_fortified.h:29)
+==367==    by 0x48BC277: __printf_buffer_write (Xprintf_buffer_write.c:39)
+==367==    by 0x48C4A03: __printf_buffer (vfprintf-process-arg.c:501)
+==367==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
+==367==    by 0x48BB92A: printf (printf.c:33)
+==367==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
+==367==  Address 0x4a59040 is 0 bytes inside an unallocated block of size 16 in arena "client"
+==367== 
+==367== Invalid read of size 1
+==367==    at 0x48525FD: memmove (vg_replace_strmem.c:1414)
+==367==    by 0x48BC277: memcpy (string_fortified.h:29)
+==367==    by 0x48BC277: __printf_buffer_write (Xprintf_buffer_write.c:39)
+==367==    by 0x48C4A03: __printf_buffer (vfprintf-process-arg.c:501)
+==367==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
+==367==    by 0x48BB92A: printf (printf.c:33)
+==367==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
+==367==  Address 0x4a59042 is 2 bytes inside an unallocated block of size 16 in arena "client"
+==367== 
+isim = Ferris
+[çıkış kodu: 1]
+$ gcc -Wall -Wextra -O2 -g -o target/kullan_sonra_birak2_O2 c/kullan_sonra_birak2.c
+c/kullan_sonra_birak2.c: In function ‘main’:
+c/kullan_sonra_birak2.c:16:5: warning: pointer ‘isim’ used after ‘free’ [-Wuse-after-free]
+   16 |     printf("isim = %s\n", isim);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+In function ‘temizle’,
+    inlined from ‘main’ at c/kullan_sonra_birak2.c:11:5:
+c/kullan_sonra_birak2.c:6:25: note: call to ‘free’ here
+    6 | void temizle(char *p) { free(p); }
+      |                         ^~~~~~~
+$ ./target/kullan_sonra_birak2_O2
+isim = ���X
+$ for i in $(seq 100); do ./target/kullan_sonra_birak2_O2; done | sort -u | wc -l
+100
+$ objdump -d --no-show-raw-insn target/kullan_sonra_birak2 | grep -oE "call +[0-9a-f]+ <(malloc|free)@plt>" | grep -oE "<.*>" | sort | uniq -c
+      2 <free@plt>
+      2 <malloc@plt>
+$ objdump -d --no-show-raw-insn target/kullan_sonra_birak2_O2 | grep -oE "call +[0-9a-f]+ <(malloc|free)@plt>" | grep -oE "<.*>" | sort | uniq -c
+      1 <free@plt>
+      1 <malloc@plt>
+$ objdump -d --no-show-raw-insn --disassemble=main target/kullan_sonra_birak2_O2 | grep -oE "(call|jmp) +[0-9a-f]+ <[^>]+>" | grep -oE "<[^>]+>"
+<malloc@plt>
+<free@plt>
+<printf@plt>
+$ gcc -Wall -Wextra -fanalyzer -O0 -g -o target/kullan_sonra_birak2_fa c/kullan_sonra_birak2.c
+c/kullan_sonra_birak2.c: In function ‘main’:
+c/kullan_sonra_birak2.c:10:5: warning: use of possibly-NULL ‘isim’ where non-null expected [CWE-690] [-Wanalyzer-possible-null-argument]
+   10 |     strcpy(isim, "Ferris");
+      |     ^~~~~~~~~~~~~~~~~~~~~~
+  ‘main’: events 1-2
+    |
+    |    9 |     char *isim = malloc(16);
+    |      |                  ^~~~~~~~~~
+    |      |                  |
+    |      |                  (1) this call could return NULL
+    |   10 |     strcpy(isim, "Ferris");
+    |      |     ~~~~~~~~~~~~~~~~~~~~~~
+    |      |     |
+    |      |     (2) argument 1 (‘isim’) from (1) could be NULL where non-null expected
+    |
+<built-in>: note: argument 1 of ‘__builtin_memcpy’ must be non-null
+c/kullan_sonra_birak2.c:14:5: warning: use of possibly-NULL ‘sifre’ where non-null expected [CWE-690] [-Wanalyzer-possible-null-argument]
+   14 |     strcpy(sifre, "gizli-123");
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~
+  ‘main’: events 1-2
+    |
+    |   13 |     char *sifre = malloc(16);
+    |      |                   ^~~~~~~~~~
+    |      |                   |
+    |      |                   (1) this call could return NULL
+    |   14 |     strcpy(sifre, "gizli-123");
+    |      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    |      |     |
+    |      |     (2) argument 1 (‘sifre’) from (1) could be NULL where non-null expected
+    |
+<built-in>: note: argument 1 of ‘__builtin_memcpy’ must be non-null
+$ gcc -fsanitize=address -O0 -g -o target/kullan_sonra_birak2_asan c/kullan_sonra_birak2.c
+$ ./target/kullan_sonra_birak2_asan 2>&1 | grep -E "ERROR|READ of size|isim =" | sed -E "s/0x[0-9a-f]+/0x.../g"; echo "çıkış kodu: ${PIPESTATUS[0]}"
+==506==ERROR: AddressSanitizer: heap-use-after-free on address 0x... at pc 0x... bp 0x... sp 0x...
+READ of size 2 at 0x... thread T0
+çıkış kodu: 1
+$ cargo build --bin orijinal
+   Compiling video001 v0.1.0 (/work/video-001/rust)
+error[E0505]: cannot move out of `isim` because it is borrowed
+ --> src/bin/orijinal.rs:4:10
+  |
+2 |     let isim = String::from("Ferris");
+  |         ---- binding `isim` declared here
+3 |     let referans = &isim;            // isim'e bakan bir ödünç (referans)
+  |                    ----- borrow of `isim` occurs here
+4 |     drop(isim);                      // belleği iade etmeye çalış
+  |          ^^^^ move out of `isim` occurs here
+5 |     println!("isim = {referans}");   // iade edilmiş belleği okumak olurdu
+  |                       -------- borrow later used here
+  |
+help: consider cloning the value if the performance cost is acceptable
+  |
+3 |     let referans = &isim.clone();            // isim'e bakan bir ödünç (referans)
+  |                         ++++++++
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `video001` (bin "orijinal") due to 1 previous error
+[çıkış kodu: 101]
+$ ls target/debug/orijinal
+ls: cannot access 'target/debug/orijinal': No such file or directory
+[çıkış kodu: 2]
+$ cargo build --bin fonksiyon
+   Compiling video001 v0.1.0 (/work/video-001/rust)
+error[E0505]: cannot move out of `isim` because it is borrowed
+  --> src/bin/fonksiyon.rs:9:13
+   |
+ 7 |     let isim = String::from("Ferris");
+   |         ---- binding `isim` declared here
+ 8 |     let referans = &isim;            // isim'e bakan bir ödünç (referans)
+   |                    ----- borrow of `isim` occurs here
+ 9 |     temizle(isim);                   // belleği başka bir fonksiyonda iade etmeye çalış
+   |             ^^^^ move out of `isim` occurs here
+10 |     println!("isim = {referans}");   // iade edilmiş belleği okumak olurdu
+   |                       -------- borrow later used here
+   |
+help: consider cloning the value if the performance cost is acceptable
+   |
+ 8 |     let referans = &isim.clone();            // isim'e bakan bir ödünç (referans)
+   |                         ++++++++
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `video001` (bin "fonksiyon") due to 1 previous error
+[çıkış kodu: 101]
+$ cargo run --bin sira
+   Compiling video001 v0.1.0 (/work/video-001/rust)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running `target/debug/sira`
+isim = Ferris
+$ cargo run --bin klon
+   Compiling video001 v0.1.0 (/work/video-001/rust)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running `target/debug/klon`
+isim = Ferris
+$ cargo run --bin klon_adres
+   Compiling video001 v0.1.0 (/work/video-001/rust)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running `target/debug/klon_adres`
+aynı bellek mi? false
+isim = Ferris

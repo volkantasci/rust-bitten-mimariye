@@ -1,0 +1,15 @@
+$ cargo build -q --release
+$ ./target/release/ambar yuk 127.0.0.1:7002 8 2000
+8 istemci × 2000 SET = 16000 yazma, 0.19 s, 85384 yazma/s, sunucu: SAYI 16000
+$ cat calisma/yazici.txt
+onaylanan yazma: 2047
+$ ./target/release/ambar kurtar calisma/cokme
+geçerli kayıt: 2048, geçerli bayt: 50090, atılan bayt: 0
+anahtar sayısı: 2048
+  k0000000 = v0
+  k0000001 = v1
+  k0000002 = v2
+$ cat calisma/yazici_yok.txt
+onaylanan yazma: 108976
+$ ./target/release/ambar kurtar calisma/cokme_yok | grep "geçerli kayıt"
+geçerli kayıt: 108976, geçerli bayt: 2831242, atılan bayt: 0

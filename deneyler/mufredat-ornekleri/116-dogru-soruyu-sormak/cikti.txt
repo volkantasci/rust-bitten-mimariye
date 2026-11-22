@@ -1,0 +1,5 @@
+$ cargo test -q 2>&1 | grep -E "not yet implemented|test result" | sort | uniq -c
+      5 not yet implemented: henüz yazılmadı: önce sözleşme ve testler
+      1 test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ cargo test -q 2>&1 | grep "test result" | head -n 1
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

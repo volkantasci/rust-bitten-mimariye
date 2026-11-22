@@ -1,0 +1,41 @@
+$ gcc -O2 -pthread -o target/yaris c/yaris.c
+$ ./target/yaris
+beklenen 20000000, bulunan 10006703
+$ ./target/yaris
+beklenen 20000000, bulunan 10726010
+$ gcc -O1 -g -fsanitize=thread -pthread -o target/yaris_tsan c/yaris.c
+$ ./target/yaris_tsan 2>&1 | grep -E "WARNING|Write of size|Previous write|SUMMARY" | head -n 6
+WARNING: ThreadSanitizer: data race (pid=11088)
+  Previous write of size 8 at 0x562caf17f058 by thread T1:
+SUMMARY: ThreadSanitizer: data race c/yaris.c:8 in artir
+WARNING: ThreadSanitizer: data race (pid=11088)
+  Write of size 8 at 0x562caf17f058 by thread T2:
+  Previous write of size 8 at 0x562caf17f058 by thread T1:
+$ cargo build -q
+error[E0277]: `Rc<RefCell<i32>>` cannot be sent between threads safely
+  --> src/main.rs:8:27
+   |
+ 8 |       let t = thread::spawn(move || {
+   |               ------------- ^------
+   |               |             |
+   |  _____________|_____________within this `{closure@src/main.rs:8:27: 8:34}`
+   | |             |
+   | |             required by a bound introduced by this call
+ 9 | |         *kopya.borrow_mut() += 1;
+10 | |     });
+   | |_____^ `Rc<RefCell<i32>>` cannot be sent between threads safely
+   |
+   = help: within `{closure@src/main.rs:8:27: 8:34}`, the trait `Send` is not implemented for `Rc<RefCell<i32>>`
+note: required because `kopya` is used within this closure
+  --> src/main.rs:9:10
+   |
+ 9 |         *kopya.borrow_mut() += 1;
+   |          ^^^^^
+note: required by a bound in `spawn`
+  --> /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/thread/functions.rs:125:0
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `rc_gonderilemez` (bin "rc_gonderilemez") due to 1 previous error
+[çıkış kodu: 101]
+$ cargo run -q --release
+beklenen 20000000, bulunan 20000000

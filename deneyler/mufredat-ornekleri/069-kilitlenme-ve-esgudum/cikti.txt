@@ -1,0 +1,11 @@
+$ cargo build -q
+$ timeout 3 ./target/debug/kilitlenme
+1. iş parçacığı A'yı aldı, B'yi bekliyor
+2. iş parçacığı ilk kilidi aldı, ikincisini bekliyor
+[çıkış kodu: 124]
+$ timeout 3 ./target/debug/kilitlenme sirali
+1. iş parçacığı A'yı aldı, B'yi bekliyor
+1. iş parçacığı transferi yaptı (100 / 100)
+2. iş parçacığı ilk kilidi aldı, ikincisini bekliyor
+2. iş parçacığı transferi yaptı (100 / 100)
+bitti

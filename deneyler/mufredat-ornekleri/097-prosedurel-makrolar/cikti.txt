@@ -1,0 +1,16 @@
+$ cargo run -q -p kullanici
+Siparis alanları: ["numara", "musteri", "tutar_kurus"]
+$ cargo build -q -p hatali-kullanim
+error: Tanit yalnızca struct'lar için türetilebilir
+ --> hatali-kullanim/src/main.rs:4:6
+  |
+4 | enum Durum {
+  |      ^^^^^
+
+error: could not compile `hatali-kullanim` (bin "hatali-kullanim") due to 1 previous error
+[çıkış kodu: 101]
+$ cargo tree -p tanit-turet -e normal --depth 1
+tanit-turet v0.1.0 (proc-macro) (/work/mufredat-ornekleri/097-prosedurel-makrolar/tanit-turet)
+├── proc-macro2 v1.0.107
+├── quote v1.0.47
+└── syn v3.0.10

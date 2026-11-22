@@ -1,0 +1,15 @@
+$ cargo +nightly rustc -q -- -Zunpretty=expanded
+#![feature(prelude_import)]
+extern crate std;
+#[prelude_import]
+use std::prelude::rust_2024::*;
+fn main() {
+    let ad = "Ferris";
+    let v =
+        ::alloc::boxed::box_assume_init_into_vec_unsafe(::alloc::intrinsics::write_box_via_move(::alloc::boxed::Box::new_uninit(),
+                [1, 2, 3]));
+    {
+        ::std::io::_print(format_args!("merhaba {1}, {0} eleman\n", v.len(),
+                ad));
+    };
+}

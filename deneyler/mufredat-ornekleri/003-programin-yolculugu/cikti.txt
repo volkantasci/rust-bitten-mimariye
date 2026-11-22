@@ -1,0 +1,44 @@
+$ cargo build --release -q
+$ stat -c "%s bayt  %n" target/release/merhaba
+445024 bayt  target/release/merhaba
+$ file target/release/merhaba
+target/release/merhaba: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, BuildID[sha1]=d0cd1426a8c75ffeaaab228d564b6a1a6a7a19d9, not stripped
+$ od -A x -t x1z -N 16 target/release/merhaba
+000000 7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  >.ELF............<
+000010
+$ ./target/release/merhaba
+Merhaba, dünya!
+$ strace -e trace=write ./target/release/merhaba
+write(1, "Merhaba, d\303\274nya!\n", 17Merhaba, dünya!
+) = 17
++++ exited with 0 +++
+$ strace -c ./target/release/merhaba > /dev/null
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ------------------
+ 26.39    0.000071           5        13           mmap
+ 12.64    0.000034           8         4           openat
+ 12.27    0.000033           6         5           read
+  9.29    0.000025           5         5           mprotect
+  6.32    0.000017           3         5           rt_sigaction
+  5.20    0.000014           3         4           close
+  4.09    0.000011           3         3           brk
+  3.72    0.000010           2         4           fstat
+  2.23    0.000006           6         1           munmap
+  2.23    0.000006           3         2           sigaltstack
+  2.23    0.000006           3         2           prlimit64
+  1.49    0.000004           4         1           write
+  1.49    0.000004           2         2           pread64
+  1.49    0.000004           4         1         1 access
+  1.49    0.000004           4         1           gettid
+  1.49    0.000004           4         1           sched_getaffinity
+  1.49    0.000004           4         1           set_tid_address
+  1.12    0.000003           3         1           poll
+  1.12    0.000003           3         1           arch_prctl
+  0.74    0.000002           2         1           set_robust_list
+  0.74    0.000002           2         1           getrandom
+  0.74    0.000002           2         1           rseq
+  0.00    0.000000           0         1           execve
+------ ----------- ----------- --------- --------- ------------------
+100.00    0.000269           4        61         1 total
+$ nm target/release/merhaba | grep -i "merhaba.*main"
+0000000000014b30 t _RNvCsjEVuznjrSGG_7merhaba4main

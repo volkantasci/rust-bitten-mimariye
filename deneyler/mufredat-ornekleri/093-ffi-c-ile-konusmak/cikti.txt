@@ -1,0 +1,11 @@
+$ cargo run -q
+topla(2, 3) = 5
+C diyor ki: merhaba Ferris
+strlen("Ferris") = 6
+karesi_arti_bir(7) = 50 (C, Rust'taki rust_kare'yi çağırdı)
+C dizgisinin baytları: [70, 101, 114, 114, 105, 115, 0]
+$ nm target/debug/ffi | grep -E " T (topla|selamla|karesi_arti_bir|rust_kare)$"
+0000000000016676 T karesi_arti_bir
+0000000000016230 T rust_kare
+000000000001663a T selamla
+0000000000016626 T topla

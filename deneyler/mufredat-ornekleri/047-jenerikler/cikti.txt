@@ -1,0 +1,21 @@
+$ cargo run -q
+9
+1.5
+ç
+$ cargo build -q
+error[E0369]: binary operation `>` cannot be applied to type `&T`
+ --> src/main.rs:4:14
+  |
+4 |         if x > eb {
+  |            - ^ -- &T
+  |            |
+  |            &T
+  |
+help: consider restricting type parameter `T` with trait `PartialOrd`
+  |
+1 | fn en_buyuk<T: std::cmp::PartialOrd>(liste: &[T]) -> &T {
+  |              ++++++++++++++++++++++
+
+For more information about this error, try `rustc --explain E0369`.
+error: could not compile `sinirsiz` (bin "sinirsiz") due to 1 previous error
+[çıkış kodu: 101]

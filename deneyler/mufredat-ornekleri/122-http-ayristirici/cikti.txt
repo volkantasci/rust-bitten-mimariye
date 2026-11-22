@@ -1,0 +1,13 @@
+$ cargo test -q --lib -- --list 2>/dev/null | grep ": test$"
+ayristirici::testler::bayt_bayt_beslemek_ayni_sonucu_verir: test
+ayristirici::testler::bozuk_istek_satiri: test
+ayristirici::testler::sonsuz_baslik_reddedilir: test
+ayristirici::testler::tek_parcada_iki_istek: test
+$ cargo test -q --lib 2>&1 | grep "test result"
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ cargo build -q --release
+$ ./target/release/kapi parca-parca
+besle("GET /belgeler/not") → Ok(None)
+besle(".txt HTTP/1.1\r\nHo") → Ok(None)
+besle("st: kapi\r\n") → Ok(None)
+besle("\r\n") → Ok(Some(("GET", "/belgeler/not.txt", [("Host", "kapi")])))

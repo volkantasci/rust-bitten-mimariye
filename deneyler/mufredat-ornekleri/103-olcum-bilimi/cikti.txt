@@ -1,0 +1,19 @@
+$ cargo run -q --release
+matris satır-öncelikli gezinme         3.03 ms
+matris sütun-öncelikli gezinme         2.39 ms
+Vec<u64> toplamı                       1.27 ms
+LinkedList<u64> toplamı                6.97 ms
+AoS: Vec<Parcacik> içinden kütle       3.83 ms
+SoA: Vec<f32> kütle dizisi             2.79 ms
+$ cargo run -q --release | grep matris
+matris satır-öncelikli gezinme         2.69 ms
+matris sütun-öncelikli gezinme       117.23 ms
+$ cargo run -q --release
+sonuç atılınca      :      0.000 ms
+black_box ile       :     31.996 ms
+$ cargo build -q --release
+$ hyperfine -N --warmup 3 --runs 30 --style basic ./target/release/black_box
+Benchmark 1: ./target/release/black_box
+  Time (mean ± σ):      32.8 ms ±   0.4 ms    [User: 32.0 ms, System: 0.5 ms]
+  Range (min … max):    32.1 ms …  33.6 ms    30 runs
+ 

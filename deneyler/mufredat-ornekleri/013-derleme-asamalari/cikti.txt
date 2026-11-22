@@ -1,0 +1,41 @@
+$ cargo build -v
+   Compiling elek v0.1.0 (/work/mufredat-ornekleri/013-derleme-asamalari)
+     Running `/usr/local/rustup/toolchains/1.100.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name elek --edition=2024 src/main.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat,unused-externs-silent --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=bf9f79702f8348ae --out-dir /work/mufredat-ornekleri/013-derleme-asamalari/target/debug/build/elek/d3c967da860348f5/out -C incremental=/work/mufredat-ornekleri/013-derleme-asamalari/target/debug/incremental --force-warn=unused_crate_dependencies`
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
+$ rustc --edition 2024 --crate-type=lib -C opt-level=0 --emit=llvm-ir -o target/kare_O0.ll kare.rs
+$ awk '/^define.*@kare/,/^}/' target/kare_O0.ll
+define i32 @kare(i32 %x) unnamed_addr #0 !guid !6 {
+start:
+  %0 = call { i32, i1 } @llvm.smul.with.overflow.i32(i32 %x, i32 %x)
+  %_2.0 = extractvalue { i32, i1 } %0, 0
+  %_2.1 = extractvalue { i32, i1 } %0, 1
+  br i1 %_2.1, label %panic, label %bb1
+
+bb1:                                              ; preds = %start
+  ret i32 %_2.0
+
+panic:                                            ; preds = %start
+; call core::panicking::panic_const::panic_const_mul_overflow
+  call void @_RNvNtNtCs8uuN1nrGffB_4core9panicking11panic_const24panic_const_mul_overflow(ptr align 8 @alloc_70dda244d6e4273e3e8465cd02482bcb) #3
+  unreachable
+}
+$ rustc --edition 2024 --crate-type=lib -C opt-level=2 --emit=llvm-ir -o target/kare_O2.ll kare.rs
+$ awk '/^define.*@kare/,/^}/' target/kare_O2.ll
+define noundef i32 @kare(i32 noundef %x) unnamed_addr #0 !guid !4 {
+start:
+  %_0 = mul i32 %x, %x
+  ret i32 %_0
+}
+$ cargo build -q --release
+$ hyperfine -N --warmup 1 --runs 5 --style basic ./target/debug/elek ./target/release/elek
+Benchmark 1: ./target/debug/elek
+  Time (mean ± σ):     420.1 ms ±  27.8 ms    [User: 409.2 ms, System: 7.9 ms]
+  Range (min … max):   403.0 ms … 469.1 ms    5 runs
+ 
+Benchmark 2: ./target/release/elek
+  Time (mean ± σ):      46.2 ms ±   3.2 ms    [User: 37.2 ms, System: 8.3 ms]
+  Range (min … max):    41.9 ms …  49.4 ms    5 runs
+ 
+Summary
+  ./target/release/elek ran
+    9.10 ± 0.87 times faster than ./target/debug/elek

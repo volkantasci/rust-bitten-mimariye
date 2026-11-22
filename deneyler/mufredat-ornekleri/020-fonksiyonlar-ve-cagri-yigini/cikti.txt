@@ -1,0 +1,12 @@
+$ cargo run -q
+seviye 0: yerel @ 0x7ffecd10f4d4
+seviye 1: yerel @ 0x7ffecd10f3c4  (272 bayt aşağıda)
+seviye 2: yerel @ 0x7ffecd10f2b4  (272 bayt aşağıda)
+seviye 3: yerel @ 0x7ffecd10f1a4  (272 bayt aşağıda)
+seviye 4: yerel @ 0x7ffecd10f094  (272 bayt aşağıda)
+$ cargo run -q --release
+seviye 0: yerel @ 0x7fff8d79717c
+seviye 1: yerel @ 0x7fff8d79711c  (96 bayt aşağıda)
+seviye 2: yerel @ 0x7fff8d7970bc  (96 bayt aşağıda)
+seviye 3: yerel @ 0x7fff8d79705c  (96 bayt aşağıda)
+seviye 4: yerel @ 0x7fff8d796ffc  (96 bayt aşağıda)

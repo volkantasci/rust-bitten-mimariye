@@ -1,0 +1,15 @@
+$ cargo build -q
+$ ./target/debug/borular
+sort çıktısı:
+elma
+kiraz
+zeytin
+SIGTERM sonrası: signal: 15 (SIGTERM)
+kill() sonrası  : signal: 9 (SIGKILL)
+$ ./target/debug/borular cok-yaz | head -n 2
+satır 0
+satır 1
+
+thread 'main' (12192) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/io/stdio.rs:1209:9:
+failed printing to stdout: Broken pipe (os error 32)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

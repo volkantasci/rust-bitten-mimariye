@@ -1,0 +1,12 @@
+$ cargo run -q
+2 kayıt, toplam 48 bayt, ilk: ELMA
+$ cargo clippy -q 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c
+      1 iter_next_slice
+$ cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c | sort -rn
+      2 unwrap_used
+      2 needless_pass_by_value
+      1 missing_panics_doc
+      1 iter_next_slice
+      1 implicit_hasher
+      1 cast_possible_truncation
+      1 cast_lossless

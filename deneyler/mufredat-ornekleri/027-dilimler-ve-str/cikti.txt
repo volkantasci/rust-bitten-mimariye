@@ -1,0 +1,13 @@
+$ cargo run -q
+&u8    :  8 bayt
+&[u8]  : 16 bayt (işaretçi + uzunluk)
+&str   : 16 bayt (işaretçi + uzunluk)
+String : 24 bayt (işaretçi + kapasite + uzunluk)
+"ağaç" baytları: [61, c4, 9f, 61, c3, a7]
+&s[0..1] = "a"
+&s[1..3] = "ğ"
+
+thread 'main' (2309) panicked at src/main.rs:14:37:
+end byte index 2 is not a char boundary; it is inside 'ğ' (bytes 1..3 of string)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]

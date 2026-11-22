@@ -1,0 +1,18 @@
+$ cargo build -q
+$ ./target/debug/soketler
+sunucu dinliyor: 127.0.0.1:40917
+istemci: 127.0.0.1:38338 → 127.0.0.1:40917
+sunucu: 127.0.0.1:38338 bağlandı
+istemci aldı: "MERHABA AĞ"
+$ strace -f -e trace=socket,bind,listen,accept4,connect,write,sendto,recvfrom,read,shutdown,close ./target/debug/soketler 2>&1 | grep -E "socket\(|bind\(|listen\(|accept4\(|connect\(|sendto\(|recvfrom\(" 
+socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_IP) = 3
+bind(3, {sa_family=AF_INET, sin_port=htons(0), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
+listen(3, 128)                          = 0
+[pid 12311] socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_IP) = 4
+[pid 12311] connect(4, {sa_family=AF_INET, sin_port=htons(38593), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
+[pid 12311] sendto(4, "merhaba a\304\237", 11, MSG_NOSIGNAL, NULL, 0) = 11
+[pid 12311] recvfrom(4,  <unfinished ...>
+[pid 12312] accept4(3, {sa_family=AF_INET, sin_port=htons(33160), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC) = 5
+[pid 12312] recvfrom(5, "merhaba a\304\237", 64, 0, NULL, NULL) = 11
+[pid 12312] sendto(5, "MERHABA A\304\236", 11, MSG_NOSIGNAL, NULL, 0 <unfinished ...>
+[pid 12311] recvfrom(4,  <unfinished ...>

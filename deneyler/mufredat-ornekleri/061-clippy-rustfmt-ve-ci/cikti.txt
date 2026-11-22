@@ -1,0 +1,82 @@
+$ cargo run -q
+81.66666666666667
+$ cargo clippy -q
+warning: unneeded `return` statement
+ --> src/main.rs:9:5
+  |
+9 |     return toplam as f64 / v.len() as f64;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.100.0/index.html#needless_return
+  = note: `#[warn(clippy::needless_return)]` on by default
+help: remove `return`
+  |
+9 -     return toplam as f64 / v.len() as f64;
+9 +     toplam as f64 / v.len() as f64
+  |
+
+warning: writing `&Vec` instead of `&[_]` involves a new object where a slice will do
+ --> src/main.rs:1:16
+  |
+1 | fn ortalama(v: &Vec<i32>) -> f64 {
+  |                ^^^^^^^^^
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.100.0/index.html#ptr_arg
+  = note: `#[warn(clippy::ptr_arg)]` on by default
+help: change this to
+  |
+1 - fn ortalama(v: &Vec<i32>) -> f64 {
+1 + fn ortalama(v: &[i32]) -> f64 {
+  |
+
+warning: the loop variable `i` is only used to index `v`
+ --> src/main.rs:3:14
+  |
+3 |     for i in 0..v.len() {
+  |              ^^^^^^^^^^
+  |
+note: for this index operation
+ --> src/main.rs:4:27
+  |
+4 |         toplam = toplam + v[i];
+  |                           ^^^^
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.100.0/index.html#needless_range_loop
+  = note: `#[warn(clippy::needless_range_loop)]` on by default
+help: consider using an iterator
+  |
+3 -     for i in 0..v.len() {
+3 +     for <item> in &v {
+  |
+
+warning: manual implementation of an assign operation
+ --> src/main.rs:4:9
+  |
+4 |         toplam = toplam + v[i];
+  |         ^^^^^^^^^^^^^^^^^^^^^^ help: replace it with: `toplam += v[i]`
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.100.0/index.html#assign_op_pattern
+  = note: `#[warn(clippy::assign_op_pattern)]` on by default
+
+warning: length comparison to zero
+ --> src/main.rs:6:8
+  |
+6 |     if v.len() == 0 {
+  |        ^^^^^^^^^^^^ help: using `is_empty` is clearer and more explicit: `v.is_empty()`
+  |
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.100.0/index.html#len_zero
+  = note: `#[warn(clippy::len_zero)]` on by default
+
+$ cargo clippy -q -- -D warnings 2>&1 | tail -n 2
+
+error: could not compile `kalite` (bin "kalite") due to 5 previous errors
+$ cargo fmt --check
+Diff in /work/mufredat-ornekleri/061-clippy-rustfmt-ve-ci/src/main.rs:10:
+ }
+ 
+ fn main() {
+-    let   notlar = vec![70, 85,90];
++    let notlar = vec![70, 85, 90];
+     println!("{}", ortalama(&notlar));
+ }
+ 
+[çıkış kodu: 1]

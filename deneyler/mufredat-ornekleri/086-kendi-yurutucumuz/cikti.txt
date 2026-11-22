@@ -1,0 +1,6 @@
+$ cargo run -q
+[görev] başladı          (  0 ms)
+[görev] 1. bekleme bitti (200 ms)
+[görev] 2. bekleme bitti (500 ms)
+[yürütücü] 3 yoklamada tamamlandı
+sonuç = 42

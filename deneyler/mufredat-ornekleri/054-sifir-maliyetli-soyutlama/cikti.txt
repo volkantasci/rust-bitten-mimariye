@@ -1,0 +1,21 @@
+$ rustc --edition 2024 -C opt-level=3 --crate-type=lib --emit=obj -o target/iki_yol.o iki_yol.rs
+$ objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -cP "^\s+[0-9a-f]+:"
+64
+$ objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -cP "^\s+[0-9a-f]+:"
+64
+$ objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -oE "\bp[a-z]+\b" | sort | uniq -c
+      5 paddd
+      4 pand
+      2 pcmpeqd
+      4 pmuludq
+      8 pshufd
+      2 punpckldq
+      3 pxor
+$ diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//") <(objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//") && echo "makine kodu birebir aynı"
+6d5
+< xor    eax,eax
+7a7
+> xor    eax,eax
+[çıkış kodu: 1]
+$ diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) <(objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) && echo "aynı 64 komut, yalnızca sıralama farklı"
+aynı 64 komut, yalnızca sıralama farklı

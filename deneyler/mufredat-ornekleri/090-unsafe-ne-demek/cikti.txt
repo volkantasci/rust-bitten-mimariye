@@ -1,0 +1,69 @@
+$ cargo build -q
+error[E0133]: dereference of raw pointer is unsafe and requires unsafe block
+ --> src/main.rs:4:20
+  |
+4 |     println!("{}", *p); // izlemek (dereference) değil
+  |                    ^^ dereference of raw pointer
+  |
+  = note: raw pointers may be null, dangling or unaligned; they can violate aliasing rules and cause data races: all of these are undefined behavior
+
+For more information about this error, try `rustc --explain E0133`.
+error: could not compile `ham_isaretci` (bin "ham_isaretci") due to 1 previous error
+[çıkış kodu: 101]
+$ rustc --explain E0133 | head -n 12
+Unsafe code was used outside of an unsafe block.
+
+Erroneous code example:
+
+```
+unsafe fn f() { return; } // This is the unsafe code
+
+fn main() {
+    f(); // error: call to unsafe function requires unsafe function or block
+}
+```
+
+$ cargo run -q
+warning[E0133]: dereference of raw pointer is unsafe and requires unsafe block
+ --> src/main.rs:4:5
+  |
+4 |     *p // 2024 sürümünde: unsafe fn gövdesi de unsafe blok ister (uyarı)
+  |     ^^ dereference of raw pointer
+  |
+  = note: raw pointers may be null, dangling or unaligned; they can violate aliasing rules and cause data races: all of these are undefined behavior
+note: an unsafe function restricts its caller, but its body is safe by default
+ --> src/main.rs:3:1
+  |
+3 | unsafe fn oku(p: *const i32) -> i32 {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html>
+  = note: `#[warn(unsafe_op_in_unsafe_fn)]` (part of `#[warn(rust_2024_compatibility)]`) on by default
+
+For more information about this error, try `rustc --explain E0133`.
+7
+$ cargo build -q
+error: extern blocks must be unsafe
+ --> src/main.rs:6:1
+  |
+6 |   extern "C" {
+  |   ^
+  |   |
+  |  _help: needs `unsafe` before the extern keyword: `unsafe`
+  | |
+7 | |     fn abs(x: i32) -> i32;
+8 | | }
+  | |_^
+
+error: unsafe attribute used without unsafe
+ --> src/main.rs:1:3
+  |
+1 | #[no_mangle]
+  |   ^^^^^^^^^ usage of unsafe attribute
+  |
+help: wrap the attribute in `unsafe(...)`
+  |
+1 | #[unsafe(no_mangle)]
+  |   +++++++         +
+
+error: could not compile `surum_2024` (bin "surum_2024") due to 2 previous errors
+[çıkış kodu: 101]

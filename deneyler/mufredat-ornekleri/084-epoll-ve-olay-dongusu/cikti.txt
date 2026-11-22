@@ -1,0 +1,18 @@
+$ cargo build -q
+$ ./target/debug/olay_dongusu
+yankı: yanki
+$ strace -f -e trace=epoll_create1,epoll_ctl,epoll_wait,epoll_pwait,epoll_pwait2,accept4,connect ./target/debug/olay_dongusu 2>&1 | grep -v "^yankı"
+epoll_create1(EPOLL_CLOEXEC)            = 3
+epoll_ctl(3, EPOLL_CTL_ADD, 4, {events=EPOLLIN|EPOLLRDHUP|EPOLLET, data=0}) = 0
+epoll_ctl(5, EPOLL_CTL_ADD, 8, {events=EPOLLIN|EPOLLRDHUP|EPOLLET, data=0x1}) = 0
+epoll_ctl(5, EPOLL_CTL_ADD, 9, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x560fd2859380}) = 0
+connect(10, {sa_family=AF_INET, sin_port=htons(37981), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
+epoll_ctl(5, EPOLL_CTL_ADD, 10, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x560fd2859780}) = 0
+epoll_wait(3, [{events=EPOLLIN, data=0x560fd2859380}, {events=EPOLLOUT, data=0x560fd2859780}], 1024, -1) = 2
+accept4(9, {sa_family=AF_INET, sin_port=htons(60602), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC|SOCK_NONBLOCK) = 11
+epoll_ctl(5, EPOLL_CTL_ADD, 11, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x560fd2859900}) = 0
+epoll_ctl(5, EPOLL_CTL_DEL, 11, NULL)   = 0
+epoll_ctl(5, EPOLL_CTL_DEL, 9, NULL)    = 0
+epoll_wait(3, [{events=EPOLLIN|EPOLLOUT|EPOLLRDHUP, data=0x560fd2859780}], 1024, -1) = 1
+epoll_ctl(5, EPOLL_CTL_DEL, 10, NULL)   = 0
++++ exited with 0 +++

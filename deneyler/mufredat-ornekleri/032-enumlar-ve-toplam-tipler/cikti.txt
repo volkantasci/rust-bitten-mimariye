@@ -1,0 +1,6 @@
+$ cargo run -q
+alan = 3.1416
+alan = 6.0000
+alan = 0.0000
+size_of::<Sekil>() = 24 bayt
+size_of::<f64>() * 2 = 16 bayt (en büyük varyantın yükü)

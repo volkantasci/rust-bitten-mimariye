@@ -1,0 +1,8 @@
+$ cargo run -q
+ INFO siparis_isle{id=41 kalem_sayisi=2}: işleniyor
+ INFO siparis_isle{id=41 kalem_sayisi=2}:odeme_al{tutar=500}: onaylandı
+DEBUG siparis_isle{id=41 kalem_sayisi=2}: ödeme tamam tutar=500
+ INFO siparis_isle{id=42 kalem_sayisi=0}: işleniyor
+ WARN siparis_isle{id=42 kalem_sayisi=0}: boş sipariş
+ INFO siparis_isle{id=43 kalem_sayisi=7}: işleniyor
+ERROR siparis_isle{id=43 kalem_sayisi=7}:odeme_al{tutar=1750}: limit aşıldı tutar=1750 sinir=1000

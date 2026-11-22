@@ -1,0 +1,9 @@
+$ nproc
+12
+$ cargo run -q --release
+1000 denemede 7 farklı sıra görüldü; en sık: [("0123", 976), ("0132", 14), ("0213", 3), ("1023", 3)]
+ 1 iş parçacığı: 216816 asal,   439.6 ms, hızlanma 1.00×
+ 2 iş parçacığı: 216816 asal,   272.7 ms, hızlanma 1.61×
+ 4 iş parçacığı: 216816 asal,   149.3 ms, hızlanma 2.95×
+ 6 iş parçacığı: 216816 asal,   108.0 ms, hızlanma 4.07×
+12 iş parçacığı: 216816 asal,    84.7 ms, hızlanma 5.19×

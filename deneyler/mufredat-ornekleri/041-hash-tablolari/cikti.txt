@@ -1,0 +1,12 @@
+$ cargo build -q
+$ ./target/debug/hash
+HashMap sırası : ["Bursa", "Kars", "Van", "Rize", "Ankara", "İzmir", "Muş"]
+BTreeMap sırası: ["Ankara", "Bursa", "Kars", "Muş", "Rize", "Van", "İzmir"]
+hash("Ankara") = 26153e3c2064ee62
+$ ./target/debug/hash
+HashMap sırası : ["Van", "İzmir", "Ankara", "Rize", "Bursa", "Muş", "Kars"]
+BTreeMap sırası: ["Ankara", "Bursa", "Kars", "Muş", "Rize", "Van", "İzmir"]
+hash("Ankara") = 287ed9d435cb078d
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "use hashbrown\|Rust port of Google" $S/std/src/collections/hash/map.rs
+4:use hashbrown::hash_map::{self as base, RustcOccupiedError};
+59:/// The hash table implementation is a Rust port of Google's [SwissTable].

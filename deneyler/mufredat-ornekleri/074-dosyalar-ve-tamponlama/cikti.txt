@@ -1,0 +1,33 @@
+$ cargo build -q --release
+$ strace -c -e trace=write ./target/release/tamponlama tamponsuz 2>&1 | tail -n 4
+------ ----------- ----------- --------- --------- ----------------
+100.00    1.510840           5    300000           write
+------ ----------- ----------- --------- --------- ----------------
+100.00    1.510840           5    300000           total
+$ strace -c -e trace=write ./target/release/tamponlama tamponlu 2>&1 | tail -n 4
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.001929          12       158           write
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.001929          12       158           total
+$ hyperfine -N --warmup 2 --runs 10 --style basic "./target/release/tamponlama tamponsuz" "./target/release/tamponlama tamponlu"
+Benchmark 1: ./target/release/tamponlama tamponsuz
+  Time (mean ± σ):     814.7 ms ±  13.9 ms    [User: 81.4 ms, System: 726.5 ms]
+  Range (min … max):   796.8 ms … 837.0 ms    10 runs
+ 
+Benchmark 2: ./target/release/tamponlama tamponlu
+  Time (mean ± σ):       5.8 ms ±   0.1 ms    [User: 1.5 ms, System: 2.8 ms]
+  Range (min … max):     5.7 ms …   6.0 ms    10 runs
+ 
+Summary
+  ./target/release/tamponlama tamponlu ran
+  139.88 ± 4.09 times faster than ./target/release/tamponlama tamponsuz
+$ wc -l /tmp/tamponsuz.txt /tmp/tamponlu.txt && cmp /tmp/tamponsuz.txt /tmp/tamponlu.txt && echo "iki dosya aynı"
+ 100000 /tmp/tamponsuz.txt
+ 100000 /tmp/tamponlu.txt
+ 200000 total
+iki dosya aynı
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A3 "pub const DEFAULT_BUF_SIZE" $S/alloc/src/io/read.rs
+787:pub const DEFAULT_BUF_SIZE: usize = cfg_select! {
+788-    target_os = "espidf" => 512,
+789-    _ => 8 * 1024,
+790-};

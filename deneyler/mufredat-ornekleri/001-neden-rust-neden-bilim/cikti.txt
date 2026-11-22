@@ -1,0 +1,113 @@
+$ gcc -Wall -Wextra -O0 -g -o target/kullan_sonra_birak c/kullan_sonra_birak.c
+c/kullan_sonra_birak.c: In function ‘main’:
+c/kullan_sonra_birak.c:13:5: warning: pointer ‘isim’ used after ‘free’ [-Wuse-after-free]
+   13 |     printf("isim = %s\n", isim);     /* iade edilmiş belleği okuyoruz */
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+c/kullan_sonra_birak.c:8:5: note: call to ‘free’ here
+    8 |     free(isim);                      /* bellek iade edildi */
+      |     ^~~~~~~~~~
+$ ./target/kullan_sonra_birak
+isim = gizli-123
+$ gcc -Wall -Wextra -O0 -g -o target/kullan_sonra_birak2 c/kullan_sonra_birak2.c
+$ ./target/kullan_sonra_birak2
+isim = gizli-123
+$ valgrind -q ./target/kullan_sonra_birak2 2>&1 | head -14
+==78== Invalid read of size 1
+==78==    at 0x484DC86: strlen (vg_replace_strmem.c:505)
+==78==    by 0x48C627F: __printf_buffer (vfprintf-process-arg.c:435)
+==78==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
+==78==    by 0x48BB92A: printf (printf.c:33)
+==78==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
+==78==  Address 0x4a59040 is 0 bytes inside a block of size 16 free'd
+==78==    at 0x484787F: free (vg_replace_malloc.c:989)
+==78==    by 0x109170: temizle (kullan_sonra_birak2.c:6)
+==78==    by 0x1091A6: main (kullan_sonra_birak2.c:11)
+==78==  Block was alloc'd at
+==78==    at 0x4844818: malloc (vg_replace_malloc.c:446)
+==78==    by 0x109185: main (kullan_sonra_birak2.c:9)
+==78== 
+$ valgrind -q --error-exitcode=1 ./target/kullan_sonra_birak2
+==80== Invalid read of size 1
+==80==    at 0x484DC86: strlen (vg_replace_strmem.c:505)
+==80==    by 0x48C627F: __printf_buffer (vfprintf-process-arg.c:435)
+==80==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
+==80==    by 0x48BB92A: printf (printf.c:33)
+==80==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
+==80==  Address 0x4a59040 is 0 bytes inside a block of size 16 free'd
+==80==    at 0x484787F: free (vg_replace_malloc.c:989)
+==80==    by 0x109170: temizle (kullan_sonra_birak2.c:6)
+==80==    by 0x1091A6: main (kullan_sonra_birak2.c:11)
+==80==  Block was alloc'd at
+==80==    at 0x4844818: malloc (vg_replace_malloc.c:446)
+==80==    by 0x109185: main (kullan_sonra_birak2.c:9)
+==80== 
+==80== Invalid read of size 1
+==80==    at 0x484DC94: strlen (vg_replace_strmem.c:505)
+==80==    by 0x48C627F: __printf_buffer (vfprintf-process-arg.c:435)
+==80==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
+==80==    by 0x48BB92A: printf (printf.c:33)
+==80==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
+==80==  Address 0x4a59041 is 1 bytes inside a block of size 16 free'd
+==80==    at 0x484787F: free (vg_replace_malloc.c:989)
+==80==    by 0x109170: temizle (kullan_sonra_birak2.c:6)
+==80==    by 0x1091A6: main (kullan_sonra_birak2.c:11)
+==80==  Block was alloc'd at
+==80==    at 0x4844818: malloc (vg_replace_malloc.c:446)
+==80==    by 0x109185: main (kullan_sonra_birak2.c:9)
+==80== 
+==80== Invalid read of size 1
+==80==    at 0x48525F0: memmove (vg_replace_strmem.c:1414)
+==80==    by 0x48BC277: memcpy (string_fortified.h:29)
+==80==    by 0x48BC277: __printf_buffer_write (Xprintf_buffer_write.c:39)
+==80==    by 0x48C4A03: __printf_buffer (vfprintf-process-arg.c:501)
+==80==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
+==80==    by 0x48BB92A: printf (printf.c:33)
+==80==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
+==80==  Address 0x4a59040 is 0 bytes inside a block of size 16 free'd
+==80==    at 0x484787F: free (vg_replace_malloc.c:989)
+==80==    by 0x109170: temizle (kullan_sonra_birak2.c:6)
+==80==    by 0x1091A6: main (kullan_sonra_birak2.c:11)
+==80==  Block was alloc'd at
+==80==    at 0x4844818: malloc (vg_replace_malloc.c:446)
+==80==    by 0x109185: main (kullan_sonra_birak2.c:9)
+==80== 
+==80== Invalid read of size 1
+==80==    at 0x48525FD: memmove (vg_replace_strmem.c:1414)
+==80==    by 0x48BC277: memcpy (string_fortified.h:29)
+==80==    by 0x48BC277: __printf_buffer_write (Xprintf_buffer_write.c:39)
+==80==    by 0x48C4A03: __printf_buffer (vfprintf-process-arg.c:501)
+==80==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
+==80==    by 0x48BB92A: printf (printf.c:33)
+==80==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
+==80==  Address 0x4a59042 is 2 bytes inside a block of size 16 free'd
+==80==    at 0x484787F: free (vg_replace_malloc.c:989)
+==80==    by 0x109170: temizle (kullan_sonra_birak2.c:6)
+==80==    by 0x1091A6: main (kullan_sonra_birak2.c:11)
+==80==  Block was alloc'd at
+==80==    at 0x4844818: malloc (vg_replace_malloc.c:446)
+==80==    by 0x109185: main (kullan_sonra_birak2.c:9)
+==80== 
+isim = Ferris
+[çıkış kodu: 1]
+$ cargo build
+   Compiling kullan_sonra_birak v0.1.0 (/work/mufredat-ornekleri/001-neden-rust-neden-bilim/rust)
+error[E0505]: cannot move out of `isim` because it is borrowed
+ --> src/main.rs:4:10
+  |
+2 |     let isim = String::from("Ferris");
+  |         ---- binding `isim` declared here
+3 |     let referans = &isim;            // isim'e bakan bir ödünç (referans)
+  |                    ----- borrow of `isim` occurs here
+4 |     drop(isim);                      // belleği iade etmeye çalış
+  |          ^^^^ move out of `isim` occurs here
+5 |     println!("isim = {referans}");   // iade edilmiş belleği okumak olurdu
+  |                       -------- borrow later used here
+  |
+help: consider cloning the value if the performance cost is acceptable
+  |
+3 |     let referans = &isim.clone();            // isim'e bakan bir ödünç (referans)
+  |                         ++++++++
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `kullan_sonra_birak` (bin "kullan_sonra_birak") due to 1 previous error
+[çıkış kodu: 101]

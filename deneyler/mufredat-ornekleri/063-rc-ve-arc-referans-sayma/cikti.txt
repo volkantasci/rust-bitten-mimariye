@@ -1,0 +1,7 @@
+$ cargo run -q
+güçlü sayaç: 1
+güçlü sayaç: 3 (a, b, c aynı adrese bakıyor: true)
+güçlü sayaç: 2 (c kapsam dışında)
+zayıf sayaç: 1, upgrade: Some(18)
+upgrade (sahipler gittikten sonra): None
+Arc ile paylaşılan vektörden: [10, 20, 30], sayaç şimdi 1

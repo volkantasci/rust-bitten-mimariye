@@ -1,0 +1,9 @@
+$ cargo run -q --release
+Mutex           : 8000000 ( 216.9 ms)
+AtomicU64       : 8000000 (  90.0 ms)
+yerel + toplama : 8000000 (   0.6 ms)
+
+thread '<unnamed>' (11251) panicked at src/main.rs:50:9:
+kilit elimdeyken çöktüm
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+kilit zehirlenmiş! içerik yine de okunabilir: [1, 2, 3, 4]

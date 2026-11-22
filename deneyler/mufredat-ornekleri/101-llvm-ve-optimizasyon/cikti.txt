@@ -1,0 +1,34 @@
+$ rustc --edition 2024 --crate-type=lib -C opt-level=0 -C debug-assertions=off -C overflow-checks=off --emit=llvm-ir -o target/O0.ll dongu.rs
+$ rustc --edition 2024 --crate-type=lib -C opt-level=3 --emit=llvm-ir -o target/O3.ll dongu.rs
+$ echo "O0 satır: $(awk "/^define.*@kareler_toplami/,/^}/" target/O0.ll | wc -l)  O3 satır: $(awk "/^define.*@kareler_toplami/,/^}/" target/O3.ll | wc -l)"
+O0 satır: 45  O3 satır: 29
+$ awk "/^define.*@kareler_toplami/,/^}/" target/O3.ll
+define noundef i64 @kareler_toplami(i64 noundef %n) unnamed_addr #0 !guid !4 {
+start:
+  %_63.not = icmp eq i64 %n, 0
+  br i1 %_63.not, label %bb3, label %bb2.preheader
+
+bb2.preheader:                                    ; preds = %start
+  %0 = add i64 %n, -1
+  %1 = zext i64 %0 to i65
+  %2 = add i64 %n, -2
+  %3 = zext i64 %2 to i65
+  %4 = mul i65 %1, %3
+  %5 = add i64 %n, -3
+  %6 = zext i64 %5 to i65
+  %7 = mul i65 %4, %6
+  %8 = lshr i65 %7, 1
+  %9 = trunc nuw i65 %8 to i64
+  %10 = mul i64 %9, 6148914691236517206
+  %11 = add i64 %n, %10
+  %12 = lshr i65 %4, 1
+  %13 = trunc nuw i65 %12 to i64
+  %14 = mul i64 %13, 3
+  %15 = add i64 %11, %14
+  %16 = add i64 %15, -1
+  br label %bb3
+
+bb3:                                              ; preds = %bb2.preheader, %start
+  %s.sroa.0.0.lcssa = phi i64 [ 0, %start ], [ %16, %bb2.preheader ]
+  ret i64 %s.sroa.0.0.lcssa
+}

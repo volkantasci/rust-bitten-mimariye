@@ -1,0 +1,34 @@
+$ cargo run -q
+&Daire          :  8 bayt
+&dyn Sekil      : 16 bayt (veri işaretçisi + vtable işaretçisi)
+Box<dyn Sekil>  : 16 bayt
+alan = 3.142
+alan = 4.000
+veri işaretçisi : 0x558d2d6374c0
+vtable          : 0x558d2d688a58
+  [0] drop      : 0x0
+  [1] boyut     : 8
+  [2] hizalama  : 8
+  [3] alan()    : 0x558d2d648150
+<Daire as Sekil>::alan adresi: 0x558d2d648150
+$ cargo build -q
+error[E0038]: the trait `Kaydedici` is not dyn compatible
+  --> src/main.rs:13:17
+   |
+13 |     let k: &dyn Kaydedici = &Ekran;
+   |                 ^^^^^^^^^ `Kaydedici` is not dyn compatible
+   |
+note: for a trait to be dyn compatible it needs to allow building a vtable
+      for more information, visit <https://doc.rust-lang.org/reference/items/traits.html#dyn-compatibility>
+  --> src/main.rs:2:8
+   |
+ 1 | trait Kaydedici {
+   |       --------- this trait is not dyn compatible...
+ 2 |     fn kaydet<T: std::fmt::Debug>(&self, deger: T);
+   |        ^^^^^^ ...because method `kaydet` has generic type parameters
+   = help: consider moving `kaydet` to another trait
+   = help: only type `Ekran` implements `Kaydedici`; consider using it directly instead.
+
+For more information about this error, try `rustc --explain E0038`.
+error: could not compile `dyn_uyumsuz` (bin "dyn_uyumsuz") due to 1 previous error
+[çıkış kodu: 101]

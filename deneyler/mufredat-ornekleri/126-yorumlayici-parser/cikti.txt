@@ -1,0 +1,33 @@
+$ cargo build -q --release
+$ ./target/release/minik ast ornekler/ifade.mk
+(let x (+ 2 (* 3 (- 4 1))))
+(print x)
+$ cat ornekler/fib.mk
+// Özyinelemeli Fibonacci
+fn fib(n) {
+    if n < 2 { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+
+let i = 0;
+while i <= 10 {
+    print(fib(i));
+    i = i + 1;
+}
+print(fib(20));
+$ ./target/release/minik ast ornekler/fib.mk
+(fn fib (n)
+  (if (< n 2)
+    (return n)
+  )
+  (return (+ (fib (- n 1)) (fib (- n 2))))
+)
+(let i 0)
+(while (<= i 10)
+  (print (fib i))
+  (= i (+ i 1))
+)
+(print (fib 20))
+$ ./target/release/minik ast ornekler/hatali.mk
+hata: satır 1, sütun 13: bir ifade bekleniyordu, Yildiz bulundu
+[çıkış kodu: 1]

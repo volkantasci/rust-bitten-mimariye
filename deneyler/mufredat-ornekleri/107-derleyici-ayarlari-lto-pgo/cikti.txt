@@ -1,0 +1,27 @@
+$ cargo build -q --release
+$ cargo build -q --profile kucuk
+$ cargo build -q --profile hizli
+$ stat -c "%8s bayt  %n" target/release/ayarlar target/kucuk/ayarlar target/hizli/ayarlar
+  544360 bayt  target/release/ayarlar
+  318808 bayt  target/kucuk/ayarlar
+  440712 bayt  target/hizli/ayarlar
+$ hyperfine -N --warmup 2 --runs 10 --style basic ./target/release/ayarlar ./target/kucuk/ayarlar ./target/hizli/ayarlar
+Benchmark 1: ./target/release/ayarlar
+  Time (mean ± σ):      15.8 ms ±   1.6 ms    [User: 15.2 ms, System: 0.3 ms]
+  Range (min … max):    14.2 ms …  19.7 ms    10 runs
+ 
+Benchmark 2: ./target/kucuk/ayarlar
+  Time (mean ± σ):      20.8 ms ±   0.3 ms    [User: 20.2 ms, System: 0.5 ms]
+  Range (min … max):    20.4 ms …  21.4 ms    10 runs
+ 
+Benchmark 3: ./target/hizli/ayarlar
+  Time (mean ± σ):      12.8 ms ±   0.2 ms    [User: 12.4 ms, System: 0.3 ms]
+  Range (min … max):    12.5 ms …  13.0 ms    10 runs
+ 
+Summary
+  ./target/hizli/ayarlar ran
+    1.24 ± 0.13 times faster than ./target/release/ayarlar
+    1.63 ± 0.03 times faster than ./target/kucuk/ayarlar
+$ rustup component list --installed | grep -c llvm-tools; command -v llvm-profdata || echo "llvm-profdata yok"
+0
+llvm-profdata yok
