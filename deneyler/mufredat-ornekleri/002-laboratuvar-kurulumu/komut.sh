@@ -1,5 +1,5 @@
 #@ video: 002-laboratuvar-kurulumu
-#@ degisken: cargo'nun "Finished ... in X s" süresi; süreç kimlikleri (PID), konteyner adı (hostname) ve ad alanı kimlik numaraları
+#@ degisken: cargo'nun "Finished ... in X s" süresi; süreç kimlikleri (PID), konak adı (hostname) ve ad alanı kimlik numaraları
 # Konteynerin içindeyiz: araç sürümleri ve çekirdek
 k rustc --version
 k cargo --version

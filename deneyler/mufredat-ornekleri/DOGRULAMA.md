@@ -282,7 +282,7 @@ isim = Ferris
 - Örnek yolu: `deneyler/mufredat-ornekleri/002-laboratuvar-kurulumu/`
 - Toolchain: stable 1.100.0
 - Son çalıştırma (UTC): çalıştırılmadı
-- Değişken çıktı: cargo'nun "Finished ... in X s" süresi; süreç kimlikleri (PID), konteyner adı (hostname) ve ad alanı kimlik numaraları
+- Değişken çıktı: cargo'nun "Finished ... in X s" süresi; süreç kimlikleri (PID), konak adı (hostname) ve ad alanı kimlik numaraları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash

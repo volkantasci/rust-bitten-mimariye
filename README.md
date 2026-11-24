@@ -39,6 +39,12 @@ Tek bir örnek:
 deneyler/mufredat-ornekleri/calistir.sh 004-bit-ve-bayt
 ```
 
+002'nin ek deneyleri (laboratuvar içi; ana makine tarafı `deneyler/video-002/ana-makine.sh`, konteynerin dışında, yalnız Linux'ta aynen çalışır):
+
+```bash
+laboratuvar/rr.sh video-002 bash calistir.sh
+```
+
 001'in ek deneyleri:
 
 ```bash

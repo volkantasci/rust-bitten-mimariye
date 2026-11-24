@@ -1,0 +1,53 @@
+$ strace -v -e trace=uname uname -r
+uname({sysname="Linux", nodename="39fda0d0e44d", release="7.2.15-1-omarchy", version="#1 SMP PREEMPT_DYNAMIC Mon, 02 Nov 2026 10:32:17 +0000", machine="x86_64", domainname="(none)"}) = 0
+7.2.15-1-omarchy
++++ exited with 0 +++
+$ cat eski/Cargo.toml
+[package]
+name = "eski"
+version = "0.1.0"
+edition = "2015"
+
+[dependencies]
+$ cat eski/src/lib.rs
+// 2015 baskısında async bir anahtar sözcük değildir; fonksiyon adı olabilir.
+pub fn async() -> &'static str {
+    "2015 baskısındaki kütüphaneden selam"
+}
+$ cat yeni/Cargo.toml
+[package]
+name = "yeni"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eski = { path = "../eski" }
+$ cat yeni/src/main.rs
+// 2024 baskısında async bir anahtar sözcüktür; aynı fonksiyon r#async yazımıyla çağrılır.
+fn main() {
+    println!("{}", eski::r#async());
+}
+$ cargo build -v 2>&1 | grep -o -- "--crate-name [a-z]* --edition=[0-9]*"
+--crate-name eski --edition=2015
+--crate-name yeni --edition=2024
+$ cargo run
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running `target/debug/yeni`
+2015 baskısındaki kütüphaneden selam
+$ grep edition eski/Cargo.toml
+edition = "2024"
+$ cargo build
+   Compiling eski v0.1.0 (/work/video-002/calisma/eski)
+error: expected identifier, found keyword `async`
+ --> /work/video-002/calisma/eski/src/lib.rs:2:8
+  |
+2 | pub fn async() -> &'static str {
+  |        ^^^^^ expected identifier, found keyword
+  |
+help: escape `async` to use it as an identifier
+  |
+2 | pub fn r#async() -> &'static str {
+  |        ++
+
+error: could not compile `eski` (lib) due to 1 previous error
+[çıkış kodu: 101]
