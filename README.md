@@ -47,7 +47,7 @@ laboratuvar/rr.sh video-001 bash calistir.sh
 
 ## Sonuçlarınız farklı çıkarsa
 
-Bellek adresleri, süreler, süreç kimlikleri ve rastgele dağılımlar her çalıştırmada değişir; kayıtlarda bu satırlar `#@ degisken` ile işaretlidir. Önbellek, sistem çağrısı, iş parçacığı ve ağ ölçümleri donanıma ve çekirdeğe bağlıdır. Referans makine: x86-64, AMD Ryzen 5 5600 (6 çekirdek / 12 mantıksal işlemci), Linux 7.2, glibc 2.41, Podman 6.1. Makine kodu gösteren deneyler x86-64 içindir; bazı eş zamanlılık deneyleri en az 3 mantıksal işlemci ister (ilgili videoda söylenir). Ağa bağlı birkaç satır (crates.io) çevrimdışı çalıştırmada hata verir.
+Bellek adresleri, süreler, süreç kimlikleri ve rastgele dağılımlar her çalıştırmada değişir; kayıtlarda bu satırlar `#@ degisken` ile işaretlidir. Önbellek, sistem çağrısı, iş parçacığı ve ağ ölçümleri donanıma ve çekirdeğe bağlıdır. Referans makine: x86-64, AMD Ryzen 5 5600 (6 çekirdek / 12 mantıksal işlemci), Linux 7.2, glibc 2.41, Podman 6.1. Laboratuvar imajı mimariden bağımsız yazılmıştır (arm64'te denenmedi); makine kodu, önbellek ve bellek sıralaması gösteren deneylerin çıktısı x86-64 içindir; bazı eş zamanlılık deneyleri en az 3 mantıksal işlemci ister (ilgili videoda söylenir). Ağa bağlı birkaç satır (crates.io) çevrimdışı çalıştırmada hata verir.
 
 ## Yayımlanmış 001 ve eski deneyler
 

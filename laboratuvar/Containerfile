@@ -5,10 +5,10 @@
 FROM docker.io/library/rust:1.100.0
 ARG NIGHTLY=2026-11-20
 RUN rustup component add clippy rustfmt \
+ && HOST="$(rustc -vV | sed -n 's/^host: //p')" \
  && rustup toolchain install nightly-${NIGHTLY} --profile minimal --component miri,rust-src \
- && mv "$RUSTUP_HOME/toolchains/nightly-${NIGHTLY}-x86_64-unknown-linux-gnu" \
-       "$RUSTUP_HOME/toolchains/nightly-x86_64-unknown-linux-gnu" \
- && rm -f "$RUSTUP_HOME/update-hashes/nightly-${NIGHTLY}-x86_64-unknown-linux-gnu" \
+ && mv "$RUSTUP_HOME/toolchains/nightly-${NIGHTLY}-${HOST}" "$RUSTUP_HOME/toolchains/nightly-${HOST}" \
+ && rm -f "$RUSTUP_HOME/update-hashes/nightly-${NIGHTLY}-${HOST}" \
  && rustc +nightly -V | grep -q '6905905bb' \
  && apt-get update \
  && apt-get install -y --no-install-recommends valgrind strace gdb hyperfine time \
