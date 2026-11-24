@@ -20,8 +20,8 @@ Bilerek çöken deneyler ana makineye çekirdek dökümü göndermesin diye `RLI
 ## Ortam (son çalıştırma)
 
 ```text
-imaj: localhost/nkl-rust:1.100.0  kimlik: c34856ab12905ddd83303fd3d5db1900e10561c7326ff52151295e7243cb3f5f
-tarih: 2026-11-24T20:25:56Z
+imaj: localhost/nkl-rust:1.100.0  kimlik: 2fcffdebdebad090ec5450a47230d86cda084c707d95a1bea46897ff3d99f2fc
+tarih: 2026-11-24T20:54:03Z
 rustc 1.100.0 (0ef1bc386 2026-11-09)
 binary: rustc
 commit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a
@@ -799,7 +799,7 @@ erişim düzeni: sıralı
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Son çalıştırma (UTC): çalıştırılmadı
-- Değişken çıktı: adresler her çalıştırmada değişir (ASLR); 100 çalıştırmadaki farklı yığın son hanesi sayısı da rastgeledir (kayıtta 78), öbekte hep 1
+- Değişken çıktı: adresler her çalıştırmada değişir (ASLR); 100 çalıştırmadaki farklı yığın son hanesi sayısı da rastgeledir, öbekte hep 1
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -817,31 +817,31 @@ ks 'for i in $(seq 100); do ./target/debug/yigin_obek | grep "Box<u64>"; done | 
 ```text
 $ cargo build -q
 $ ./target/debug/yigin_obek
-kod    main()            : 0x555935c27b90
-statik SELAM metni       : 0x555935c169ec
-öbek   Box<u64>          : 0x55596634dd60
-öbek   String verisi     : 0x55596634dd80
-yığın  yerel değişken    : 0x7fff7fee6708
-555935c0f000-555935c27000 r--p 00000000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-555935c27000-555935c6a000 r-xp 00017000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-555935c6a000-555935c6e000 r--p 00059000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-555935c6e000-555935c70000 rw-p 0005c000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-55596634d000-55596636e000 rw-p 00000000 00:00 0                          [heap]
-7fff7fec8000-7fff7fee9000 rw-p 00000000 00:00 0                          [stack]
+kod    main()            : 0x55692815eb90
+statik SELAM metni       : 0x55692814d9ec
+öbek   Box<u64>          : 0x5569571a2d60
+öbek   String verisi     : 0x5569571a2d80
+yığın  yerel değişken    : 0x7ffe78beba58
+556928146000-55692815e000 r--p 00000000 00:1d 80417821                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+55692815e000-5569281a1000 r-xp 00017000 00:1d 80417821                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5569281a1000-5569281a5000 r--p 00059000 00:1d 80417821                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5569281a5000-5569281a7000 rw-p 0005c000 00:1d 80417821                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5569571a2000-5569571c3000 rw-p 00000000 00:00 0                          [heap]
+7ffe78bcd000-7ffe78bee000 rw-p 00000000 00:00 0                          [stack]
 $ ./target/debug/yigin_obek
-kod    main()            : 0x5560d6116b90
-statik SELAM metni       : 0x5560d61059ec
-öbek   Box<u64>          : 0x5560dc401d60
-öbek   String verisi     : 0x5560dc401d80
-yığın  yerel değişken    : 0x7ffddd6ba248
-5560d60fe000-5560d6116000 r--p 00000000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-5560d6116000-5560d6159000 r-xp 00017000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-5560d6159000-5560d615d000 r--p 00059000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-5560d615d000-5560d615f000 rw-p 0005c000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-5560dc401000-5560dc422000 rw-p 00000000 00:00 0                          [heap]
-7ffddd69b000-7ffddd6bc000 rw-p 00000000 00:00 0                          [stack]
+kod    main()            : 0x55ce95459b90
+statik SELAM metni       : 0x55ce954489ec
+öbek   Box<u64>          : 0x55ceb5407d60
+öbek   String verisi     : 0x55ceb5407d80
+yığın  yerel değişken    : 0x7fffac128778
+55ce95441000-55ce95459000 r--p 00000000 00:1d 80417821                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+55ce95459000-55ce9549c000 r-xp 00017000 00:1d 80417821                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+55ce9549c000-55ce954a0000 r--p 00059000 00:1d 80417821                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+55ce954a0000-55ce954a2000 rw-p 0005c000 00:1d 80417821                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+55ceb5407000-55ceb5428000 rw-p 00000000 00:00 0                          [heap]
+7fffac109000-7fffac12a000 rw-p 00000000 00:00 0                          [stack]
 $ for i in $(seq 100); do ./target/debug/yigin_obek | grep "^yığın"; done | sed -E "s/.*(...)$/\1/" | sort -u | wc -l
-82
+83
 $ for i in $(seq 100); do ./target/debug/yigin_obek | grep "Box<u64>"; done | sed -E "s/.*(...)$/\1/" | sort -u | wc -l
 1
 ```
@@ -4396,7 +4396,7 @@ sonda tek fsync   : 200 kayıt     3.00 ms (0.015 ms/kayıt)
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Son çalıştırma (UTC): çalıştırılmadı
-- Değişken çıktı: iş parçacığı kimliği; sa_restorer adresi
+- Değişken çıktı: iş parçacığı kimliği; sa_restorer adresi; boru kapasitesi (varsayılan 65 536 bayt; kullanıcının toplam boru sayfaları pipe-user-pages-soft sınırını aşmışsa 8192)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -4405,6 +4405,8 @@ k ./target/debug/borular
 # Rust çalışma zamanı, main'den önce SIGPIPE'ı "yok say" olarak ayarlar
 ks 'strace -e trace=rt_sigaction ./target/debug/borular kapasite 2>&1 | grep SIGPIPE'
 # Boru tamponunun kapasitesi ve okuma ucu kapanınca yazma
+# Kullanıcı başına boru sayfası yumuşak sınırı (pipe(7)): aşılınca yeni borular 2 sayfaya (8192 bayt) iner
+k cat /proc/sys/fs/pipe-user-pages-soft
 k ./target/debug/borular kapasite
 # Okuyan taraf boruyu erken kapatırsa: yazma EPIPE hatası döner, println! paniğe dönüşür
 ks './target/debug/borular cok-yaz | head -n 2'
@@ -4424,16 +4426,18 @@ zeytin
 SIGTERM sonrası: signal: 15 (SIGTERM)
 kill() sonrası  : signal: 9 (SIGKILL)
 $ strace -e trace=rt_sigaction ./target/debug/borular kapasite 2>&1 | grep SIGPIPE
-rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN, sa_mask=[PIPE], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f033e073d70}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN, sa_mask=[PIPE], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7ff99c315d70}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+$ cat /proc/sys/fs/pipe-user-pages-soft
+16384
 $ ./target/debug/borular kapasite
-kimse okumazken yazılan: 8192 bayt (yazan şimdi bekliyor)
-4096 bayt okununca     : 12288 bayt
+kimse okumazken yazılan: 65536 bayt (yazan şimdi bekliyor)
+4096 bayt okununca     : 69632 bayt
 okuma ucu kapanınca yazma: Broken pipe (os error 32) (BrokenPipe)
 $ ./target/debug/borular cok-yaz | head -n 2
 satır 0
 satır 1
 
-thread 'main' (16422) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/io/stdio.rs:1209:9:
+thread 'main' (193) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/io/stdio.rs:1209:9:
 failed printing to stdout: Broken pipe (os error 32)
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 $ ./target/debug/borular dikkatli-yaz | head -n 2; echo "yazanın çıkış kodu: ${PIPESTATUS[0]}"

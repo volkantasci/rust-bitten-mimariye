@@ -1,5 +1,5 @@
 #@ video: 010-yigin-ve-obek
-#@ degisken: adresler her çalıştırmada değişir (ASLR); 100 çalıştırmadaki farklı yığın son hanesi sayısı da rastgeledir (kayıtta 78), öbekte hep 1
+#@ degisken: adresler her çalıştırmada değişir (ASLR); 100 çalıştırmadaki farklı yığın son hanesi sayısı da rastgeledir, öbekte hep 1
 k cargo build -q
 k ./target/debug/yigin_obek
 # Kendin dene: ikinci çalıştırmada hangi haneler değişiyor?

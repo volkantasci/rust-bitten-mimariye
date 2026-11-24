@@ -7,16 +7,18 @@ zeytin
 SIGTERM sonrası: signal: 15 (SIGTERM)
 kill() sonrası  : signal: 9 (SIGKILL)
 $ strace -e trace=rt_sigaction ./target/debug/borular kapasite 2>&1 | grep SIGPIPE
-rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN, sa_mask=[PIPE], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f033e073d70}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN, sa_mask=[PIPE], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7ff99c315d70}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+$ cat /proc/sys/fs/pipe-user-pages-soft
+16384
 $ ./target/debug/borular kapasite
-kimse okumazken yazılan: 8192 bayt (yazan şimdi bekliyor)
-4096 bayt okununca     : 12288 bayt
+kimse okumazken yazılan: 65536 bayt (yazan şimdi bekliyor)
+4096 bayt okununca     : 69632 bayt
 okuma ucu kapanınca yazma: Broken pipe (os error 32) (BrokenPipe)
 $ ./target/debug/borular cok-yaz | head -n 2
 satır 0
 satır 1
 
-thread 'main' (16422) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/io/stdio.rs:1209:9:
+thread 'main' (193) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/io/stdio.rs:1209:9:
 failed printing to stdout: Broken pipe (os error 32)
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 $ ./target/debug/borular dikkatli-yaz | head -n 2; echo "yazanın çıkış kodu: ${PIPESTATUS[0]}"
