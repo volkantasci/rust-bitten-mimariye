@@ -1,11 +1,31 @@
 $ cargo run -q
 topla(2, 3) = 5
-C diyor ki: merhaba Ferris
-strlen("Ferris") = 6
+C diyor ki: merhaba Atölye
+strlen("Atölye") = 7 bayt, Rust'ta 6 karakter
 karesi_arti_bir(7) = 50 (C, Rust'taki rust_kare'yi çağırdı)
-C dizgisinin baytları: [70, 101, 114, 114, 105, 115, 0]
+C dizesinin baytları: [65, 116, 195, 182, 108, 121, 101, 0]
 $ nm target/debug/ffi | grep -E " T (topla|selamla|karesi_arti_bir|rust_kare)$"
-0000000000016676 T karesi_arti_bir
-0000000000016230 T rust_kare
-000000000001663a T selamla
-0000000000016626 T topla
+0000000000016e76 T karesi_arti_bir
+00000000000167d0 T rust_kare
+0000000000016e3a T selamla
+0000000000016e26 T topla
+$ nm target/debug/ffi | grep -E "_R[A-Za-z0-9_]*3ffi4main$"
+0000000000016330 t _RNvCsdQBekWUDKTL_3ffi4main
+$ cargo build -q --release
+$ objdump -d -M intel --no-show-raw-insn target/release/ffi | awk "/<rust_kare>:/,/ret/"
+00000000000153f8 <rust_kare>:
+   153f8:	mov    eax,edi
+   153fa:	imul   eax,edi
+   153fd:	ret
+$ objdump -d -M intel --no-show-raw-insn target/release/ffi | awk "/<karesi_arti_bir>:/,/ret/"
+0000000000015490 <karesi_arti_bir>:
+   15490:	sub    rsp,0x8
+   15494:	call   153f8 <rust_kare>
+   15499:	add    rsp,0x8
+   1549d:	add    eax,0x1
+   154a0:	ret
+$ rm -rf /tmp/ffi-kopya && mkdir /tmp/ffi-kopya && cp -r Cargo.toml Cargo.lock build.rs c src /tmp/ffi-kopya/ && cd /tmp/ffi-kopya && sed -i "/no_mangle/d" src/main.rs && cargo build -q 2>&1 | grep -E "undefined symbol|^error: linking"
+error: linking with `cc` failed: exit status: 1
+  = note: rust-lld: error: undefined symbol: rust_kare
+$ rm -rf /tmp/ffi-kopya2 && mkdir /tmp/ffi-kopya2 && cp -r Cargo.toml Cargo.lock build.rs c src /tmp/ffi-kopya2/ && cd /tmp/ffi-kopya2 && sed -i "s/fn topla(a: c_int, b: c_int) -> c_int;/fn topla(a: c_int, b: c_int) -> f64;/" src/main.rs && cargo run -q 2>&1 | head -n 1
+topla(2, 3) = 847448912897781200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

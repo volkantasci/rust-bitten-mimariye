@@ -6,25 +6,29 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 // Uyandırıcı: beklemedeki yürütücü iş parçacığını dürter
-struct Durtucu(thread::Thread);
+struct Durtucu(thread::Thread, bool); // bool: unpark yapılsın mı (kendin dene için false)
 impl Wake for Durtucu {
     fn wake(self: Arc<Self>) {
-        self.0.unpark();
+        if self.1 {
+            self.0.unpark();
+        }
     }
 }
 
-fn block_on<F: Future>(gelecek: F) -> F::Output {
+fn block_on<F: Future>(gelecek: F, mesgul: bool, unpark: bool) -> F::Output {
     let mut gelecek = pin!(gelecek);
-    let uyandirici = Waker::from(Arc::new(Durtucu(thread::current())));
+    let uyandirici = Waker::from(Arc::new(Durtucu(thread::current(), unpark)));
     let mut cx = Context::from_waker(&uyandirici);
-    let mut yoklama = 0;
+    let mut yoklama: u64 = 0;
     loop {
         yoklama += 1;
         if let Poll::Ready(sonuc) = gelecek.as_mut().poll(&mut cx) {
             println!("[yürütücü] {yoklama} yoklamada tamamlandı");
             return sonuc;
         }
-        thread::park(); // CPU yakmadan, uyandırılana kadar uyu
+        if !mesgul {
+            thread::park(); // işlemciyi bırak; uyandırıcı unpark edene kadar uyu
+        } // meşgul sürüm: hiç uyumadan hemen yeniden yokla
     }
 }
 
@@ -68,7 +72,8 @@ async fn gorev(t0: Instant) -> u32 {
 }
 
 fn main() {
+    let kip = std::env::args().nth(1).unwrap_or_default();
     let t0 = Instant::now();
-    let sonuc = block_on(gorev(t0));
+    let sonuc = block_on(gorev(t0), kip == "mesgul", kip != "unpark-yok");
     println!("sonuç = {sonuc}");
 }

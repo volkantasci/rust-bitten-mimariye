@@ -1,0 +1,21 @@
+$ cargo build -q --release
+$ ./target/release/yonlendirme
+statik   7.11 ms | &dyn  48.58 ms | Box<dyn>  48.39 ms | eşit: true
+statik   7.02 ms | &dyn  48.24 ms | Box<dyn>  48.76 ms | eşit: true
+$ nm -C target/release/yonlendirme | grep toplam
+0000000000016be0 t yonlendirme::toplam_statik::<yonlendirme::Kare>
+0000000000016e30 t yonlendirme::toplam_kutulu
+$ cargo +nightly build -q --release --target-dir target/nightly && nm -C target/nightly/release/yonlendirme | grep toplam
+0000000000016a50 t yonlendirme::toplam_statik::<yonlendirme::Kare>
+0000000000016ca0 t yonlendirme::toplam_kutulu
+$ RUSTFLAGS="-Z merge-functions=disabled" cargo +nightly build -q --release --target-dir target/birlestirmesiz && nm -C target/birlestirmesiz/release/yonlendirme | grep toplam
+0000000000016a80 t yonlendirme::toplam_statik::<yonlendirme::Kare>
+0000000000016cd0 t yonlendirme::toplam_kutulu
+0000000000016d50 t yonlendirme::toplam_dinamik
+$ objdump -d -M intel --no-show-raw-insn -C target/release/yonlendirme | awk "/^0000.*<yonlendirme::toplam_kutulu>:/{f=1} f&&/^$/{exit} f" | grep -E "call|ret"
+   16e6f:	call   QWORD PTR [rax+0x18]
+   16e9a:	ret
+   16ea3:	ret
+$ objdump -d -M intel --no-show-raw-insn -C target/release/yonlendirme | awk "/^0000.*<yonlendirme::toplam_statik::<yonlendirme::Kare>>:/{f=1} f&&/^$/{exit} f" | grep -oE "\b(call|mulsd|addsd)\b" | sort | uniq -c
+      5 addsd
+      5 mulsd

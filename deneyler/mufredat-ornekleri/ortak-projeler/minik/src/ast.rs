@@ -1,4 +1,4 @@
-//! Soyut sözdizimi ağacı: dilin yapısı Rust enum'larıyla (cebirsel veri tipleri)
+//! Soyut söz dizimi ağacı (AST): dilin yapısı Rust enum'larıyla (cebirsel veri tipleri)
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum IkiliOp { Topla, Cikar, Carp, Bol, Mod, Esit, EsitDegil, Kucuk, KucukEsit, Buyuk, BuyukEsit, Ve, Veya }

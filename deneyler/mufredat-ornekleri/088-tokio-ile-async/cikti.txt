@@ -1,19 +1,25 @@
 $ cargo build -q --release
+$ bash sayac.sh başta
+başta: ListenOverflows 0
 $ ./target/release/tokio_sunucu 100
 çalışma zamanı işçi iş parçacığı: 12
-100 eşzamanlı istemci (her biri sunucuda 100 ms bekletildi): toplam 123 ms
-  istemci süreleri: <0,5 s: 100  ~1 s: 0  ~2 s: 0  ≥2,5 s: 0
+100 istemci, kuyruk 128 (bind varsayılanı): toplam 122 ms | süreler <0,5 s: 100  ~1 s: 0  ~2 s: 0  ≥2,5 s: 0
 zaman aşımı: yavaş iş iptal edildi
-$ awk '/^TcpExt:/ { if (!h) { split($0, ad); h=1 } else { for (i=2;i<=NF;i++) if (ad[i] ~ /^Listen(Overflows|Drops)$/) print ad[i], $i } }' /proc/net/netstat
-ListenOverflows 0
-ListenDrops 0
 $ ./target/release/tokio_sunucu 1000
 çalışma zamanı işçi iş parçacığı: 12
-1000 eşzamanlı istemci (her biri sunucuda 100 ms bekletildi): toplam 1815 ms
-  istemci süreleri: <0,5 s: 444  ~1 s: 380  ~2 s: 176  ≥2,5 s: 0
+1000 istemci, kuyruk 128 (bind varsayılanı): toplam 1356 ms | süreler <0,5 s: 371  ~1 s: 629  ~2 s: 0  ≥2,5 s: 0
 zaman aşımı: yavaş iş iptal edildi
-$ awk '/^TcpExt:/ { if (!h) { split($0, ad); h=1 } else { for (i=2;i<=NF;i++) if (ad[i] ~ /^Listen(Overflows|Drops)$/) print ad[i], $i } }' /proc/net/netstat
-ListenOverflows 1682
-ListenDrops 1682
+$ bash sayac.sh "1000 istemciden sonra"
+1000 istemciden sonra: ListenOverflows 1213
 $ strace -f -e trace=listen ./target/release/tokio_sunucu 10 2>&1 | grep "listen("
-[pid 17733] listen(9, 128)              = 0
+[pid 25258] listen(9, 128)              = 0
+$ cat /proc/sys/net/core/somaxconn
+4096
+$ cat /proc/sys/net/ipv4/tcp_abort_on_overflow
+0
+$ ./target/release/tokio_sunucu 1000 1024
+çalışma zamanı işçi iş parçacığı: 12
+1000 istemci, kuyruk 1024: toplam 155 ms | süreler <0,5 s: 1000  ~1 s: 0  ~2 s: 0  ≥2,5 s: 0
+zaman aşımı: yavaş iş iptal edildi
+$ bash sayac.sh "kuyruk 1024 ile sonra"
+kuyruk 1024 ile sonra: ListenOverflows 1213

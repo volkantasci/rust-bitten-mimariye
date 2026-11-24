@@ -17,7 +17,7 @@ overflowing_add(1) = (0, true)
 -1i8 bitleri       = 11111111
 i8 aralığı         = -128 ..= 127
 
-thread 'main' (401) panicked at src/main.rs:12:41:
+thread 'main' (1364) panicked at src/main.rs:12:41:
 attempt to add with overflow
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]

@@ -30,3 +30,34 @@ fn oku(metin: &'_ str)
         };
     Ok(n + 1)
 }
+$ rustc --edition 2024 --crate-type=lib -o /tmp/tip_hatasi.rlib tip_hatasi.rs 2>&1
+error[E0277]: `{integer}` is not an iterator
+ --> tip_hatasi.rs:2:14
+  |
+2 |     for x in 5 {
+  |              ^ `{integer}` is not an iterator
+  |
+  = help: the trait `Iterator` is not implemented for `{integer}`
+  = note: if you want to iterate between `start` until a value `end`, use the exclusive range syntax `start..end` or the inclusive range syntax `start..=end`
+  = note: required for `{integer}` to implement `IntoIterator`
+
+error[E0277]: the `?` operator can only be used in a function that returns `Result` or `Option` (or another type that implements `FromResidual`)
+  --> tip_hatasi.rs:8:31
+   |
+ 7 | fn oku(metin: &str) {
+   | ------------------- this function should return `Result` or `Option` to accept `?`
+ 8 |     let n: i32 = metin.parse()?;
+   |                               ^ cannot use the `?` operator in a function that returns `()`
+   |
+help: consider adding return type
+   |
+ 7 ~ fn oku(metin: &str) -> Result<(), Box<dyn std::error::Error>> {
+ 8 |     let n: i32 = metin.parse()?;
+ 9 |     println!("{n}");
+10 +     Ok(())
+   |
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0277`.
+[çıkış kodu: 1]

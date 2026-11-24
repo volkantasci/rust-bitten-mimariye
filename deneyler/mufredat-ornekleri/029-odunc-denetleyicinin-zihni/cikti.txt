@@ -22,3 +22,37 @@ $ rustc +nightly -Z help | grep -i polonius
     -Z                                      polonius=val -- enable polonius-based borrow-checker (default: next)
 $ RUSTFLAGS="-Zpolonius=next" cargo +nightly run -q --target-dir target/polonius
 yeni
+$ cargo build -q
+error[E0382]: use of moved value: `kelimeler`
+  --> src/main.rs:19:27
+   |
+13 |     let mut kelimeler = Vec::new();
+   |         ------------- move occurs because `kelimeler` has type `Vec<String>`, which does not implement the `Copy` trait
+...
+18 |     for _ in 0..100 {
+   |     --------------- inside of this loop
+19 |         toplam += en_uzun(kelimeler).len(); // ilk turda taşınır
+   |                           ^^^^^^^^^ value moved here, in previous iteration of loop
+   |
+note: consider changing this parameter type in function `en_uzun` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:2:23
+   |
+ 2 | fn en_uzun(kelimeler: Vec<String>) -> String {
+   |    -------            ^^^^^^^^^^^ this parameter takes ownership of the value
+   |    |
+   |    in this function
+help: consider cloning the value if the performance cost is acceptable
+   |
+19 |         toplam += en_uzun(kelimeler.clone()).len(); // ilk turda taşınır
+   |                                    ++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `ilk_surum` (bin "ilk_surum") due to 1 previous error
+[çıkış kodu: 101]
+$ cargo build -q --release
+$ valgrind ./target/release/ajan 2>&1 | grep -E "toplam uzunluk|total heap usage"
+toplam uzunluk: 900
+==5189==   total heap usage: 101,119 allocs, 101,117 frees, 3,353,700 bytes allocated
+$ valgrind ./target/release/duzeltilmis 2>&1 | grep -E "toplam uzunluk|total heap usage"
+toplam uzunluk: 900
+==5192==   total heap usage: 1,019 allocs, 1,017 frees, 64,700 bytes allocated

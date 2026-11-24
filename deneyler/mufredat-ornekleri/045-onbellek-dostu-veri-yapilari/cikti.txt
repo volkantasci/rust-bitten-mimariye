@@ -1,7 +1,14 @@
 $ cargo run -q --release
-matris satır-öncelikli gezinme         2.75 ms
-matris sütun-öncelikli gezinme        74.55 ms
-Vec<u64> toplamı                       1.84 ms
-LinkedList<u64> toplamı                6.93 ms
-AoS: Vec<Parcacik> içinden kütle       4.03 ms
-SoA: Vec<f32> kütle dizisi             2.72 ms
+matris satır öncelikli gezinme             3.12 ms
+matris sütun öncelikli gezinme            74.46 ms
+Vec<u64> toplamı                           1.94 ms
+LinkedList<u64> toplamı                    6.85 ms
+rastgele zincirin tur uzunluğu: 8000000 (eleman sayısı 8000000)
+kovalama: sonraki eleman yanda             9.29 ms
+kovalama: sonraki eleman rastgele yerde   477.01 ms
+AoS: Vec<Parcacik> içinden kütle           3.50 ms
+SoA: Vec<f32> kütle dizisi                 0.63 ms
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A2 "^//! NOTE: It is almost always better to use" $S/alloc/src/collections/linked_list.rs
+6://! NOTE: It is almost always better to use [`Vec`] or [`VecDeque`] because
+7-//! array-based containers are generally faster,
+8-//! more memory efficient, and make better use of CPU cache.

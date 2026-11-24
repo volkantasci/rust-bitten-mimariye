@@ -1,18 +1,33 @@
 $ cargo build -q
 $ ./target/debug/soketler
-sunucu dinliyor: 127.0.0.1:40917
-istemci: 127.0.0.1:38338 → 127.0.0.1:40917
-sunucu: 127.0.0.1:38338 bağlandı
-istemci aldı: "MERHABA AĞ"
-$ strace -f -e trace=socket,bind,listen,accept4,connect,write,sendto,recvfrom,read,shutdown,close ./target/debug/soketler 2>&1 | grep -E "socket\(|bind\(|listen\(|accept4\(|connect\(|sendto\(|recvfrom\(" 
+sunucu dinliyor: 127.0.0.1:40555
+[   0 ms] istemci bağlandı: 127.0.0.1:56676 → 127.0.0.1:40555
+[   0 ms] istemci veriyi gönderdi
+[ 300 ms] sunucu accept çağırıyor
+sunucu: 127.0.0.1:56676 bağlandı
+[ 300 ms] istemci aldı: "MERHABA AĞ"
+$ cat /proc/sys/net/ipv4/ip_local_port_range
+32768	60999
+$ ./target/debug/soketler > /dev/null & sleep 0.12; awk "NR==1 || \$4==\"01\" || \$4==\"0A\"" /proc/net/tcp | cut -c1-60; wait
+  sl  local_address rem_address   st tx_queue rx_queue tr tm
+   0: 0100007F:88D3 00000000:0000 0A 00000000:00000001 00:00
+   2: 0100007F:90B8 0100007F:88D3 01 00000000:00000000 00:00
+   3: 0100007F:88D3 0100007F:90B8 01 00000000:0000000B 00:00
+$ strace -f -e trace=socket,bind,listen,accept4,connect,sendto,recvfrom ./target/debug/soketler 2>&1 | grep -E "socket\(|bind\(|listen\(|accept4\(|connect\(|sendto\(|recvfrom\([0-9]+, \""
 socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_IP) = 3
 bind(3, {sa_family=AF_INET, sin_port=htons(0), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
 listen(3, 128)                          = 0
-[pid 12311] socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_IP) = 4
-[pid 12311] connect(4, {sa_family=AF_INET, sin_port=htons(38593), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
-[pid 12311] sendto(4, "merhaba a\304\237", 11, MSG_NOSIGNAL, NULL, 0) = 11
-[pid 12311] recvfrom(4,  <unfinished ...>
-[pid 12312] accept4(3, {sa_family=AF_INET, sin_port=htons(33160), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC) = 5
-[pid 12312] recvfrom(5, "merhaba a\304\237", 64, 0, NULL, NULL) = 11
-[pid 12312] sendto(5, "MERHABA A\304\236", 11, MSG_NOSIGNAL, NULL, 0 <unfinished ...>
-[pid 12311] recvfrom(4,  <unfinished ...>
+[pid 16555] socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_IP) = 4
+[pid 16555] connect(4, {sa_family=AF_INET, sin_port=htons(38035), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
+[pid 16555] sendto(4, "merhaba a\304\237", 11, MSG_NOSIGNAL, NULL, 0) = 11
+[pid 16556] accept4(3, {sa_family=AF_INET, sin_port=htons(33898), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC) = 5
+[pid 16556] recvfrom(5, "merhaba a\304\237", 64, 0, NULL, NULL) = 11
+[pid 16556] sendto(5, "MERHABA A\304\236", 11, MSG_NOSIGNAL, NULL, 0 <unfinished ...>
+[pid 16555] recvfrom(4, "", 32, 0, NULL, NULL) = 0
+$ ./target/debug/soketler 3000
+sunucu dinliyor: 127.0.0.1:42715
+[   0 ms] istemci bağlandı: 127.0.0.1:55132 → 127.0.0.1:42715
+[   0 ms] istemci veriyi gönderdi
+[3000 ms] sunucu accept çağırıyor
+sunucu: 127.0.0.1:55132 bağlandı
+[3000 ms] istemci aldı: "MERHABA AĞ"

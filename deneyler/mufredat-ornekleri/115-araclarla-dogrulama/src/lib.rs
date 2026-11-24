@@ -14,7 +14,7 @@ pub fn medyan_hizli(v: &[i32]) -> Option<i32> {
     if v.is_empty() { None } else { Some(v[v.len() / 2]) }
 }
 
-/// Başvuru (referans) uygulaması: yavaş ama açıkça doğru
+/// Başvuru (referans) gerçekleştirimi: yavaş ama açıkça doğru
 pub fn medyan_basvuru(v: &[i32]) -> Option<i32> {
     let mut s = v.to_vec();
     s.sort();
@@ -38,7 +38,7 @@ mod testler {
     }
 
     proptest! {
-        // Farklılık testi: hızlı sürüm, başvuru sürümüyle her girdide aynı mı?
+        // Farklılık testi: hızlı sürüm, başvuru gerçekleştirimiyle her girdide aynı mı?
         #[test]
         fn medyan_basvuruyla_ayni(v in proptest::collection::vec(-100i32..100, 0..20)) {
             prop_assert_eq!(medyan_hizli(&v), medyan_basvuru(&v));

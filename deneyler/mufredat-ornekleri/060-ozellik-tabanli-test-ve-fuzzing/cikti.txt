@@ -1,5 +1,11 @@
-$ cargo test -q 2>&1 | grep -E "^---- |minimal failing input|successes|^test result"
----- testler::saf_surum_aralikta stdout ----
-minimal failing input: a = 2903406468, b = 1391560828
-	successes: 0
-test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+$ cargo test -q > /tmp/test.txt 2>&1; grep -m1 -B1 "attempt to add with overflow" /tmp/test.txt; grep -E "minimal failing input|^test result" /tmp/test.txt
+thread 'testler::saf_surum_aralikta' (9697) panicked at src/lib.rs:3:5:
+attempt to add with overflow
+minimal failing input: a = 1313757965, b = 2981209331
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ grep -q "minimal failing input" /tmp/test.txt || tail -n 20 /tmp/test.txt
+$ grep -o "a = [0-9]*, b = [0-9]*" /tmp/test.txt | head -1 | tr -dc "0-9 \n" | awk "{print \"a + b =\", \$1 + \$2}"
+a + b = 4294967296
+$ ls proptest-regressions && grep -c "^cc " proptest-regressions/*.txt
+lib.txt
+1

@@ -28,3 +28,16 @@ $ cargo run -q
 [7] → tek eleman: 7
 [3, 1, 3] → baş ve son aynı: 3
 [1, 2, 3, 4, 5] → 1 … 5 (arada 3 eleman)
+$ rustc --edition 2024 -C opt-level=0 --emit=mir -o target/dilim.mir dilim-oruntuleri/src/main.rs
+$ awk "/^fn siniflandir/,/^}/" target/dilim.mir | grep -E "switchInt|Ge\(|Eq\(|PtrMetadata|Len\("
+        _6 = PtrMetadata(copy _1);
+        _7 = Eq(copy _6, const 0_usize);
+        switchInt(move _7) -> [0: bb1, otherwise: bb6];
+        _4 = PtrMetadata(copy _1);
+        _5 = Eq(copy _4, const 1_usize);
+        switchInt(move _5) -> [0: bb3, otherwise: bb5];
+        _2 = PtrMetadata(copy _1);
+        _3 = Ge(copy _2, const 2_usize);
+        switchInt(move _3) -> [0: bb2, otherwise: bb4];
+        switchInt(move _22) -> [0: bb12, otherwise: bb11];
+        _38 = PtrMetadata(copy _32);

@@ -1,6 +1,14 @@
-$ cargo run -q
+$ cargo build -q
+$ ./target/debug/cerceve
 tel üzerindeki baytlar: [00, 00, 00, 07, 6d, 65, 72, 68, 61, 62, 61]
 saf sunucu tek read'de 48 bayt aldı (3 mesaj yapışık geldi)
 çerçeveli sunucu mesaj aldı: "GET anahtar"
 çerçeveli sunucu mesaj aldı: "SET anahtar 42"
 çerçeveli sunucu mesaj aldı: "DEL anahtar"
+saf sunucu tek read'de 7 bayt aldı (mesajın yalnız başı)
+çerçeveli sunucu kalanı bekledi, mesajı tam aldı: "GET anahtar"
+dev uzunluklu çerçeve: "çerçeve çok büyük: 4294967295 bayt"
+$ ./target/debug/cerceve kendin-dene
+tel üzerindeki baytlar: [07, 00, 00, 00, 6d, 65, 72, 68, 61, 62, 61]
+big-endian okuyan alıcının gördüğü uzunluk: 117440512
+çerçeve okuma: "çerçeve çok büyük: 117440512 bayt"

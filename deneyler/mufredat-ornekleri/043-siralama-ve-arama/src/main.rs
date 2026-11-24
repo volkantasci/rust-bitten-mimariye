@@ -6,7 +6,7 @@ fn main() {
 
     // Kaç karşılaştırma? n log2 n ile kıyaslayalım
     let n = 1_000_000usize;
-    let mut durum = 88172645463325252u64;
+    let mut durum = 88172645463325252u64; // sabit tohumlu xorshift: her çalıştırmada aynı veri
     let veri: Vec<u32> = (0..n)
         .map(|_| {
             durum ^= durum << 13;
@@ -15,16 +15,22 @@ fn main() {
             durum as u32
         })
         .collect();
-    for (ad, kararli) in [("sort (kararlı)", true), ("sort_unstable", false)] {
-        let mut v = veri.clone();
-        let mut sayac = 0u64;
-        let mut kiyas = |a: &u32, b: &u32| {
-            sayac += 1;
-            a.cmp(b)
-        };
-        if kararli { v.sort_by(&mut kiyas) } else { v.sort_unstable_by(&mut kiyas) }
-        assert!(v.windows(2).all(|w| w[0] <= w[1]));
-        println!("{ad:<15}: {sayac:>9} karşılaştırma", );
+    let mut sirali = veri.clone();
+    sirali.sort_unstable();
+    for (girdi, v0) in [("rastgele", &veri), ("zaten sıralı", &sirali)] {
+        for (ad, kararli) in [("sort (kararlı)", true), ("sort_unstable", false)] {
+            let mut v = v0.clone();
+            let mut sayac = 0u64;
+            let mut kiyas = |a: &u32, b: &u32| {
+                sayac += 1;
+                a.cmp(b)
+            };
+            if kararli { v.sort_by(&mut kiyas) } else { v.sort_unstable_by(&mut kiyas) }
+            assert!(v.windows(2).all(|w| w[0] <= w[1]));
+            println!("{girdi:<12} {ad:<15}: {sayac:>9} karşılaştırma");
+        }
     }
-    println!("n log2 n       : {:>9.0}", n as f64 * (n as f64).log2());
+    println!("n log2 n                    : {:>9.0}", n as f64 * (n as f64).log2());
+    println!("log2(n!) (alt sınır)        : {:>9.0}", (1..=n).map(|k| (k as f64).log2()).sum::<f64>());
+    println!("n - 1                       : {:>9}", n - 1);
 }

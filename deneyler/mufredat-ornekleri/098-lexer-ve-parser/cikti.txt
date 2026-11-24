@@ -1,3 +1,23 @@
+$ rustc --edition 2024 -o /tmp/belirtecler belirtecler.rs && /tmp/belirtecler
+let
+toplam_2
+=
+0x2A
++
+1_000u32
+*
+(3 - x)
+;
+a
+>>=
+b
+;
+"bir dize"
+---
+a
+>
+>=
+b
 $ rustc +nightly --edition 2024 -Zunpretty=ast-tree ifade.rs | grep -E "kind: (Binary|Lit)|Add|Mul|symbol" 
                                                     kind: Binary(
                                                             node: Add,
@@ -9,6 +29,17 @@ $ rustc +nightly --edition 2024 -Zunpretty=ast-tree ifade.rs | grep -E "kind: (B
                                                                             symbol: "2",
                                                                     kind: Lit(
                                                                             symbol: "3",
+$ rustc +nightly --edition 2024 -Zunpretty=ast-tree birlesme.rs | grep -E "kind: (Binary|Lit)|Sub|symbol" 
+                                                    kind: Binary(
+                                                            node: Sub,
+                                                            kind: Binary(
+                                                                    node: Sub,
+                                                                    kind: Lit(
+                                                                            symbol: "10",
+                                                                    kind: Lit(
+                                                                            symbol: "4",
+                                                            kind: Lit(
+                                                                    symbol: "3",
 $ echo "fn main() { let x = (1 + 2; }" > /tmp/bozuk.rs && rustc --edition 2024 /tmp/bozuk.rs
 error: mismatched closing delimiter: `}`
  --> /tmp/bozuk.rs:1:21

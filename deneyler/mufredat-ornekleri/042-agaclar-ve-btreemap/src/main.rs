@@ -1,6 +1,23 @@
+use std::cell::Cell;
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::hint::black_box;
 use std::time::Instant;
+
+// Karşılaştırmaları sayan anahtar: her cmp çağrısında sayaç bir artar
+thread_local!(static SAYAC: Cell<u64> = const { Cell::new(0) });
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Anahtar(u64);
+impl Ord for Anahtar {
+    fn cmp(&self, diger: &Self) -> Ordering {
+        SAYAC.with(|s| s.set(s.get() + 1));
+        self.0.cmp(&diger.0)
+    }
+}
+impl PartialOrd for Anahtar {
+    fn partial_cmp(&self, diger: &Self) -> Option<Ordering> { Some(self.cmp(diger)) }
+}
+fn sayac_sifirla() -> u64 { SAYAC.with(|s| s.replace(0)) }
 
 fn main() {
     let notlar = BTreeMap::from([("Ece", 91), ("Ali", 72), ("Can", 85), ("Ada", 64), ("Naz", 78)]);
@@ -10,6 +27,20 @@ fn main() {
 
     let n = 1_000_000u64;
     let anahtarlar: Vec<u64> = (0..n).map(|i| i.wrapping_mul(0x9E37_79B9_7F4A_7C15)).collect();
+
+    // Arama başına kaç karşılaştırma? B-ağacı ile sıralı dizide ikili arama
+    let agac: BTreeMap<Anahtar, u64> = anahtarlar.iter().map(|&k| (Anahtar(k), k)).collect();
+    let mut sirali: Vec<Anahtar> = anahtarlar.iter().map(|&k| Anahtar(k)).collect();
+    sirali.sort();
+    sayac_sifirla();
+    for &k in &anahtarlar { black_box(agac.get(&Anahtar(k))); }
+    let c_agac = sayac_sifirla();
+    for &k in &anahtarlar { let _ = black_box(sirali.binary_search(&Anahtar(k))); }
+    let c_dizi = sayac_sifirla();
+    println!("{n} arama, arama başına karşılaştırma: BTreeMap {:.1} | sıralı dizide ikili arama {:.1}",
+             c_agac as f64 / n as f64, c_dizi as f64 / n as f64);
+
+    // Süre: HashMap ile BTreeMap (sizde farklı çıkar)
     let h: HashMap<u64, u64> = anahtarlar.iter().map(|&k| (k, k)).collect();
     let b: BTreeMap<u64, u64> = anahtarlar.iter().map(|&k| (k, k)).collect();
     let t = Instant::now();
@@ -19,6 +50,6 @@ fn main() {
     let t = Instant::now();
     for k in &anahtarlar { s += b[black_box(k)]; }
     let tb = t.elapsed();
-    println!("1e6 arama   : HashMap {:>6.1} ms, BTreeMap {:>6.1} ms", th.as_secs_f64() * 1e3, tb.as_secs_f64() * 1e3);
+    println!("{n} arama   : HashMap {:>6.1} ms, BTreeMap {:>6.1} ms", th.as_secs_f64() * 1e3, tb.as_secs_f64() * 1e3);
     black_box(s);
 }

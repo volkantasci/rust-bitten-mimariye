@@ -1,3 +1,4 @@
 $ cargo run -q
 repr(Rust): boyut  8  a@6 b@0 c@4
 repr(C)   : boyut 12  a@0 b@4 c@8
+repr(C) büyükten küçüğe: boyut  8  a@6 b@0 c@4

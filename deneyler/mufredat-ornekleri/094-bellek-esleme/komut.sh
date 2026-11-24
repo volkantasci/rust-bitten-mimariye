@@ -1,4 +1,7 @@
 #@ video: 094-bellek-esleme
-#@ degisken: adres (ASLR) ve sayfa hatası sayısı (çekirdeğin bir hatada kaç sayfa eşlediğine bağlı)
-k cargo run -q --release
-ks 'strace -e trace=openat,mmap,munmap ./target/release/mmap 2>&1 | grep -E "esleme.bin|67108864"'
+#@ degisken: sayfa hatası sayıları (çekirdek sürümü, dosya sistemi ve önbellek durumuna bağlı) ve eşleme adresleri (ASLR)
+k cargo build -q --release
+# Aynı 64 MiB'lık seyrek dosya üç kez eşlenir; her seferinde dosya baştan yazılır (sayfa önbelleği soğuk)
+k ./target/release/mmap
+# Programın çekirdekten istediği: mmap (MAP_POPULATE bayrağı) ve madvise (MADV_RANDOM)
+ks 'strace -e trace=mmap,madvise,munmap ./target/release/mmap 2>&1 | grep -E "67108864"'

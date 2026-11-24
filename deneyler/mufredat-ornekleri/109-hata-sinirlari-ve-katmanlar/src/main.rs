@@ -42,7 +42,7 @@ impl fmt::Display for UygulamaHatasi {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             UygulamaHatasi::Alan(alan::AlanHatasi::YetersizStok { urun, istenen, mevcut }) =>
-                write!(f, "400 {urun}: {istenen} istendi, stokta {mevcut} var"),
+                write!(f, "409 {urun}: {istenen} istendi, stokta {mevcut} var"),
             UygulamaHatasi::Alan(alan::AlanHatasi::GecersizAdet) => write!(f, "400 adet en az 1 olmalı"),
             UygulamaHatasi::Altyapi(_) => write!(f, "500 geçici bir sorun oluştu, lütfen tekrar deneyin"),
         }

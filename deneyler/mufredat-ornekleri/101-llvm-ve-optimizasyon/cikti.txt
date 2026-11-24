@@ -32,3 +32,77 @@ bb3:                                              ; preds = %bb2.preheader, %sta
   %s.sroa.0.0.lcssa = phi i64 [ 0, %start ], [ %16, %bb2.preheader ]
   ret i64 %s.sroa.0.0.lcssa
 }
+$ rustc --edition 2024 --crate-type=lib -C opt-level=3 --emit=llvm-ir -o target/O3b.ll -C llvm-args=-print-changed=quiet dongu.rs 2> target/gecisler.txt; grep -E "IR Dump After .*kareler_toplami" target/gecisler.txt | sed -E "s/^\*\*\* IR Dump After //; s/ \*\*\*$//"
+SROAPass on kareler_toplami
+LCSSAPass on kareler_toplami
+LoopRotatePass on loop %bb2 in function kareler_toplami
+SimplifyCFGPass on kareler_toplami
+InstCombinePass on kareler_toplami
+LoopSimplifyPass on kareler_toplami
+LCSSAPass on kareler_toplami
+IndVarSimplifyPass on loop %bb2 in function kareler_toplami
+GVNPass on kareler_toplami
+SCCPPass on kareler_toplami
+PostOrderFunctionAttrsPass on (kareler_toplami)
+$ awk "/IR Dump After LoopRotatePass/,/IR Dump After SimplifyCFGPass/" target/gecisler.txt | grep -v "IR Dump After SimplifyCFGPass"
+*** IR Dump After LoopRotatePass on loop %bb2 in function kareler_toplami ***
+
+; Preheader:
+bb2.lr.ph:                                        ; preds = %start
+  br label %bb2
+
+; Loop:
+bb2:                                              ; preds = %bb2.lr.ph, %bb2
+  %s.sroa.0.05 = phi i64 [ 0, %bb2.lr.ph ], [ %_4, %bb2 ]
+  %iter.sroa.0.04 = phi i64 [ 0, %bb2.lr.ph ], [ %0, %bb2 ]
+  %0 = add nuw i64 %iter.sroa.0.04, 1
+  %_5 = mul i64 %iter.sroa.0.04, %iter.sroa.0.04
+  %_4 = add i64 %s.sroa.0.05, %_5
+  %_6 = icmp ult i64 %0, %n
+  br i1 %_6, label %bb2, label %bb1.bb3_crit_edge
+
+; Exit blocks
+bb1.bb3_crit_edge:                                ; preds = %bb2
+  %split = phi i64 [ %_4, %bb2 ]
+  br label %bb3
+$ awk "/IR Dump After IndVarSimplifyPass/,/IR Dump After GVNPass/" target/gecisler.txt | grep -v "IR Dump After GVNPass"
+*** IR Dump After IndVarSimplifyPass on loop %bb2 in function kareler_toplami ***
+
+; Preheader:
+bb2.preheader:                                    ; preds = %start
+  br label %bb2
+
+; Loop:
+bb2:                                              ; preds = %bb2.preheader, %bb2
+  br i1 false, label %bb2, label %bb3.loopexit
+
+; Exit blocks
+bb3.loopexit:                                     ; preds = %bb2
+  %0 = add i64 %n, -1
+  %1 = zext i64 %0 to i65
+  %2 = add i64 %n, -2
+  %3 = zext i64 %2 to i65
+  %4 = mul i65 %1, %3
+  %5 = add i64 %n, -3
+  %6 = zext i64 %5 to i65
+  %7 = mul i65 %4, %6
+  %8 = lshr i65 %7, 1
+  %9 = trunc i65 %8 to i64
+  %10 = mul i64 %9, 6148914691236517206
+  %11 = add i64 %n, %10
+  %12 = mul i65 %1, %3
+  %13 = lshr i65 %12, 1
+  %14 = trunc i65 %13 to i64
+  %15 = mul i64 %14, 3
+  %16 = add i64 %11, %15
+  %17 = add i64 %16, -1
+  br label %bb3
+$ sed "s/i \* i)/i * i * i)/" dongu.rs > target/kup.rs && rustc --edition 2024 --crate-type=lib -C opt-level=3 --emit=llvm-ir -o target/kup.ll target/kup.rs && awk "/^define.*@kareler_toplami/,/^}/" target/kup.ll | grep -E "^[a-z0-9.]+:|phi|ret"
+start:
+bb2.preheader:                                    ; preds = %start
+bb3:                                              ; preds = %bb2.preheader, %start
+  %s.sroa.0.0.lcssa = phi i64 [ 0, %start ], [ %25, %bb2.preheader ]
+  ret i64 %s.sroa.0.0.lcssa
+$ awk "/^define.*@kareler_toplami/,/^}/" target/kup.ll | grep -oE "i6[57]" | sort | uniq -c
+      6 i65
+      9 i67

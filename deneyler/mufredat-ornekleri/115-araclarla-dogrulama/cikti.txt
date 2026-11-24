@@ -13,16 +13,44 @@ error: assigning to `&T` is undefined behavior, consider using an `UnsafeCell`
 
 error: could not compile `bariz` (lib) due to 1 previous error
 [çıkış kodu: 101]
-$ cargo test -q 2>&1 | grep -E -A4 "^---- |minimal failing input" | grep -vE "^(--|thread|note:|\s*$)"; cargo test -q 2>&1 | grep "test result"
-proptest: Saving this and future failures in /work/mufredat-ornekleri/115-araclarla-dogrulama/proptest-regressions/lib.txt
-proptest: If this test was run on a CI system, you may wish to add the following line to your copy of the file. (You may need to create it.)
-cc c4d598a2571a78b814cf17328f8543392968da0c0ae210f9dca2e8b87aef731c
+$ PROPTEST_RNG_SEED=1 cargo test -q 2>&1 | grep -E -A4 "minimal failing input" | grep -vE "^(--|thread|note:|\s*$)"
+minimal failing input: v = [
+    53,
+    0,
+]
+	successes: 0
+$ PROPTEST_RNG_SEED=1 cargo test -q 2>&1 | grep "test result"
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ PROPTEST_RNG_SEED=2 cargo test -q medyan_basvuruyla 2>&1 | grep -E -A5 "minimal failing input" | grep -vE "^(--|thread|note:|\s*$)"
 minimal failing input: v = [
     0,
     0,
+    -1,
     0,
-    1,
-test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+]
+$ PROPTEST_RNG_SEED=1 PROPTEST_VERBOSE=2 cargo test -q medyan_basvuruyla 2>&1 | awk "/Next test input/ {g=\$0; sub(/.*v = /, \"\", g)} /Test case passed/ {print g \" → geçti\"} /Test case failed/ {print g \" → başarısız\"}"
+[20, 79, 40, 52] → başarısız
+[79, 40, 52] → başarısız
+[40, 52] → geçti
+[79, 40, 52] → başarısız
+[79, 52] → başarısız
+[79] → geçti
+[79, 52] → başarısız
+[39, 52] → geçti
+[59, 52] → başarısız
+[49, 52] → geçti
+[54, 52] → başarısız
+[52, 52] → geçti
+[53, 52] → başarısız
+[53, 26] → başarısız
+[53, 13] → başarısız
+[53, 6] → başarısız
+[53, 3] → başarısız
+[53, 1] → başarısız
+[53, 0] → başarısız
+$ rm -rf /tmp/medyan-kopya && mkdir /tmp/medyan-kopya && cp -r Cargo.toml Cargo.lock src /tmp/medyan-kopya/ && cd /tmp/medyan-kopya && sed -i "s/    if v.is_empty() { None } else { Some(v\[v.len() \/ 2\]) }/    if v.is_empty() { None } else { let mut k = v.to_vec(); let orta = k.len() \/ 2; Some(*k.select_nth_unstable(orta).1) }/" src/lib.rs && grep -n "select_nth_unstable" src/lib.rs && PROPTEST_RNG_SEED=1 cargo test -q 2>&1 | grep "test result" | head -n 1
+14:    if v.is_empty() { None } else { let mut k = v.to_vec(); let orta = k.len() / 2; Some(*k.select_nth_unstable(orta).1) }
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 $ cargo +nightly miri test -q sayac_artiyor 2>&1 | grep -E "Undefined Behavior|-->|test result" | head -n 4
 error: Undefined Behavior: attempting a write access using <130405> at alloc41025[0x0], but that tag only grants SharedReadOnly permission for this location
  --> src/lib.rs:3:14

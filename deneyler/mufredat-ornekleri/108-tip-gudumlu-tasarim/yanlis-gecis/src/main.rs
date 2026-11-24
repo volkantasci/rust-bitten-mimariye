@@ -63,4 +63,13 @@ fn main() {
             Err(h) => println!("{h}"),
         }
     }
+    // Durum tipleri çalışma anında yer kaplamaz: üç durumun boyutu aynı, yalnız Vec kadar
+    use std::mem::size_of;
+    println!(
+        "boyutlar: Taslak {}, Onayli {}, Gonderildi {}, Vec {} bayt",
+        size_of::<Siparis<Taslak>>(),
+        size_of::<Siparis<Onayli>>(),
+        size_of::<Siparis<Gonderildi>>(),
+        size_of::<Vec<(String, u32)>>()
+    );
 }

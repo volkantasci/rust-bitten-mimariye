@@ -1,10 +1,43 @@
-$ cd ambar && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/ambar: /'
-ambar: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-$ cd kapi && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/kapi: /'
-kapi: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-$ cd minik && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/minik: /'
-minik: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-$ wc -l ambar/src/*.rs ambar/src/bin/*.rs kapi/src/*.rs kapi/src/bin/*.rs minik/src/*.rs minik/src/bin/*.rs | tail -n 1
- 1711 total
-$ ls -d ../[0-9][0-9][0-9]-*/ | wc -l
-129
+$ for c in ../11[7-9]-*/ambar/Cargo.toml ../12[01]-*/ambar/Cargo.toml ../12[2-4]-*/kapi/Cargo.toml ../12[5-8]-*/minik/Cargo.toml; do d=${c%/Cargo.toml}; printf "%-42s %s\n" "${d#../}" "$(cd $d && cargo test -q --lib 2>&1 | grep -o "[0-9]* passed; [0-9]* failed")"; done
+117-ambar-tasarim/ambar                    3 passed; 0 failed
+118-ambar-depolama-motoru/ambar            8 passed; 0 failed
+119-ambar-ag-protokolu/ambar               11 passed; 0 failed
+120-ambar-eszamanlilik-ve-dayaniklilik/ambar 11 passed; 0 failed
+121-ambar-performans/ambar                 12 passed; 0 failed
+122-http-ayristirici/kapi                  7 passed; 0 failed
+123-http-sunucu/kapi                       10 passed; 0 failed
+124-http-eszamanlilik-ve-yuk/kapi          10 passed; 0 failed
+125-yorumlayici-lexer/minik                4 passed; 0 failed
+126-yorumlayici-parser/minik               7 passed; 0 failed
+127-yorumlayici-degerlendirici/minik       11 passed; 0 failed
+128-yorumlayici-bytecode-vm/minik          13 passed; 0 failed
+$ diff -r -x target ../121-ambar-performans/ambar ../ortak-projeler/ambar && diff -r -x target ../124-http-eszamanlilik-ve-yuk/kapi ../ortak-projeler/kapi && diff -r -x target ../128-yorumlayici-bytecode-vm/minik ../ortak-projeler/minik && echo "ortak-projeler: son kontrol noktalarıyla aynı"
+ortak-projeler: son kontrol noktalarıyla aynı
+# her yazmada fsync kipi
+$ exec 3<>/dev/tcp/127.0.0.1/7029; printf "yaz dil Rust\n" >&3; head -n 1 <&3
+tamam
+$ grep -v "write(2," strace.txt | grep -E "accept4|recvfrom|write|sendto|fdatasync"
+42112 accept4(4, {sa_family=AF_INET, sin_port=htons(58874), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC) = 5
+42112 accept4(4,  <unfinished ...>
+42115 recvfrom(7, "yaz dil Rust\n", 8192, 0, NULL, NULL) = 13
+42115 write(3, "\335O\317d\3\0\0\0\4\0\0\0\324\201\350\361dilRust", 23) = 23
+42115 fdatasync(3)                      = 0
+42115 sendto(5, "tamam\n", 6, MSG_NOSIGNAL, NULL, 0) = 6
+42115 recvfrom(7, "", 8192, 0, NULL, NULL) = 0
+42112 <... accept4 resumed>0x7ffdc03ccf18, [128], SOCK_CLOEXEC) = ? ERESTARTSYS (To be restarted if SA_RESTART is set)
+$ od -A d -t x1z -v calisma/gunluk.ambar
+0000000 dd 4f cf 64 03 00 00 00 04 00 00 00 d4 81 e8 f1  >.O.d............<
+0000016 64 69 6c 52 75 73 74                             >dilRust<
+0000023
+# toplu kesinleştirme kipi
+$ exec 3<>/dev/tcp/127.0.0.1/7030; printf "yaz dil Rust\n" >&3; head -n 1 <&3
+tamam
+$ grep -v "write(2," strace.txt | grep -E "recvfrom\([0-9]+, \"yaz|write\(|sendto|fdatasync"
+42131 recvfrom(8, "yaz dil Rust\n", 8192, 0, NULL, NULL) = 13
+42131 write(3, "\335O\317d\3\0\0\0\4\0\0\0\324\201\350\361dilRust", 23) = 23
+42128 fdatasync(4)                      = 0
+42131 sendto(6, "tamam\n", 6, MSG_NOSIGNAL, NULL, 0) = 6
+$ wc -l ../ortak-projeler/*/src/*.rs ../ortak-projeler/*/src/bin/*.rs | tail -n 1
+  2798 total
+$ printf "deney dizini: %s\n" "$(ls -d ../[0-9][0-9][0-9]-*/ | wc -l)"
+deney dizini: 129

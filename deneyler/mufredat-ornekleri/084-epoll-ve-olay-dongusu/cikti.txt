@@ -1,18 +1,26 @@
 $ cargo build -q
+$ ./target/debug/olay_dongusu std
+engellemeyen accept: Resource temporarily unavailable (os error 11) (WouldBlock)
+$ strace -e trace=accept4 ./target/debug/olay_dongusu std 2>&1 | grep accept4
+accept4(3, 0x7ffce217fd08, [128], SOCK_CLOEXEC) = -1 EAGAIN (Resource temporarily unavailable)
 $ ./target/debug/olay_dongusu
 yankı: yanki
-$ strace -f -e trace=epoll_create1,epoll_ctl,epoll_wait,epoll_pwait,epoll_pwait2,accept4,connect ./target/debug/olay_dongusu 2>&1 | grep -v "^yankı"
+$ strace -f -e trace=epoll_create1,epoll_ctl,epoll_wait,epoll_pwait,epoll_pwait2,accept4,connect,fcntl ./target/debug/olay_dongusu 2>&1 | grep -v "^yankı" | grep -vE "fcntl\([0-9]+, F_(GETFL|SETFL|GETFD|SETFD)"
 epoll_create1(EPOLL_CLOEXEC)            = 3
 epoll_ctl(3, EPOLL_CTL_ADD, 4, {events=EPOLLIN|EPOLLRDHUP|EPOLLET, data=0}) = 0
+fcntl(3, F_DUPFD_CLOEXEC, 3)            = 5
+fcntl(6, F_DUPFD_CLOEXEC, 3)            = 8
 epoll_ctl(5, EPOLL_CTL_ADD, 8, {events=EPOLLIN|EPOLLRDHUP|EPOLLET, data=0x1}) = 0
-epoll_ctl(5, EPOLL_CTL_ADD, 9, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x560fd2859380}) = 0
-connect(10, {sa_family=AF_INET, sin_port=htons(37981), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
-epoll_ctl(5, EPOLL_CTL_ADD, 10, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x560fd2859780}) = 0
-epoll_wait(3, [{events=EPOLLIN, data=0x560fd2859380}, {events=EPOLLOUT, data=0x560fd2859780}], 1024, -1) = 2
-accept4(9, {sa_family=AF_INET, sin_port=htons(60602), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC|SOCK_NONBLOCK) = 11
-epoll_ctl(5, EPOLL_CTL_ADD, 11, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x560fd2859900}) = 0
+epoll_ctl(5, EPOLL_CTL_ADD, 9, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x556b82b0e380}) = 0
+connect(10, {sa_family=AF_INET, sin_port=htons(43115), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
+epoll_ctl(5, EPOLL_CTL_ADD, 10, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x556b82b0e780}) = 0
+epoll_wait(3, [{events=EPOLLIN, data=0x556b82b0e380}, {events=EPOLLOUT, data=0x556b82b0e780}], 1024, -1) = 2
+accept4(9, {sa_family=AF_INET, sin_port=htons(55874), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC|SOCK_NONBLOCK) = 11
+epoll_ctl(5, EPOLL_CTL_ADD, 11, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x556b82b0e900}) = 0
 epoll_ctl(5, EPOLL_CTL_DEL, 11, NULL)   = 0
 epoll_ctl(5, EPOLL_CTL_DEL, 9, NULL)    = 0
-epoll_wait(3, [{events=EPOLLIN|EPOLLOUT|EPOLLRDHUP, data=0x560fd2859780}], 1024, -1) = 1
+epoll_wait(3, [{events=EPOLLIN|EPOLLOUT|EPOLLRDHUP, data=0x556b82b0e780}], 1024, -1) = 1
 epoll_ctl(5, EPOLL_CTL_DEL, 10, NULL)   = 0
 +++ exited with 0 +++
+$ timeout 2 ./target/debug/olay_dongusu std-engelleyen
+[çıkış kodu: 124]

@@ -1,7 +1,7 @@
 $ cargo build -v
    Compiling elek v0.1.0 (/work/mufredat-ornekleri/013-derleme-asamalari)
      Running `/usr/local/rustup/toolchains/1.100.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name elek --edition=2024 src/main.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat,unused-externs-silent --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=bf9f79702f8348ae --out-dir /work/mufredat-ornekleri/013-derleme-asamalari/target/debug/build/elek/d3c967da860348f5/out -C incremental=/work/mufredat-ornekleri/013-derleme-asamalari/target/debug/incremental --force-warn=unused_crate_dependencies`
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s
 $ rustc --edition 2024 --crate-type=lib -C opt-level=0 --emit=llvm-ir -o target/kare_O0.ll kare.rs
 $ awk '/^define.*@kare/,/^}/' target/kare_O0.ll
 define i32 @kare(i32 %x) unnamed_addr #0 !guid !6 {
@@ -29,13 +29,13 @@ start:
 $ cargo build -q --release
 $ hyperfine -N --warmup 1 --runs 5 --style basic ./target/debug/elek ./target/release/elek
 Benchmark 1: ./target/debug/elek
-  Time (mean ± σ):     420.1 ms ±  27.8 ms    [User: 409.2 ms, System: 7.9 ms]
-  Range (min … max):   403.0 ms … 469.1 ms    5 runs
+  Time (mean ± σ):     448.7 ms ±  23.4 ms    [User: 437.6 ms, System: 6.7 ms]
+  Range (min … max):   424.3 ms … 481.3 ms    5 runs
  
 Benchmark 2: ./target/release/elek
-  Time (mean ± σ):      46.2 ms ±   3.2 ms    [User: 37.2 ms, System: 8.3 ms]
-  Range (min … max):    41.9 ms …  49.4 ms    5 runs
+  Time (mean ± σ):      43.8 ms ±   3.0 ms    [User: 35.4 ms, System: 7.7 ms]
+  Range (min … max):    40.7 ms …  48.6 ms    5 runs
  
 Summary
   ./target/release/elek ran
-    9.10 ± 0.87 times faster than ./target/debug/elek
+   10.25 ± 0.88 times faster than ./target/debug/elek

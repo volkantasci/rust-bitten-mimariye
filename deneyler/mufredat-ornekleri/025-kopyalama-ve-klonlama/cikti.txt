@@ -2,7 +2,7 @@ $ cargo run -q
 size_of::<String>() = 24 bayt (işaretçi + kapasite + uzunluk)
 a = 5, b = 5
 p = (1, 2), q = (1, 2)
-s verisi @ 0x555642267d60, t verisi @ 0x555642267d80
+s verisi @ 0x55fd0a8b2d60, t verisi @ 0x55fd0a8b2d80
 $ cargo build -q
 error[E0204]: the trait `Copy` cannot be implemented for this type
  --> src/main.rs:2:8

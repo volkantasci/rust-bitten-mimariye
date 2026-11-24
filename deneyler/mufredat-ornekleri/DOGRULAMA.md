@@ -21,7 +21,7 @@ Bilerek çöken deneyler ana makineye çekirdek dökümü göndermesin diye `RLI
 
 ```text
 imaj: localhost/nkl-rust:1.100.0  kimlik: c34856ab12905ddd83303fd3d5db1900e10561c7326ff52151295e7243cb3f5f
-tarih: 2026-11-20T16:38:17Z
+tarih: 2026-11-24T20:25:56Z
 rustc 1.100.0 (0ef1bc386 2026-11-09)
 binary: rustc
 commit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a
@@ -91,12 +91,12 @@ sayfa boyutu: 4096
 - [045-onbellek-dostu-veri-yapilari](#045-onbellek-dostu-veri-yapilari)
 - [046-traitler-davranis-sozlesmesi](#046-traitler-davranis-sozlesmesi)
 - [047-jenerikler](#047-jenerikler)
-- [048-monomorfizasyon](#048-monomorfizasyon)
+- [048-tek-bicimlestirme](#048-tek-bicimlestirme)
 - [049-trait-nesneleri-ve-vtable](#049-trait-nesneleri-ve-vtable)
-- [050-statik-ve-dinamik-dagitim](#050-statik-ve-dinamik-dagitim)
+- [050-statik-ve-dinamik-yonlendirme](#050-statik-ve-dinamik-yonlendirme)
 - [051-standart-traitler-ve-donusumler](#051-standart-traitler-ve-donusumler)
 - [052-closurelar](#052-closurelar)
-- [053-iterator-protokolu](#053-iterator-protokolu)
+- [053-yineleyici-protokolu](#053-yineleyici-protokolu)
 - [054-sifir-maliyetli-soyutlama](#054-sifir-maliyetli-soyutlama)
 - [055-fonksiyonel-desenler](#055-fonksiyonel-desenler)
 - [056-moduller-ve-gorunurluk](#056-moduller-ve-gorunurluk)
@@ -178,79 +178,78 @@ sayfa boyutu: 4096
 
 - Video: `001-neden-rust-neden-bilim`
 - Örnek yolu: `deneyler/mufredat-ornekleri/001-neden-rust-neden-bilim/`
-- Kaynaklar: `c/kullan_sonra_birak.c`, `c/kullan_sonra_birak2.c`, `rust/Cargo.toml`, `rust/src/main.rs`
-- Toolchain: stable 1.100.0, gcc 14.2.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:27Z
-- Değişken çıktı: valgrind satırlarındaki süreç kimliği (==N==) ve adresler
+- Kaynaklar: `dogru-sira/Cargo.toml`, `dogru-sira/src/main.rs`, `klon/Cargo.toml`, `klon/src/main.rs`, `odunc/Cargo.toml`, `odunc/src/main.rs`, `sarkan/Cargo.toml`, `sarkan/src/main.rs`, `yeniden-kullanim/Cargo.toml`, `yeniden-kullanim/src/main.rs`
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: adresler her çalıştırmada değişir (ASLR); miri çıktısındaki alloc numaraları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-# C: derlenir (en fazla bir uyarıyla), çalışır, yanlış veriyi sessizce basar
-mkdir -p target
-k gcc -Wall -Wextra -O0 -g -o target/kullan_sonra_birak c/kullan_sonra_birak.c
-k ./target/kullan_sonra_birak
-# İade başka fonksiyonda olunca uyarı da yok
-k gcc -Wall -Wextra -O0 -g -o target/kullan_sonra_birak2 c/kullan_sonra_birak2.c
-k ./target/kullan_sonra_birak2
-# valgrind belleği izleyerek hatayı yakalar (ve davranış değişir!)
-ks 'valgrind -q ./target/kullan_sonra_birak2 2>&1 | head -14'
-k valgrind -q --error-exitcode=1 ./target/kullan_sonra_birak2
-# Rust: aynı hata derleme aşamasında reddedilir
-cd rust
-k cargo build
+# 1) Güvenli Rust: iade edilen blok bir sonraki isteğe yeniden verilir (adresler yalnızca sayı olarak karşılaştırılıyor)
+cd yeniden-kullanim
+k cargo build -q
+k ./target/debug/yeniden_kullanim
+ks 'for i in $(seq 100); do ./target/debug/yeniden_kullanim | tail -n 1; done | sort | uniq -c'
+cd ..
+# 2) unsafe Rust: sarkan işaretçiyle okumak tanımsız davranıştır; sonuç derleme ayarına göre değişebilir
+cd sarkan
+k cargo build -q
+k ./target/debug/sarkan
+k cargo build -q --release
+k ./target/release/sarkan
+# 3) miri programı yorumlayarak çalıştırır ve tanımsız davranışı yakalar
+k cargo +nightly miri run -q
+cd ..
+# 4) Güvenli Rust: aynı desen derlenmez (E0505)
+cd odunc && k cargo build -q; cd ..
+# 5) Kendin dene: ödüncün son kullanımı iadeden önceye alınınca program derlenir
+cd dogru-sira && k cargo run -q; cd ..
+# 6) Derleyicinin önerisi (help: clone) uygulanınca program derlenir; referans artık bir kopyaya bakar
+cd klon && k cargo run -q; cd ..
 ```
 
-- Gerçek çıktı (kısaltılmış; 113 satırın tamamı `cikti.txt` içinde):
+- Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ gcc -Wall -Wextra -O0 -g -o target/kullan_sonra_birak c/kullan_sonra_birak.c
-c/kullan_sonra_birak.c: In function ‘main’:
-c/kullan_sonra_birak.c:13:5: warning: pointer ‘isim’ used after ‘free’ [-Wuse-after-free]
-   13 |     printf("isim = %s\n", isim);     /* iade edilmiş belleği okuyoruz */
-      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~
-c/kullan_sonra_birak.c:8:5: note: call to ‘free’ here
-    8 |     free(isim);                      /* bellek iade edildi */
-      |     ^~~~~~~~~~
-$ ./target/kullan_sonra_birak
-isim = gizli-123
-$ gcc -Wall -Wextra -O0 -g -o target/kullan_sonra_birak2 c/kullan_sonra_birak2.c
-$ ./target/kullan_sonra_birak2
-isim = gizli-123
-$ valgrind -q ./target/kullan_sonra_birak2 2>&1 | head -14
-==78== Invalid read of size 1
-==78==    at 0x484DC86: strlen (vg_replace_strmem.c:505)
-==78==    by 0x48C627F: __printf_buffer (vfprintf-process-arg.c:435)
-==78==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
-==78==    by 0x48BB92A: printf (printf.c:33)
-==78==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
-==78==  Address 0x4a59040 is 0 bytes inside a block of size 16 free'd
-==78==    at 0x484787F: free (vg_replace_malloc.c:989)
-==78==    by 0x109170: temizle (kullan_sonra_birak2.c:6)
-==78==    by 0x1091A6: main (kullan_sonra_birak2.c:11)
-==78==  Block was alloc'd at
-==78==    at 0x4844818: malloc (vg_replace_malloc.c:446)
-==78==    by 0x109185: main (kullan_sonra_birak2.c:9)
-==78== 
-$ valgrind -q --error-exitcode=1 ./target/kullan_sonra_birak2
-==80== Invalid read of size 1
-==80==    at 0x484DC86: strlen (vg_replace_strmem.c:505)
-==80==    by 0x48C627F: __printf_buffer (vfprintf-process-arg.c:435)
-==80==    by 0x48C6F10: __vfprintf_internal (vfprintf-internal.c:1544)
-==80==    by 0x48BB92A: printf (printf.c:33)
-==80==    by 0x1091E6: main (kullan_sonra_birak2.c:16)
-==80==  Address 0x4a59040 is 0 bytes inside a block of size 16 free'd
-==80==    at 0x484787F: free (vg_replace_malloc.c:989)
-==80==    by 0x109170: temizle (kullan_sonra_birak2.c:6)
-==80==    by 0x1091A6: main (kullan_sonra_birak2.c:11)
-==80==  Block was alloc'd at
-==80==    at 0x4844818: malloc (vg_replace_malloc.c:446)
-==80==    by 0x109185: main (kullan_sonra_birak2.c:9)
-==80== 
-==80== Invalid read of size 1
-==80==    at 0x484DC94: strlen (vg_replace_strmem.c:505)
-… (44 satır atlandı)
-isim = Ferris
-… (3 satır atlandı)
+$ cargo build -q
+$ ./target/debug/yeniden_kullanim
+isim  bloğu: 0x5643f6dc3d60
+sifre bloğu: 0x5643f6dc3d60
+aynı blok mu? evet
+$ for i in $(seq 100); do ./target/debug/yeniden_kullanim | tail -n 1; done | sort | uniq -c
+    100 aynı blok mu? evet
+$ cargo build -q
+$ ./target/debug/sarkan
+eski adresteki 6 bayt: 67 69 7a 6c 69 2d  -> "gizli-"
+$ cargo build -q --release
+$ ./target/release/sarkan
+eski adresteki 6 bayt: 00 00 00 00 00 00  -> "\0\0\0\0\0\0"
+$ cargo +nightly miri run -q
+error: Undefined Behavior: memory access failed: alloc330 has been freed, so this pointer is dangling
+  --> src/main.rs:10:30
+   |
+10 |         okunan.push(unsafe { *p.add(i) }); // tanımsız davranış: iade edilmiş belleği okumak
+   |                              ^^^^^^^^^ Undefined Behavior occurred here
+   |
+   = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+   = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc330 was allocated here:
+  --> src/main.rs:3:16
+   |
+ 3 |     let isim = String::from("Ferris");
+   |                ^^^^^^^^^^^^^^^^^^^^^^
+help: alloc330 was deallocated here:
+  --> src/main.rs:6:5
+   |
+ 6 |     drop(isim); // blok iade edildi; p artık sarkan bir işaretçi
+   |     ^^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
+$ cargo build -q
 error[E0505]: cannot move out of `isim` because it is borrowed
  --> src/main.rs:4:10
   |
@@ -269,8 +268,12 @@ help: consider cloning the value if the performance cost is acceptable
   |                         ++++++++
 
 For more information about this error, try `rustc --explain E0505`.
-error: could not compile `kullan_sonra_birak` (bin "kullan_sonra_birak") due to 1 previous error
+error: could not compile `odunc` (bin "odunc") due to 1 previous error
 [çıkış kodu: 101]
+$ cargo run -q
+isim = Ferris
+$ cargo run -q
+isim = Ferris
 ```
 
 ## 002-laboratuvar-kurulumu
@@ -278,8 +281,8 @@ error: could not compile `kullan_sonra_birak` (bin "kullan_sonra_birak") due to 
 - Video: `002-laboratuvar-kurulumu`
 - Örnek yolu: `deneyler/mufredat-ornekleri/002-laboratuvar-kurulumu/`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:27Z
-- Değişken çıktı: cargo'nun "Finished ... in X s" süresi
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: cargo'nun "Finished ... in X s" süresi; süreç kimlikleri (PID), konteyner adı (hostname) ve ad alanı kimlik numaraları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -288,6 +291,23 @@ k rustc --version
 k cargo --version
 k uname -r
 ks 'grep PRETTY_NAME /etc/os-release'
+# Yalıtım: bu sürecin ad alanları (namespace) ve konteynerin içinden görünen süreçler
+k ls /proc/self/ns
+k ps -e -o pid,comm
+k hostname
+# Yalıtımın kanıtı ad alanı kimliklerinde: ana makinede aynı komut başka numaralar verir
+k readlink /proc/self/ns/pid /proc/self/ns/uts /proc/self/ns/net
+# cgroup ad alanı: süreç kendi kontrol grubunu kök (/) olarak görür
+k cat /proc/self/cgroup
+# Kontrol grubunun bir kaynak sınırı: en fazla süreç sayısı
+k cat /sys/fs/cgroup/pids.max
+# Araç rafı: sürüm satırları
+k cargo clippy --version
+k rustfmt --version
+k valgrind --version
+ks 'strace -V | head -n 1'
+ks 'gdb --version | head -n 1'
+k hyperfine --version
 # Sıfırdan bir proje: cargo new hangi edition'ı seçiyor?
 rm -rf calisma && mkdir -p calisma && cd calisma
 k cargo new merhaba
@@ -312,6 +332,44 @@ $ uname -r
 7.2.15-1-omarchy
 $ grep PRETTY_NAME /etc/os-release
 PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+$ ls /proc/self/ns
+cgroup
+ipc
+mnt
+net
+pid
+pid_for_children
+time
+time_for_children
+user
+uts
+$ ps -e -o pid,comm
+    PID COMMAND
+      1 bash
+    962 bash
+    986 ps
+$ hostname
+c8a1a101fed7
+$ readlink /proc/self/ns/pid /proc/self/ns/uts /proc/self/ns/net
+pid:[4026534006]
+uts:[4026534004]
+net:[4026533945]
+$ cat /proc/self/cgroup
+0::/
+$ cat /sys/fs/cgroup/pids.max
+2048
+$ cargo clippy --version
+clippy 0.1.100 (0ef1bc3860 2026-11-09)
+$ rustfmt --version
+rustfmt 1.11.0-stable (0ef1bc3860 2026-11-09)
+$ valgrind --version
+valgrind-3.24.0
+$ strace -V | head -n 1
+strace -- version 6.13
+$ gdb --version | head -n 1
+GNU gdb (Debian 16.3-1) 16.3
+$ hyperfine --version
+hyperfine 1.19.0
 $ cargo new merhaba
     Creating binary (application) `merhaba` package
 note: see more `Cargo.toml` keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -350,10 +408,10 @@ $ rustc --help | grep -A3 -- "--edition"
 
 - Video: `003-programin-yolculugu`
 - Örnek yolu: `deneyler/mufredat-ornekleri/003-programin-yolculugu/`
-- Kaynaklar: `Cargo.toml`, `src/main.rs`
+- Kaynaklar: `Cargo.toml`, `iki-satir/Cargo.toml`, `iki-satir/src/main.rs`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:28Z
-- Değişken çıktı: strace -c süreleri; ikili dosya boyutu derleyici sürümüne bağlı
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: strace -c süreleri ve satır sırası (tablo sürelere göre sıralanır; sayılar aynı kalır); ikili dosya boyutu derleyici sürümüne bağlı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -369,6 +427,13 @@ ks 'strace -e trace=write ./target/release/merhaba'
 ks 'strace -c ./target/release/merhaba > /dev/null'
 # main fonksiyonu makine kodunda
 ks 'nm target/release/merhaba | grep -i "merhaba.*main"'
+# Kendin dene: iki println! kaç write çağrısı yapar?
+cd iki-satir && k cargo build --release -q && ks 'strace -e trace=write ./target/release/iki_satir > /dev/null'; cd ..
+# Çözülmüş sembol adı
+ks 'nm -C target/release/merhaba | grep "merhaba::main"'
+# Çağrıların kaçı yükleyiciye ve C kütüphanesine ait? Rust'ın kendi hazırlığı poll ile başlar
+ks 'strace ./target/release/merhaba 2>&1 >/dev/null | grep -c ""'
+ks 'strace ./target/release/merhaba 2>&1 >/dev/null | grep -n -m1 "^poll"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -391,33 +456,44 @@ write(1, "Merhaba, d\303\274nya!\n", 17Merhaba, dünya!
 $ strace -c ./target/release/merhaba > /dev/null
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ------------------
- 26.39    0.000071           5        13           mmap
- 12.64    0.000034           8         4           openat
- 12.27    0.000033           6         5           read
-  9.29    0.000025           5         5           mprotect
-  6.32    0.000017           3         5           rt_sigaction
-  5.20    0.000014           3         4           close
-  4.09    0.000011           3         3           brk
-  3.72    0.000010           2         4           fstat
-  2.23    0.000006           6         1           munmap
-  2.23    0.000006           3         2           sigaltstack
-  2.23    0.000006           3         2           prlimit64
-  1.49    0.000004           4         1           write
-  1.49    0.000004           2         2           pread64
-  1.49    0.000004           4         1         1 access
-  1.49    0.000004           4         1           gettid
-  1.49    0.000004           4         1           sched_getaffinity
-  1.49    0.000004           4         1           set_tid_address
-  1.12    0.000003           3         1           poll
-  1.12    0.000003           3         1           arch_prctl
-  0.74    0.000002           2         1           set_robust_list
-  0.74    0.000002           2         1           getrandom
-  0.74    0.000002           2         1           rseq
+  0.00    0.000000           0         5           read
+  0.00    0.000000           0         1           write
+  0.00    0.000000           0         4           close
+  0.00    0.000000           0         4           fstat
+  0.00    0.000000           0         1           poll
+  0.00    0.000000           0        13           mmap
+  0.00    0.000000           0         5           mprotect
+  0.00    0.000000           0         1           munmap
+  0.00    0.000000           0         3           brk
+  0.00    0.000000           0         5           rt_sigaction
+  0.00    0.000000           0         2           pread64
+  0.00    0.000000           0         1         1 access
   0.00    0.000000           0         1           execve
+  0.00    0.000000           0         2           sigaltstack
+  0.00    0.000000           0         1           arch_prctl
+  0.00    0.000000           0         1           gettid
+  0.00    0.000000           0         1           sched_getaffinity
+  0.00    0.000000           0         1           set_tid_address
+  0.00    0.000000           0         4           openat
+  0.00    0.000000           0         1           set_robust_list
+  0.00    0.000000           0         2           prlimit64
+  0.00    0.000000           0         1           getrandom
+  0.00    0.000000           0         1           rseq
 ------ ----------- ----------- --------- --------- ------------------
-100.00    0.000269           4        61         1 total
+100.00    0.000000           0        61         1 total
 $ nm target/release/merhaba | grep -i "merhaba.*main"
 0000000000014b30 t _RNvCsjEVuznjrSGG_7merhaba4main
+$ cargo build --release -q
+$ strace -e trace=write ./target/release/iki_satir > /dev/null
+write(1, "Merhaba, d\303\274nya!\n", 17) = 17
+write(1, "\304\260kinci sat\304\261r\n", 15) = 15
++++ exited with 0 +++
+$ nm -C target/release/merhaba | grep "merhaba::main"
+0000000000014b30 t merhaba::main
+$ strace ./target/release/merhaba 2>&1 >/dev/null | grep -c ""
+63
+$ strace ./target/release/merhaba 2>&1 >/dev/null | grep -n -m1 "^poll"
+39:poll([{fd=0, events=0}, {fd=1, events=0}, {fd=2, events=0}], 3, 0) = 0 (Timeout)
 ```
 
 ## 004-bit-ve-bayt
@@ -426,7 +502,7 @@ $ nm target/release/merhaba | grep -i "merhaba.*main"
 - Örnek yolu: `deneyler/mufredat-ornekleri/004-bit-ve-bayt/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:28Z
+- Son çalıştırma (UTC): 2026-11-22T08:35:27Z
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -438,13 +514,13 @@ ks 'lscpu | grep "Byte Order"'
 
 ```text
 $ cargo run -q
-onluk      : 1000000
-ikilik     : 00000000000011110100001001000000
-onaltılık  : 0x000f4240
-bellekte   : [40, 42, 0f, 00]
-küçük uçlu : [40, 42, 0f, 00]
-büyük uçlu : [00, 0f, 42, 40]
-'A' baytı  : 65 = 0x41 = 01000001
+onluk         : 1000000
+ikilik        : 00000000000011110100001001000000
+onaltılık     : 0x000f4240
+bellekte      : [40, 42, 0f, 00]
+little-endian : [40, 42, 0f, 00]
+big-endian    : [00, 0f, 42, 40]
+'A' baytı     : 65 = 0x41 = 01000001
 $ lscpu | grep "Byte Order"
 Byte Order:                              Little Endian
 ```
@@ -455,7 +531,7 @@ Byte Order:                              Little Endian
 - Örnek yolu: `deneyler/mufredat-ornekleri/005-tam-sayilar/`
 - Kaynaklar: `Cargo.toml`, `sabit-tasma/Cargo.toml`, `sabit-tasma/src/main.rs`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:28Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: panik satırındaki iş parçacığı kimliği (thread 'main' (N))
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -490,7 +566,7 @@ overflowing_add(1) = (0, true)
 -1i8 bitleri       = 11111111
 i8 aralığı         = -128 ..= 127
 
-thread 'main' (401) panicked at src/main.rs:12:41:
+thread 'main' (1364) panicked at src/main.rs:12:41:
 attempt to add with overflow
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]
@@ -510,7 +586,7 @@ x + 1              = 0
 - Örnek yolu: `deneyler/mufredat-ornekleri/006-kayan-nokta/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:28Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -551,13 +627,15 @@ NaN == NaN         → false
 
 - Video: `007-metin-ve-utf8`
 - Örnek yolu: `deneyler/mufredat-ornekleri/007-metin-ve-utf8/`
-- Kaynaklar: `Cargo.toml`, `src/main.rs`
+- Kaynaklar: `Cargo.toml`, `ajan-masasi/Cargo.toml`, `ajan-masasi/src/main.rs`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:28Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q
+# Ajan Masası (K1): para tutarını f64 ile tutan ajan kodu
+cd ajan-masasi && k cargo run -q; cd ..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -573,6 +651,12 @@ A  U+0041  1 bayt  [41]
 "istanbul".to_uppercase() = "ISTANBUL"
 "İ".to_lowercase()        = "i\u{307}" (2 karakter: ["U+0069", "U+0307"])
 size_of::<char>()          = 4 bayt
+$ cargo run -q
+toplam (f64)       = 0.30000000000000004
+toplam == 0.30     → false
+1.15 TL kaç kuruş? = 114
+1.15 * 100.0       = 114.99999999999999
+toplam (kuruş)     = 145 → 1.45 TL
 ```
 
 ## 008-islemci-ve-assembly
@@ -581,7 +665,7 @@ size_of::<char>()          = 4 bayt
 - Örnek yolu: `deneyler/mufredat-ornekleri/008-islemci-ve-assembly/`
 - Kaynaklar: `islem.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:28Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -664,13 +748,15 @@ Disassembly of section .text.toplam:
 - Örnek yolu: `deneyler/mufredat-ornekleri/009-bellek-hiyerarsisi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:32Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler donanıma ve o anki yüke bağlı (AMD Ryzen 5 5600: L1d 32 KiB, L2 512 KiB/çekirdek, L3 32 MiB)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 ks 'lscpu | grep -E "^L1d|^L2|^L3"'
 k cargo run -q --release
+# Kendin dene: aynı boyutlar, sıralı halka (alanda yerellik ve önceden getirme)
+k cargo run -q --release -- sirali
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -681,20 +767,29 @@ L1d cache:                               192 KiB (6 instances)
 L2 cache:                                3 MiB (6 instances)
 L3 cache:                                32 MiB (1 instance)
 $ cargo run -q --release
+örnek halka (n = 8): 0 → 4 → 2 → 1 → 3 → 5 → 7 → 6 → 0
+erişim düzeni: rastgele (Sattolo)
 çalışma kümesi    ns/erişim
-        16 KiB         1.19   (son=330)
-        32 KiB         1.18   (son=2719)
-        64 KiB         2.12   (son=7641)
-       128 KiB         2.55   (son=15857)
-       256 KiB         3.18   (son=6251)
-       512 KiB         5.01   (son=61778)
-      1024 KiB         8.50   (son=115268)
-      2048 KiB        10.60   (son=43097)
-      8192 KiB        12.58   (son=158047)
-     16384 KiB        19.58   (son=1655160)
-     32768 KiB        58.33   (son=1515190)
-     65536 KiB        65.86   (son=2436746)
-    262144 KiB        87.16   (son=3877667)
+        16 KiB         1.14   (son=330)
+        32 KiB         1.17   (son=2719)
+        64 KiB         2.17   (son=7641)
+       128 KiB         2.60   (son=15857)
+       256 KiB         2.84   (son=6251)
+       512 KiB         5.24   (son=61778)
+      1024 KiB         8.90   (son=115268)
+      2048 KiB        10.92   (son=43097)
+      8192 KiB        12.62   (son=158047)
+     16384 KiB        40.19   (son=1655160)
+     32768 KiB        59.98   (son=1515190)
+     65536 KiB        69.71   (son=2436746)
+    262144 KiB        85.93   (son=3877667)
+$ cargo run -q --release -- sirali
+erişim düzeni: sıralı
+çalışma kümesi    ns/erişim
+        16 KiB         1.15   (son=1664)
+      1024 KiB         1.14   (son=38528)
+     32768 KiB         1.14   (son=1611392)
+    262144 KiB         1.15   (son=10000000)
 ```
 
 ## 010-yigin-ve-obek
@@ -703,13 +798,18 @@ $ cargo run -q --release
 - Örnek yolu: `deneyler/mufredat-ornekleri/010-yigin-ve-obek/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:32Z
-- Değişken çıktı: adresler her çalıştırmada değişir (ASLR)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: adresler her çalıştırmada değişir (ASLR); 100 çalıştırmadaki farklı yığın son hanesi sayısı da rastgeledir (kayıtta 78), öbekte hep 1
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q
 k ./target/debug/yigin_obek
+# Kendin dene: ikinci çalıştırmada hangi haneler değişiyor?
+k ./target/debug/yigin_obek
+# 100 çalıştırmada son üç onaltılık hane kaç farklı değer alıyor? (yığın ve öbek)
+ks 'for i in $(seq 100); do ./target/debug/yigin_obek | grep "^yığın"; done | sed -E "s/.*(...)$/\1/" | sort -u | wc -l'
+ks 'for i in $(seq 100); do ./target/debug/yigin_obek | grep "Box<u64>"; done | sed -E "s/.*(...)$/\1/" | sort -u | wc -l'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -717,17 +817,33 @@ k ./target/debug/yigin_obek
 ```text
 $ cargo build -q
 $ ./target/debug/yigin_obek
-kod    main()            : 0x5583d7018b90
-statik SELAM metni       : 0x5583d70079ec
-öbek   Box<u64>          : 0x5584096b1d60
-öbek   String verisi     : 0x5584096b1d80
-yığın  yerel değişken    : 0x7ffc52625168
-5583d7000000-5583d7018000 r--p 00000000 00:1d 67978390                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-5583d7018000-5583d705b000 r-xp 00017000 00:1d 67978390                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-5583d705b000-5583d705f000 r--p 00059000 00:1d 67978390                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-5583d705f000-5583d7061000 rw-p 0005c000 00:1d 67978390                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
-5584096b1000-5584096d2000 rw-p 00000000 00:00 0                          [heap]
-7ffc52606000-7ffc52627000 rw-p 00000000 00:00 0                          [stack]
+kod    main()            : 0x555935c27b90
+statik SELAM metni       : 0x555935c169ec
+öbek   Box<u64>          : 0x55596634dd60
+öbek   String verisi     : 0x55596634dd80
+yığın  yerel değişken    : 0x7fff7fee6708
+555935c0f000-555935c27000 r--p 00000000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+555935c27000-555935c6a000 r-xp 00017000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+555935c6a000-555935c6e000 r--p 00059000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+555935c6e000-555935c70000 rw-p 0005c000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+55596634d000-55596636e000 rw-p 00000000 00:00 0                          [heap]
+7fff7fec8000-7fff7fee9000 rw-p 00000000 00:00 0                          [stack]
+$ ./target/debug/yigin_obek
+kod    main()            : 0x5560d6116b90
+statik SELAM metni       : 0x5560d61059ec
+öbek   Box<u64>          : 0x5560dc401d60
+öbek   String verisi     : 0x5560dc401d80
+yığın  yerel değişken    : 0x7ffddd6ba248
+5560d60fe000-5560d6116000 r--p 00000000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5560d6116000-5560d6159000 r-xp 00017000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5560d6159000-5560d615d000 r--p 00059000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5560d615d000-5560d615f000 rw-p 0005c000 00:1d 80361788                   /work/mufredat-ornekleri/010-yigin-ve-obek/target/debug/yigin_obek
+5560dc401000-5560dc422000 rw-p 00000000 00:00 0                          [heap]
+7ffddd69b000-7ffddd6bc000 rw-p 00000000 00:00 0                          [stack]
+$ for i in $(seq 100); do ./target/debug/yigin_obek | grep "^yığın"; done | sed -E "s/.*(...)$/\1/" | sort -u | wc -l
+82
+$ for i in $(seq 100); do ./target/debug/yigin_obek | grep "Box<u64>"; done | sed -E "s/.*(...)$/\1/" | sort -u | wc -l
+1
 ```
 
 ## 011-sanal-bellek
@@ -736,7 +852,7 @@ yığın  yerel değişken    : 0x7ffc52625168
 - Örnek yolu: `deneyler/mufredat-ornekleri/011-sanal-bellek/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:33Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: adresler (ASLR), RSS ve sayfa hatası sayıları (THP ayarına bağlı)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -757,18 +873,18 @@ $ cat /sys/kernel/mm/transparent_hugepage/enabled
 [always] madvise never
 $ cargo build -q --release
 $ ./target/release/sanal_bellek
-yığın adresi: 0x7ffe95fa7cb7   öbek adresi: 0x56267cfb3d60
-başlangıç        : VmRSS      2000 kB  sayfa hatası     101
-1 GiB ayrıldı    : VmRSS      2008 kB  sayfa hatası     102
-sayfalara dokundu: VmRSS   1050580 kB  sayfa hatası  261223
-AnonHugePages:      4096 kB   (2 MiB'lik dev sayfalarla karşılanan kısım)
+yığın adresi: 0x7fffbfb54037   öbek adresi: 0x561e32e95d60
+başlangıç        : VmRSS      2092 kB  sayfa hatası     101
+1 GiB ayrıldı    : VmRSS      2100 kB  sayfa hatası     102
+sayfalara dokundu: VmRSS   1050672 kB  sayfa hatası  262245
+AnonHugePages:         0 kB   (2 MiB'lik büyük sayfalarla karşılanan kısım)
 toplam: 262144
 $ ./target/release/sanal_bellek
-yığın adresi: 0x7fffcce64467   öbek adresi: 0x560dd6644d60
-başlangıç        : VmRSS      1888 kB  sayfa hatası      98
-1 GiB ayrıldı    : VmRSS      1896 kB  sayfa hatası      99
-sayfalara dokundu: VmRSS   1050468 kB  sayfa hatası  261220
-AnonHugePages:      4096 kB   (2 MiB'lik dev sayfalarla karşılanan kısım)
+yığın adresi: 0x7ffdb923eed7   öbek adresi: 0x55b5e2ca5d60
+başlangıç        : VmRSS      2100 kB  sayfa hatası      98
+1 GiB ayrıldı    : VmRSS      2108 kB  sayfa hatası      99
+sayfalara dokundu: VmRSS   1050680 kB  sayfa hatası  262242
+AnonHugePages:         0 kB   (2 MiB'lik büyük sayfalarla karşılanan kısım)
 toplam: 262144
 ```
 
@@ -778,7 +894,7 @@ toplam: 262144
 - Örnek yolu: `deneyler/mufredat-ornekleri/012-isletim-sistemi-ve-sistem-cagrilari/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:33Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler donanıma ve çekirdek ayarlarına bağlı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -794,14 +910,14 @@ ks 'strace -c -e trace=getpid ./target/release/sistem_cagrisi 1000 > /dev/null'
 ```text
 $ cargo build -q --release
 $ ./target/release/sistem_cagrisi
-1000000 fonksiyon çağrısı :     1.42 ns/çağrı
-1000000 getpid() çağrısı  :   273.30 ns/çağrı
+1000000 fonksiyon çağrısı :     1.22 ns/çağrı
+1000000 getpid() çağrısı  :   275.41 ns/çağrı
 $ strace -c -e trace=getpid ./target/release/sistem_cagrisi 1000 > /dev/null
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
-100.00    0.001738           1      1000           getpid
+100.00    0.001383           1      1000           getpid
 ------ ----------- ----------- --------- --------- ----------------
-100.00    0.001738           1      1000           total
+100.00    0.001383           1      1000           total
 ```
 
 ## 013-derleme-asamalari
@@ -810,7 +926,7 @@ $ strace -c -e trace=getpid ./target/release/sistem_cagrisi 1000 > /dev/null
 - Örnek yolu: `deneyler/mufredat-ornekleri/013-derleme-asamalari/`
 - Kaynaklar: `Cargo.toml`, `kare.rs`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:37Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: derleme ve çalışma süreleri
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -834,7 +950,7 @@ k hyperfine -N --warmup 1 --runs 5 --style basic ./target/debug/elek ./target/re
 $ cargo build -v
    Compiling elek v0.1.0 (/work/mufredat-ornekleri/013-derleme-asamalari)
      Running `/usr/local/rustup/toolchains/1.100.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name elek --edition=2024 src/main.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat,unused-externs-silent --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=bf9f79702f8348ae --out-dir /work/mufredat-ornekleri/013-derleme-asamalari/target/debug/build/elek/d3c967da860348f5/out -C incremental=/work/mufredat-ornekleri/013-derleme-asamalari/target/debug/incremental --force-warn=unused_crate_dependencies`
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s
 $ rustc --edition 2024 --crate-type=lib -C opt-level=0 --emit=llvm-ir -o target/kare_O0.ll kare.rs
 $ awk '/^define.*@kare/,/^}/' target/kare_O0.ll
 define i32 @kare(i32 %x) unnamed_addr #0 !guid !6 {
@@ -862,16 +978,16 @@ start:
 $ cargo build -q --release
 $ hyperfine -N --warmup 1 --runs 5 --style basic ./target/debug/elek ./target/release/elek
 Benchmark 1: ./target/debug/elek
-  Time (mean ± σ):     420.1 ms ±  27.8 ms    [User: 409.2 ms, System: 7.9 ms]
-  Range (min … max):   403.0 ms … 469.1 ms    5 runs
+  Time (mean ± σ):     448.7 ms ±  23.4 ms    [User: 437.6 ms, System: 6.7 ms]
+  Range (min … max):   424.3 ms … 481.3 ms    5 runs
  
 Benchmark 2: ./target/release/elek
-  Time (mean ± σ):      46.2 ms ±   3.2 ms    [User: 37.2 ms, System: 8.3 ms]
-  Range (min … max):    41.9 ms …  49.4 ms    5 runs
+  Time (mean ± σ):      43.8 ms ±   3.0 ms    [User: 35.4 ms, System: 7.7 ms]
+  Range (min … max):    40.7 ms …  48.6 ms    5 runs
  
 Summary
   ./target/release/elek ran
-    9.10 ± 0.87 times faster than ./target/debug/elek
+   10.25 ± 0.88 times faster than ./target/debug/elek
 ```
 
 ## 014-baglama-ve-elf
@@ -880,7 +996,7 @@ Summary
 - Örnek yolu: `deneyler/mufredat-ornekleri/014-baglama-ve-elf/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:37Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: ldd'nin yükleme adresleri (ASLR)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -892,6 +1008,8 @@ ks 'readelf -S -W target/release/merhaba | grep -E " \.(text|rodata|data|bss) "'
 # Sembol adları: derleyici "isim karıştırma" (mangling) uygular
 ks 'nm target/release/merhaba | grep "merhaba4main"'
 ks 'nm -C target/release/merhaba | grep "merhaba::main"'
+# Yığın geri sarma (unwinding) için gereken işlevler libgcc_s kütüphanesinden gelir
+ks 'nm -D target/release/merhaba | grep _Unwind | head -n 3'
 # Statik bağlama: C kütüphanesi de ikiliye gömülsün
 ks 'RUSTFLAGS="-C target-feature=+crt-static" cargo build -q --release --target-dir target/statik'
 k file target/statik/release/merhaba
@@ -905,10 +1023,10 @@ k ./target/statik/release/merhaba
 ```text
 $ cargo build -q --release
 $ ldd target/release/merhaba
-	linux-vdso.so.1 (0x00007f26ddea4000)
-	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f26dde13000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f26ddc1f000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f26ddea6000)
+	linux-vdso.so.1 (0x00007f6935753000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f69356c2000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f69354ce000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f6935755000)
 $ readelf -h target/release/merhaba | grep -E "Class|Type|Machine|Entry"
   Class:                             ELF64
   Type:                              DYN (Position-Independent Executable file)
@@ -923,14 +1041,18 @@ $ nm target/release/merhaba | grep "merhaba4main"
 0000000000014b30 t _RNvCsjEVuznjrSGG_7merhaba4main
 $ nm -C target/release/merhaba | grep "merhaba::main"
 0000000000014b30 t merhaba::main
+$ nm -D target/release/merhaba | grep _Unwind | head -n 3
+                 U _Unwind_Backtrace@GCC_3.3
+                 U _Unwind_DeleteException@GCC_3.0
+                 U _Unwind_GetDataRelBase@GCC_3.0
 $ RUSTFLAGS="-C target-feature=+crt-static" cargo build -q --release --target-dir target/statik
 $ file target/statik/release/merhaba
-target/statik/release/merhaba: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), static-pie linked, for GNU/Linux 3.2.0, BuildID[sha1]=6fbaffb53b017931e0f55d8f9a6583d8f38faad1, not stripped
+target/statik/release/merhaba: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), static-pie linked, for GNU/Linux 3.2.0, BuildID[sha1]=acdf44f769388fce664765f20f0a1eac21c28cc4, not stripped
 $ ldd target/statik/release/merhaba
 	statically linked
 $ stat -c "%s bayt  %n" target/release/merhaba target/statik/release/merhaba
 445024 bayt  target/release/merhaba
-1380472 bayt  target/statik/release/merhaba
+1380592 bayt  target/statik/release/merhaba
 $ ./target/statik/release/merhaba
 Merhaba, dünya!
 ```
@@ -941,7 +1063,7 @@ Merhaba, dünya!
 - Örnek yolu: `deneyler/mufredat-ornekleri/015-derleyici-hatalarini-okumak/`
 - Kaynaklar: `mut-eksik/Cargo.toml`, `mut-eksik/src/main.rs`, `tip-hatasi/Cargo.toml`, `tip-hatasi/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:37Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1005,7 +1127,7 @@ error: could not compile `mut_eksik` (bin "mut_eksik") due to 1 previous error
 - Örnek yolu: `deneyler/mufredat-ornekleri/016-degiskenler-ve-degistirilebilirlik/`
 - Kaynaklar: `golgeleme/Cargo.toml`, `golgeleme/src/main.rs`, `iki-kez-atama/Cargo.toml`, `iki-kez-atama/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:37Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1045,7 +1167,7 @@ sayac = 3
 - Örnek yolu: `deneyler/mufredat-ornekleri/017-skaler-ve-bilesik-tipler/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:37Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1069,6 +1191,7 @@ char         boyut  4  hizalama  4
 ()           boyut  0  hizalama  1
 (u8, u32)    boyut  8  hizalama  4
 [u16; 5]     boyut 10  hizalama  2
+(u8, u32) alanları: .0@0 .1@4
 
 300_i32 as u8     = 44
 -1_i32 as u32     = 4294967295
@@ -1085,7 +1208,7 @@ u8::try_from(300) = Err(TryFromIntError(PosOverflow))
 - Örnek yolu: `deneyler/mufredat-ornekleri/018-ifadeler-ve-tip-cikarimi/`
 - Kaynaklar: `ifadeler/Cargo.toml`, `ifadeler/src/main.rs`, `tip-gerekli/Cargo.toml`, `tip-gerekli/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:37Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1122,11 +1245,15 @@ error: could not compile `tip_gerekli` (bin "tip_gerekli") due to 1 previous err
 - Örnek yolu: `deneyler/mufredat-ornekleri/019-kosullar-ve-donguler/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:38Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q --release
+# Derleyicinin gördüğü kontrol akışı: adimlar fonksiyonunun MIR'ındaki temel bloklar ve atlamalar
+mkdir -p target
+k rustc --edition 2024 -C opt-level=2 --emit=mir -o target/collatz.mir src/main.rs
+ks 'awk "/^fn adimlar/,/^}/" target/collatz.mir | grep -E "^    bb[0-9]+|switchInt|goto|return"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -1138,6 +1265,24 @@ n =   7:  16 adım, en yüksek değer 52
 n =  27: 111 adım, en yüksek değer 9232
 n =  97: 118 adım, en yüksek değer 9232
 1..1_000_000 arasında en uzun: n = 837799, 524 adım
+$ rustc --edition 2024 -C opt-level=2 --emit=mir -o target/collatz.mir src/main.rs
+$ awk "/^fn adimlar/,/^}/" target/collatz.mir | grep -E "^    bb[0-9]+|switchInt|goto|return"
+    bb0: {
+        goto -> bb1;
+    bb1: {
+        switchInt(copy _4) -> [1: bb6, otherwise: bb2];
+    bb2: {
+        switchInt(copy _6) -> [0: bb3, otherwise: bb4];
+    bb3: {
+        goto -> bb5;
+    bb4: {
+        goto -> bb5;
+    bb5: {
+        _9 = integer_max::<u64>(move _3, move _10) -> [return: bb7, unwind unreachable];
+    bb6: {
+        return;
+    bb7: {
+        goto -> bb1;
 ```
 
 ## 020-fonksiyonlar-ve-cagri-yigini
@@ -1146,30 +1291,40 @@ n =  97: 118 adım, en yüksek değer 9232
 - Örnek yolu: `deneyler/mufredat-ornekleri/020-fonksiyonlar-ve-cagri-yigini/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:38Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: adresler (ASLR); çerçeve boyutu derleme ayarına bağlı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q
 k cargo run -q --release
+# Dönüş adresleri: gdb seviye 3'te durur; çağrı zinciri ve kaydedilmiş dönüş adresi (gdb ASLR'yi kapatır, adresler sabit görünür)
+ks 'gdb -q -batch -ex "break cagri_yigini::asagi if seviye == 3" -ex run -ex bt -ex "info frame" ./target/debug/cagri_yigini 2>&1 | grep -E "^#|saved rip|called by"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo run -q
-seviye 0: yerel @ 0x7ffecd10f4d4
-seviye 1: yerel @ 0x7ffecd10f3c4  (272 bayt aşağıda)
-seviye 2: yerel @ 0x7ffecd10f2b4  (272 bayt aşağıda)
-seviye 3: yerel @ 0x7ffecd10f1a4  (272 bayt aşağıda)
-seviye 4: yerel @ 0x7ffecd10f094  (272 bayt aşağıda)
+seviye 0: yerel @ 0x7ffc3639c9c4
+seviye 1: yerel @ 0x7ffc3639c8b4  (272 bayt aşağıda)
+seviye 2: yerel @ 0x7ffc3639c7a4  (272 bayt aşağıda)
+seviye 3: yerel @ 0x7ffc3639c694  (272 bayt aşağıda)
+seviye 4: yerel @ 0x7ffc3639c584  (272 bayt aşağıda)
 $ cargo run -q --release
-seviye 0: yerel @ 0x7fff8d79717c
-seviye 1: yerel @ 0x7fff8d79711c  (96 bayt aşağıda)
-seviye 2: yerel @ 0x7fff8d7970bc  (96 bayt aşağıda)
-seviye 3: yerel @ 0x7fff8d79705c  (96 bayt aşağıda)
-seviye 4: yerel @ 0x7fff8d796ffc  (96 bayt aşağıda)
+seviye 0: yerel @ 0x7ffcbd34438c
+seviye 1: yerel @ 0x7ffcbd34432c  (96 bayt aşağıda)
+seviye 2: yerel @ 0x7ffcbd3442cc  (96 bayt aşağıda)
+seviye 3: yerel @ 0x7ffcbd34426c  (96 bayt aşağıda)
+seviye 4: yerel @ 0x7ffcbd34420c  (96 bayt aşağıda)
+$ gdb -q -batch -ex "break cagri_yigini::asagi if seviye == 3" -ex run -ex bt -ex "info frame" ./target/debug/cagri_yigini 2>&1 | grep -E "^#|saved rip|called by"
+#0  cagri_yigini::asagi (seviye=3, onceki=140737488348484) at src/main.rs:3
+#1  0x000055555556917d in cagri_yigini::asagi (seviye=2, onceki=140737488348756) at src/main.rs:11
+#2  0x000055555556917d in cagri_yigini::asagi (seviye=1, onceki=140737488349028) at src/main.rs:11
+#3  0x000055555556917d in cagri_yigini::asagi (seviye=0, onceki=0) at src/main.rs:11
+#4  0x0000555555568f7c in cagri_yigini::main () at src/main.rs:16
+ rip = 0x555555568f98 in cagri_yigini::asagi (src/main.rs:3); saved rip = 0x55555556917d
+ called by frame at 0x7fffffffe630
 ```
 
 ## 021-ozyineleme
@@ -1178,7 +1333,8 @@ seviye 4: yerel @ 0x7fff8d796ffc  (96 bayt aşağıda)
 - Örnek yolu: `deneyler/mufredat-ornekleri/021-ozyineleme/`
 - Kaynaklar: `Cargo.toml`, `kuyruk-cagrisi/Cargo.toml`, `kuyruk-cagrisi/src/main.rs`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:29:30Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: taşma mesajındaki iş parçacığı kimliği (thread 'main' (N)); Linux'ta ana iş parçacığının kimliği süreç kimliğidir
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1199,16 +1355,17 @@ cd kuyruk-cagrisi && ks 'cargo build -q 2>&1 | head -n 8'; cd ..
 ```text
 $ cargo build -q
 $ ./target/debug/ozyineleme
-fib(10) =     55  saf:       177 çağrı   hafızalı:  19 çağrı  (aynı mı: true)
-fib(20) =   6765  saf:     21891 çağrı   hafızalı:  39 çağrı  (aynı mı: true)
-fib(30) = 832040  saf:   2692537 çağrı   hafızalı:  59 çağrı  (aynı mı: true)
+fib(5) =      5  saf:        15 çağrı   memoization ile:   9 çağrı  (aynı mı: true)
+fib(10) =     55  saf:       177 çağrı   memoization ile:  19 çağrı  (aynı mı: true)
+fib(20) =   6765  saf:     21891 çağrı   memoization ile:  39 çağrı  (aynı mı: true)
+fib(30) = 832040  saf:   2692537 çağrı   memoization ile:  59 çağrı  (aynı mı: true)
 $ ulimit -s
 8192
 $ ./target/debug/ozyineleme derin 1000
 derin(1000) = 124948
 $ ./target/debug/ozyineleme derin 100000
 
-thread 'main' (182) has overflowed its stack
+thread 'main' (3334) has overflowed its stack
 fatal runtime error: stack overflow, aborting
 [çıkış kodu: 134 = 128 + 6 (SIGABRT)]
 $ ./target/debug/ozyineleme buyuk-yigin 100000
@@ -1227,101 +1384,231 @@ error[E0658]: `become` expression is experimental
 
 - Video: `022-bellek-hatalarinin-anatomisi`
 - Örnek yolu: `deneyler/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/`
-- Kaynaklar: `c/cift_birak.c`, `c/kullan_sonra_birak.c`, `c/tasma.c`, `rust/Cargo.toml`, `rust/src/main.rs`
-- Toolchain: stable 1.100.0, gcc 14.2.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:38Z
-- Değişken çıktı: AddressSanitizer adresleri ve süreç kimlikleri
+- Kaynaklar: `asan/Cargo.toml`, `asan/src/main.rs`, `cifte-iade/Cargo.toml`, `cifte-iade/src/main.rs`, `cifte-iade-guvenli/Cargo.toml`, `cifte-iade-guvenli/src/main.rs`, `sinir/Cargo.toml`, `sinir/src/main.rs`, `sinir-disi/Cargo.toml`, `sinir-disi/src/main.rs`
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: AddressSanitizer adresleri ve süreç kimlikleri; panik satırındaki iş parçacığı kimliği; miri alloc numaraları; ayırma dışı okumada kullanılmayan baytların içeriği (bu kayıtta sıfır)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-mkdir -p target
-# 1) Tampon taşması: yığın koruyucusu (canary) yakalar ve süreci durdurur
-k gcc -O0 -fstack-protector-strong -o target/tasma c/tasma.c
-k ./target/tasma Ferris
-k ./target/tasma "bu metin sekiz bayttan cok daha uzun"
-# 2) Çift iade: glibc'nin ayırıcısı fark eder
-k gcc -O0 -o target/cift_birak c/cift_birak.c
-k ./target/cift_birak
-# 3) İade-sonrası-kullanım: AddressSanitizer ile derleyince yakalanır
-k gcc -O0 -g -fsanitize=address -o target/uaf_asan c/kullan_sonra_birak.c
-ks './target/uaf_asan 2>&1 | head -n 30'
-# 4) Rust: dizinin dışına erişim tanımlı bir panikle durur
-cd rust && k cargo run -q
+# 1) Sınır dışı erişim. Güvenli Rust: her indeks denetlenir, dışarısı tanımlı bir paniktir
+cd sinir && k cargo run -q; cd ..
+# unsafe Rust: 8 baytlık bir öbek bloğunun ötesini okumak (tanımsız davranış); makinede komşu blok görünür
+cd sinir-disi
+k cargo run -q
+# miri iki deneysel ödünç modelinde de aynı hatayı verir: erişim ayırmanın sonunun ötesinde
+k cargo +nightly miri run -q
+ks 'MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri run -q'
+cd ..
+# 2) Çifte iade. unsafe Rust: glibc'nin ayırıcısı bu durumda ikinci iadeyi fark eder ve süreci durdurur
+cd cifte-iade
+k cargo run -q
+k cargo +nightly miri run -q
+cd ..
+# Güvenli Rust: değer taşındıktan sonra bir daha kullanılamaz (E0382)
+cd cifte-iade-guvenli && k cargo build -q; cd ..
+# 3) İade sonrası kullanım ve gölge bellek: AddressSanitizer (nightly)
+cd asan
+k cargo run -q
+ks 'ASAN_SYMBOLIZER_PATH=/usr/bin/addr2line RUSTFLAGS="-Zsanitizer=address" cargo +nightly run -q --target x86_64-unknown-linux-gnu 2>&1'
+cd ..
 ```
 
-- Gerçek çıktı (`cikti.txt`):
+- Gerçek çıktı (kısaltılmış; 179 satırın tamamı `cikti.txt` içinde):
 
 ```text
-$ gcc -O0 -fstack-protector-strong -o target/tasma c/tasma.c
-$ ./target/tasma Ferris
-tampon = Ferris
-$ ./target/tasma "bu metin sekiz bayttan cok daha uzun"
-*** stack smashing detected ***: terminated
-[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
-$ gcc -O0 -o target/cift_birak c/cift_birak.c
-$ ./target/cift_birak
-free(): double free detected in tcache 2
-[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
-$ gcc -O0 -g -fsanitize=address -o target/uaf_asan c/kullan_sonra_birak.c
-$ ./target/uaf_asan 2>&1 | head -n 30
-=================================================================
-==1891==ERROR: AddressSanitizer: heap-use-after-free on address 0x502000000010 at pc 0x7f321abb379c bp 0x7ffc9ff9b000 sp 0x7ffc9ff9a7c0
-READ of size 2 at 0x502000000010 thread T0
-    #0 0x7f321abb379b in printf_common ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors_format.inc:563
-    #1 0x7f321abdf49a in vprintf ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:1644
-    #2 0x7f321abe108e in printf ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:1702
-    #3 0x55b287cec244 in main c/kullan_sonra_birak.c:16
-    #4 0x7f321a94cca7 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
-    #5 0x7f321a94cd64 in __libc_start_main_impl ../csu/libc-start.c:360
-    #6 0x55b287cec0e0 in _start (/work/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/target/uaf_asan+0x10e0) (BuildId: 95fedd94862cd2cc868a045a076292f8485e9a31)
-
-0x502000000010 is located 0 bytes inside of 16-byte region [0x502000000010,0x502000000020)
-freed by thread T0 here:
-    #0 0x7f321ac0a8f8 in free ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:52
-    #1 0x55b287cec1c0 in temizle c/kullan_sonra_birak.c:6
-    #2 0x55b287cec200 in main c/kullan_sonra_birak.c:11
-    #3 0x7f321a94cca7 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
-
-previously allocated by thread T0 here:
-    #0 0x7f321ac0bc57 in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:69
-    #1 0x55b287cec1d5 in main c/kullan_sonra_birak.c:9
-    #2 0x7f321a94cca7 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
-
-SUMMARY: AddressSanitizer: heap-use-after-free ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors_format.inc:563 in printf_common
-Shadow bytes around the buggy address:
-  0x501ffffffd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-  0x501ffffffe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-  0x501ffffffe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-  0x501fffffff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-  0x501fffffff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 $ cargo run -q
 
-thread 'main' (1893) panicked at src/main.rs:4:34:
+thread 'main' (3375) panicked at src/main.rs:4:34:
 index out of bounds: the len is 8 but the index is 20
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]
+$ cargo run -q
++0 : 46 65 72 72 69 73 00 00
++8 : 00 00 00 00 00 00 00 00
++16: 00 00 00 00 00 00 00 00
++24: 21 00 00 00 00 00 00 00
++32: 67 69 7a 6c 69 31 32 33
+$ cargo +nightly miri run -q
++0 : 46 65 72 72 69 73 00 00
+error: Undefined Behavior: memory access failed: attempting to access 1 byte, but got alloc313+0x8 which is at or beyond the end of the allocation of size 8 bytes
+ --> src/main.rs:9:33
+  |
+9 |             let bayt = unsafe { *p.add(satir * 8 + i) }; // 8 ve ötesi: ayırmanın dışı
+  |                                 ^^^^^^^^^^^^^^^^^^^^^ Undefined Behavior occurred here
+  |
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc313 was allocated here:
+ --> src/main.rs:3:28
+  |
+3 |     let ad: Box<[u8; 8]> = Box::new(*b"Ferris\0\0");
+  |                            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
+$ MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri run -q
++0 : 46 65 72 72 69 73 00 00
+error: Undefined Behavior: memory access failed: attempting to access 1 byte, but got alloc313+0x8 which is at or beyond the end of the allocation of size 8 bytes
+ --> src/main.rs:9:33
+  |
+9 |             let bayt = unsafe { *p.add(satir * 8 + i) }; // 8 ve ötesi: ayırmanın dışı
+  |                                 ^^^^^^^^^^^^^^^^^^^^^ Undefined Behavior occurred here
+  |
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc313 was allocated here:
+ --> src/main.rs:3:28
+… (11 satır atlandı)
+free(): double free detected in tcache 2
+[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
+… (2 satır atlandı)
+error: Undefined Behavior: constructing invalid value of type std::boxed::Box<u64>: encountered a dangling box (use-after-free)
+… (21 satır atlandı)
+error[E0382]: use of moved value: `kutu`
+… (3 satır atlandı)
+  |         ---- move occurs because `kutu` has type `Box<u64>`, which does not implement the `Copy` trait
+… (1 satır atlandı)
+  |          ---- value moved here
+… (1 satır atlandı)
+  |          ^^^^ value used here after move
+… (10 satır atlandı)
+ilk bayt: 0x67
+… (2 satır atlandı)
+==3776==ERROR: AddressSanitizer: heap-use-after-free on address 0x7b5b6a7e0010 at pc 0x55c523c08d61 bp 0x7fff53250e30 sp 0x7fff53250e28
+READ of size 1 at 0x7b5b6a7e0010 thread T0
+    #0 0x55c523c08d60 in asan::main /work/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/asan/src/main.rs:8
+… (18 satır atlandı)
+0x7b5b6a7e0010 is located 0 bytes inside of 6-byte region [0x7b5b6a7e0010,0x7b5b6a7e0016)
+freed by thread T0 here:
+… (6 satır atlandı)
+previously allocated by thread T0 here:
+… (6 satır atlandı)
+    #6 0x55c523c08c6a in asan::main /work/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/asan/src/main.rs:4
+… (4 satır atlandı)
+SUMMARY: AddressSanitizer: heap-use-after-free /work/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/asan/src/main.rs:8 in asan::main
+… (6 satır atlandı)
+=>0x7b5b6a7e0000: fa fa[fd]fa fa fa 00 01 fa fa fa fa fa fa fa fa
+… (5 satır atlandı)
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3776==ABORTING
+[çıkış kodu: 1]
 ```
 
 ## 023-bellek-yonetimi-stratejileri
 
 - Video: `023-bellek-yonetimi-stratejileri`
 - Örnek yolu: `deneyler/mufredat-ornekleri/023-bellek-yonetimi-stratejileri/`
-- Kaynaklar: `python/gc_ornek.py`, `rust/Cargo.toml`, `rust/src/main.rs`
-- Toolchain: stable 1.100.0, python3 (konteyner)
-- Son çalıştırma (UTC): 2026-11-20T16:03:39Z
+- Kaynaklar: `elle/Cargo.toml`, `elle/src/main.rs`, `isaretle-supur/Cargo.toml`, `isaretle-supur/src/main.rs`, `raii/Cargo.toml`, `raii/src/main.rs`, `sayac/Cargo.toml`, `sayac/src/main.rs`, `zayif/Cargo.toml`, `zayif/src/main.rs`
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: miri çıktısındaki alloc numaraları; elle programının yazdığı adresler (ASLR)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-# Rust: kapsam bitince belirli (deterministik) bırakma (RAII)
-cd rust && k cargo run -q; cd ..
-# Python: referans sayma + döngüler için izleyen (tracing) çöp toplayıcı
-k python3 --version
-k python3 python/gc_ornek.py
+# 1) Elle yönetim: unsafe std::alloc; iade etmeyi unutmak sessizdir, miri sızıntıyı bildirir
+cd elle
+k cargo run -q
+k cargo +nightly miri run -q
+cd ..
+# 2) Referans sayımı (Rc): sayaç sıfıra inince hemen bırakma; çevrim ise hiç bırakılmaz
+cd sayac
+k cargo run -q
+k cargo +nightly miri run -q
+cd ..
+# Kendin dene: çevrimin bir yönü Weak olunca ikisi de bırakılır
+cd zayif && k cargo run -q; cd ..
+# 3) İzleyen toplama (işaretle ve süpür), küçük bir benzetim: köklerden erişilemeyen çevrim de toplanır
+cd isaretle-supur && k cargo run -q; cd ..
+# 4) Sahiplik ve RAII: kapsam bitince deterministik bırakma, oluşturma sırasının tersiyle
+cd raii && k cargo run -q; cd ..
 ```
 
-- Gerçek çıktı (`cikti.txt`):
+- Gerçek çıktı (kısaltılmış; 102 satırın tamamı `cikti.txt` içinde):
 
 ```text
+$ cargo run -q
+istenen: 32 bayt, hizalama 8
+blok 0x55ad9b885ae0: [0, 10, 20, 30]
+ikinci blok 0x55ad9b885ae0 ayrıldı
+main bitti; ikinci blok hiç iade edilmedi
+$ cargo +nightly miri run -q
+istenen: 32 bayt, hizalama 8
+blok 0x273b8: [0, 10, 20, 30]
+ikinci blok 0x330f8 ayrıldı
+main bitti; ikinci blok hiç iade edilmedi
+error: memory leaked: alloc3654 (Rust heap, size: 32, align: 8), allocated here:
+  --> src/main.rs:17:17
+   |
+17 |         let q = alloc(duzen); // ikinci blok: iade etmeyi "unutuyoruz"
+   |                 ^^^^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+note: set `MIRIFLAGS=-Zmiri-ignore-leaks` to disable this check
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
+$ cargo run -q
+a'nın sahip sayısı: 2
+a'nın sahip sayısı: 1
+  a bırakıldı
+--- çevrim: x -> y -> x
+x: 2, y: 2
+drop sonrası x: 1, y: 1
+main bitiyor
+$ cargo +nightly miri run -q
+a'nın sahip sayısı: 2
+a'nın sahip sayısı: 1
+  a bırakıldı
+--- çevrim: x -> y -> x
+x: 2, y: 2
+drop sonrası x: 1, y: 1
+main bitiyor
+error: memory leaked: alloc2391 (Rust heap, size: 40, align: 8), allocated here:
+   --> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49
+    |
+438 |               Self::from_inner(Box::into_non_null(Box::new(RcInner {
+    |  _________________________________________________^
+439 | |                 strong: Cell::new(1),
+… (13 satır atlandı)
+error: memory leaked: alloc2452 (Rust heap, size: 40, align: 8), allocated here:
+… (23 satır atlandı)
+
+[çıkış kodu: 1]
+$ cargo run -q
+x: 1 güçlü, 1 zayıf; y: 2 güçlü
+  x bırakıldı
+  y bırakıldı
+main bitiyor
+$ cargo run -q
+toplama başlıyor (kök: A)
+  süpürüldü: D
+  süpürüldü: E
+  süpürüldü: F
+kalanlar: ['A', 'B', 'C']
 $ cargo run -q
 iç kapsam bitiyor
   C bırakıldı
@@ -1329,16 +1616,6 @@ iç kapsam bitiyor
   D bırakıldı
 main bitiyor
   A bırakıldı
-$ python3 --version
-Python 3.13.5
-$ python3 python/gc_ornek.py
-a'nın referans sayısı: 1
-  a silindi
---- döngü kuruluyor
-del sonrası: hiçbir şey silinmedi
-  x silindi
-  y silindi
-gc.collect() bulduğu erişilemez nesne: 2
 ```
 
 ## 024-sahiplik-kurallari
@@ -1347,7 +1624,7 @@ gc.collect() bulduğu erişilemez nesne: 2
 - Örnek yolu: `deneyler/mufredat-ornekleri/024-sahiplik-kurallari/`
 - Kaynaklar: `tasima/Cargo.toml`, `tasima/src/main.rs`, `tasima-sonrasi/Cargo.toml`, `tasima-sonrasi/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:39Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: adresler (ASLR)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -1360,8 +1637,8 @@ cd tasima-sonrasi && k cargo build -q; cd ..
 
 ```text
 $ cargo run -q
-s1: yığındaki yapı 0x7ffce72081c8, öbekteki veri 0x5622bbebcd60
-s2: yığındaki yapı 0x7ffce7208230, öbekteki veri 0x5622bbebcd60
+s1: yığındaki yapı 0x7ffee0366da8, öbekteki veri 0x559880e3dd60, uzunluk 4, kapasite 4
+s2: yığındaki yapı 0x7ffee0366e80, öbekteki veri 0x559880e3dd60, uzunluk 4, kapasite 4
 $ cargo build -q
 error[E0382]: borrow of moved value: `s1`
  --> src/main.rs:4:16
@@ -1389,7 +1666,7 @@ error: could not compile `tasima_sonrasi` (bin "tasima_sonrasi") due to 1 previo
 - Örnek yolu: `deneyler/mufredat-ornekleri/025-kopyalama-ve-klonlama/`
 - Kaynaklar: `copy-olamaz/Cargo.toml`, `copy-olamaz/src/main.rs`, `klon/Cargo.toml`, `klon/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:39Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: adresler (ASLR)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -1405,7 +1682,7 @@ $ cargo run -q
 size_of::<String>() = 24 bayt (işaretçi + kapasite + uzunluk)
 a = 5, b = 5
 p = (1, 2), q = (1, 2)
-s verisi @ 0x555642267d60, t verisi @ 0x555642267d80
+s verisi @ 0x55fd0a8b2d60, t verisi @ 0x55fd0a8b2d80
 $ cargo build -q
 error[E0204]: the trait `Copy` cannot be implemented for this type
  --> src/main.rs:2:8
@@ -1426,14 +1703,21 @@ error: could not compile `copy_olamaz` (bin "copy_olamaz") due to 1 previous err
 
 - Video: `026-odunc-alma`
 - Örnek yolu: `deneyler/mufredat-ornekleri/026-odunc-alma/`
-- Kaynaklar: `kural/Cargo.toml`, `kural/src/main.rs`, `neden/Cargo.toml`, `neden/src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:39Z
-- Değişken çıktı: adresler (ASLR)
+- Kaynaklar: `kural/Cargo.toml`, `kural/src/main.rs`, `neden/Cargo.toml`, `neden/src/main.rs`, `sarkan-isaretci/Cargo.toml`, `sarkan-isaretci/src/main.rs`
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: adresler her çalıştırmada değişir (ASLR); bloğun yerinde büyüyüp büyümediği ayırıcıya bağlıdır; miri alloc numaraları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
+# Makine düzeyi: Vec dolunca ayırıcı bloğu bazen yerinde büyütür, bazen taşır
 cd neden && k cargo run -q; cd ..
+# unsafe Rust: eski adresi tutan ham işaretçi; bu çalıştırmada "çalışıyor" görünebilir, miri kuralın çiğnendiğini gösterir
+cd sarkan-isaretci
+k cargo run -q
+k cargo +nightly miri run -q
+cd ..
+# Güvenli Rust: bir elemana referans yaşarken push reddedilir (E0502)
 cd kural && k cargo build -q; cd ..
 ```
 
@@ -1441,16 +1725,47 @@ cd kural && k cargo build -q; cd ..
 
 ```text
 $ cargo run -q
-kapasite 3, veri @ 0x56273aab7d60
-kapasite 6, veri @ 0x56273aab7d60
-kapasite 12, veri @ 0x56273aab7da0
+kapasite 3, veri @ 0x55f85c7dad60
+kapasite 6, veri @ 0x55f85c7dad60
+kapasite 12, veri @ 0x55f85c7dada0
+$ cargo run -q
+önce : kapasite 3, veri @ 0x55d82391ad60
+sonra: kapasite 6, veri @ 0x55d82391ad60
+ilk = 1
+$ cargo +nightly miri run -q
+önce : kapasite 3, veri @ 0x21330
+sonra: kapasite 6, veri @ 0x29e08
+error: Undefined Behavior: memory access failed: alloc311 has been freed, so this pointer is dangling
+ --> src/main.rs:8:26
+  |
+8 |     let deger = unsafe { *ilk }; // blok taşındıysa iade edilmiş belleği okur: tanımsız davranış
+  |                          ^^^^ Undefined Behavior occurred here
+  |
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc311 was allocated here:
+ --> src/main.rs:3:17
+  |
+3 |     let mut v = vec![1, 2, 3];
+  |                 ^^^^^^^^^^^^^
+help: alloc311 was deallocated here:
+ --> src/main.rs:6:5
+  |
+6 |     v.push(4); // kapasite doldu: ayırıcı bloğu büyütür ya da taşır
+  |     ^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
 $ cargo build -q
 error[E0502]: cannot borrow `v` as mutable because it is also borrowed as immutable
  --> src/main.rs:4:5
   |
 3 |     let ilk = &v[0]; // paylaşılan ödünç
   |                - immutable borrow occurs here
-4 |     v.push(4); // değiştirmek için özel (mut) ödünç gerekir
+4 |     v.push(4); // değiştirmek için değiştirilebilir (&mut) ödünç gerekir
   |     ^^^^^^^^^ mutable borrow occurs here
 5 |     println!("ilk = {ilk}");
   |                      --- immutable borrow later used here
@@ -1466,7 +1781,7 @@ error: could not compile `kural` (bin "kural") due to 1 previous error
 - Örnek yolu: `deneyler/mufredat-ornekleri/027-dilimler-ve-str/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:39Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: panik satırındaki iş parçacığı kimliği
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -1486,7 +1801,7 @@ String : 24 bayt (işaretçi + kapasite + uzunluk)
 &s[0..1] = "a"
 &s[1..3] = "ğ"
 
-thread 'main' (2309) panicked at src/main.rs:14:37:
+thread 'main' (4696) panicked at src/main.rs:14:37:
 end byte index 2 is not a char boundary; it is inside 'ğ' (bytes 1..3 of string)
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]
@@ -1496,14 +1811,14 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
 - Video: `028-yasam-sureleri`
 - Örnek yolu: `deneyler/mufredat-ornekleri/028-yasam-sureleri/`
-- Kaynaklar: `duzeltilmis/Cargo.toml`, `duzeltilmis/src/main.rs`, `eksik-omur/Cargo.toml`, `eksik-omur/src/main.rs`, `sarkan/Cargo.toml`, `sarkan/src/main.rs`
+- Kaynaklar: `duzeltilmis/Cargo.toml`, `duzeltilmis/src/main.rs`, `eksik-yasam-suresi/Cargo.toml`, `eksik-yasam-suresi/src/main.rs`, `sarkan/Cargo.toml`, `sarkan/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:40Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 cd sarkan && k cargo build -q; cd ..
-cd eksik-omur && k cargo build -q; cd ..
+cd eksik-yasam-suresi && k cargo build -q; cd ..
 cd duzeltilmis && k cargo run -q; cd ..
 ```
 
@@ -1540,19 +1855,20 @@ help: consider introducing a named lifetime parameter
   |        ++++     ++          ++          ++
 
 For more information about this error, try `rustc --explain E0106`.
-error: could not compile `eksik_omur` (bin "eksik_omur") due to 1 previous error
+error: could not compile `eksik_yasam_suresi` (bin "eksik_yasam_suresi") due to 1 previous error
 [çıkış kodu: 101]
 $ cargo run -q
-daha uzun: ödünç
+daha uzun: sahiplik
 ```
 
 ## 029-odunc-denetleyicinin-zihni
 
 - Video: `029-odunc-denetleyicinin-zihni`
 - Örnek yolu: `deneyler/mufredat-ornekleri/029-odunc-denetleyicinin-zihni/`
-- Kaynaklar: `nll/Cargo.toml`, `nll/src/main.rs`, `temkinli/Cargo.toml`, `temkinli/src/main.rs`
+- Kaynaklar: `ajan-masasi/ilk-surum/Cargo.toml`, `ajan-masasi/ilk-surum/src/main.rs`, `ajan-masasi/kod/Cargo.toml`, `ajan-masasi/kod/src/bin/ajan.rs`, `ajan-masasi/kod/src/bin/duzeltilmis.rs`, `nll/Cargo.toml`, `nll/src/main.rs`, `temkinli/Cargo.toml`, `temkinli/src/main.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:03:40Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: valgrind satırlarındaki süreç kimliği (==N==)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1561,6 +1877,13 @@ cd temkinli && k cargo build -q
 # Yeni nesil denetleyici Polonius (yalnızca nightly'de, deneysel bayrakla)
 ks 'rustc +nightly -Z help | grep -i polonius'
 ks 'RUSTFLAGS="-Zpolonius=next" cargo +nightly run -q --target-dir target/polonius'
+cd ..
+# Ajan Masası (K6): ajanın ilk sürümü derlenmez; ajan her yere .clone() ekler; valgrind ayırma sayısını gösterir
+cd ajan-masasi/ilk-surum && k cargo build -q; cd ../..
+cd ajan-masasi/kod && k cargo build -q --release
+ks 'valgrind ./target/release/ajan 2>&1 | grep -E "toplam uzunluk|total heap usage"'
+ks 'valgrind ./target/release/duzeltilmis 2>&1 | grep -E "toplam uzunluk|total heap usage"'
+cd ../..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -1590,6 +1913,40 @@ $ rustc +nightly -Z help | grep -i polonius
     -Z                                      polonius=val -- enable polonius-based borrow-checker (default: next)
 $ RUSTFLAGS="-Zpolonius=next" cargo +nightly run -q --target-dir target/polonius
 yeni
+$ cargo build -q
+error[E0382]: use of moved value: `kelimeler`
+  --> src/main.rs:19:27
+   |
+13 |     let mut kelimeler = Vec::new();
+   |         ------------- move occurs because `kelimeler` has type `Vec<String>`, which does not implement the `Copy` trait
+...
+18 |     for _ in 0..100 {
+   |     --------------- inside of this loop
+19 |         toplam += en_uzun(kelimeler).len(); // ilk turda taşınır
+   |                           ^^^^^^^^^ value moved here, in previous iteration of loop
+   |
+note: consider changing this parameter type in function `en_uzun` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:2:23
+   |
+ 2 | fn en_uzun(kelimeler: Vec<String>) -> String {
+   |    -------            ^^^^^^^^^^^ this parameter takes ownership of the value
+   |    |
+   |    in this function
+help: consider cloning the value if the performance cost is acceptable
+   |
+19 |         toplam += en_uzun(kelimeler.clone()).len(); // ilk turda taşınır
+   |                                    ++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `ilk_surum` (bin "ilk_surum") due to 1 previous error
+[çıkış kodu: 101]
+$ cargo build -q --release
+$ valgrind ./target/release/ajan 2>&1 | grep -E "toplam uzunluk|total heap usage"
+toplam uzunluk: 900
+==5189==   total heap usage: 101,119 allocs, 101,117 frees, 3,353,700 bytes allocated
+$ valgrind ./target/release/duzeltilmis 2>&1 | grep -E "toplam uzunluk|total heap usage"
+toplam uzunluk: 900
+==5192==   total heap usage: 1,019 allocs, 1,017 frees, 64,700 bytes allocated
 ```
 
 ## 030-structlar-ve-bellek-yerlesimi
@@ -1598,7 +1955,7 @@ yeni
 - Örnek yolu: `deneyler/mufredat-ornekleri/030-structlar-ve-bellek-yerlesimi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:40Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1611,6 +1968,7 @@ k cargo run -q
 $ cargo run -q
 repr(Rust): boyut  8  a@6 b@0 c@4
 repr(C)   : boyut 12  a@0 b@4 c@8
+repr(C) büyükten küçüğe: boyut  8  a@6 b@0 c@4
 ```
 
 ## 031-metotlar-ve-impl
@@ -1619,7 +1977,7 @@ repr(C)   : boyut 12  a@0 b@4 c@8
 - Örnek yolu: `deneyler/mufredat-ornekleri/031-metotlar-ve-impl/`
 - Kaynaklar: `hesap/Cargo.toml`, `hesap/src/main.rs`, `kapali-hesap/Cargo.toml`, `kapali-hesap/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:40Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1664,7 +2022,7 @@ error: could not compile `kapali_hesap` (bin "kapali_hesap") due to 1 previous e
 - Örnek yolu: `deneyler/mufredat-ornekleri/032-enumlar-ve-toplam-tipler/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:40Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1688,7 +2046,7 @@ size_of::<f64>() * 2 = 16 bayt (en büyük varyantın yükü)
 - Örnek yolu: `deneyler/mufredat-ornekleri/033-option-ve-null/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:40Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1717,12 +2075,16 @@ Ali: bulunamadı
 - Örnek yolu: `deneyler/mufredat-ornekleri/034-oruntu-esleme/`
 - Kaynaklar: `dilim-oruntuleri/Cargo.toml`, `dilim-oruntuleri/src/main.rs`, `eksik-kol/Cargo.toml`, `eksik-kol/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:41Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 cd eksik-kol && k cargo build -q; cd ..
 cd dilim-oruntuleri && k cargo run -q; cd ..
+# Karar ağacı: derleyici dilim örüntülerini uzunluk üzerinde dallanmaya çevirir (MIR'daki switchInt)
+mkdir -p target
+k rustc --edition 2024 -C opt-level=0 --emit=mir -o target/dilim.mir dilim-oruntuleri/src/main.rs
+ks 'awk "/^fn siniflandir/,/^}/" target/dilim.mir | grep -E "switchInt|Ge\(|Eq\(|PtrMetadata|Len\("'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -1758,6 +2120,19 @@ $ cargo run -q
 [7] → tek eleman: 7
 [3, 1, 3] → baş ve son aynı: 3
 [1, 2, 3, 4, 5] → 1 … 5 (arada 3 eleman)
+$ rustc --edition 2024 -C opt-level=0 --emit=mir -o target/dilim.mir dilim-oruntuleri/src/main.rs
+$ awk "/^fn siniflandir/,/^}/" target/dilim.mir | grep -E "switchInt|Ge\(|Eq\(|PtrMetadata|Len\("
+        _6 = PtrMetadata(copy _1);
+        _7 = Eq(copy _6, const 0_usize);
+        switchInt(move _7) -> [0: bb1, otherwise: bb6];
+        _4 = PtrMetadata(copy _1);
+        _5 = Eq(copy _4, const 1_usize);
+        switchInt(move _5) -> [0: bb3, otherwise: bb5];
+        _2 = PtrMetadata(copy _1);
+        _3 = Ge(copy _2, const 2_usize);
+        switchInt(move _3) -> [0: bb2, otherwise: bb4];
+        switchInt(move _22) -> [0: bb12, otherwise: bb11];
+        _38 = PtrMetadata(copy _32);
 ```
 
 ## 035-tiplerin-matematigi
@@ -1766,7 +2141,7 @@ $ cargo run -q
 - Örnek yolu: `deneyler/mufredat-ornekleri/035-tiplerin-matematigi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:41Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1793,8 +2168,8 @@ Result<u32, Infallible> 4 bayt  (u32 ile aynı: hata kolu boş)
 - Örnek yolu: `deneyler/mufredat-ornekleri/036-panik-ve-kurtarilamaz-hatalar/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:41Z
-- Değişken çıktı: iş parçacığı kimliği; geri izdeki adres/çerçeve sayısı
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süreç kimliği (PID) ve panik satırındaki iş parçacığı kimliği (ana iş parçacığında aynı sayı); geri izdeki adres/çerçeve sayısı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1809,24 +2184,27 @@ k cargo run -q --release -- 0
 
 ```text
 $ cargo run -q -- 2
+süreç kimliği (PID): 5672
 10 / 2 = 5
 $ cargo run -q -- 0
+süreç kimliği (PID): 5734
 
-thread 'main' (3227) panicked at src/main.rs:3:9:
+thread 'main' (5734) panicked at src/main.rs:3:9:
 sıfıra bölme: 10 / 0
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]
 $ RUST_BACKTRACE=1 cargo run -q -- 0 2>&1 | grep -E -A1 "panicked at|panik::"
-thread 'main' (3239) panicked at src/main.rs:3:9:
+thread 'main' (5746) panicked at src/main.rs:3:9:
 sıfıra bölme: 10 / 0
 --
    2: panik::bol
              at ./src/main.rs:3:9
    3: panik::main
-             at ./src/main.rs:10:31
+             at ./src/main.rs:11:31
 $ cargo run -q --release -- 0
+süreç kimliği (PID): 5758
 
-thread 'main' (3251) panicked at src/main.rs:3:9:
+thread 'main' (5758) panicked at src/main.rs:3:9:
 sıfıra bölme: 10 / 0
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 134 = 128 + 6 (SIGABRT)]
@@ -1838,7 +2216,7 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 - Örnek yolu: `deneyler/mufredat-ornekleri/037-result-ve-soru-isareti/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:41Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1861,10 +2239,11 @@ Error: ParseIntError { kind: InvalidDigit }
 
 - Video: `038-hata-tipleri-tasarlamak`
 - Örnek yolu: `deneyler/mufredat-ornekleri/038-hata-tipleri-tasarlamak/`
-- Kaynaklar: `Cargo.toml`, `src/main.rs`
+- Kaynaklar: `Cargo.toml`, `ajan-masasi/Cargo.toml`, `ajan-masasi/src/bin/ajan.rs`, `ajan-masasi/src/bin/duzeltilmis.rs`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `anyhow 1.0.104`, `proc-macro2 1.0.107`, `quote 1.0.47`, `syn 3.0.10`, `thiserror 2.0.21`, `thiserror-impl 2.0.21`, `unicode-ident 1.0.27`
-- Son çalıştırma (UTC): 2026-11-20T16:03:43Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: panik satırındaki iş parçacığı kimliği
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -1872,6 +2251,15 @@ k cargo build -q
 k ./target/debug/ayar ayarlar/iyi.conf
 k ./target/debug/ayar ayarlar/bozuk.conf
 k ./target/debug/ayar ayarlar/yok.conf
+# Ajan Masası (K8): unwrap() ile ayrıştıran ajan kodu; bozuk girdi ve u16 taşması panik verir
+cd ajan-masasi && k cargo build -q --release
+k ./target/release/ajan 8080
+k ./target/release/ajan abc
+k ./target/release/ajan 70000
+# Düzeltilmiş sürüm: aynı girdiler, panik yerine bağlamlı hata ve çıkış kodu 1
+k ./target/release/duzeltilmis abc
+k ./target/release/duzeltilmis 70000
+cd ..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -1894,6 +2282,33 @@ Caused by:
     0: ayar dosyası okunamadı: ayarlar/yok.conf
     1: No such file or directory (os error 2)
 [çıkış kodu: 1]
+$ cargo build -q --release
+$ ./target/release/ajan 8080
+sunucu 8080 numaralı portta başlıyor
+$ ./target/release/ajan abc
+
+thread 'main' (6323) panicked at src/bin/ajan.rs:4:42:
+called `Result::unwrap()` on an `Err` value: ParseIntError { kind: InvalidDigit }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]
+$ ./target/release/ajan 70000
+
+thread 'main' (6324) panicked at src/bin/ajan.rs:4:42:
+called `Result::unwrap()` on an `Err` value: ParseIntError { kind: PosOverflow }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]
+$ ./target/release/duzeltilmis abc
+Error: port numarası okunamadı: "abc"
+
+Caused by:
+    invalid digit found in string
+[çıkış kodu: 1]
+$ ./target/release/duzeltilmis 70000
+Error: port numarası okunamadı: "70000"
+
+Caused by:
+    number too large to fit in target type
+[çıkış kodu: 1]
 ```
 
 ## 039-karmasiklik-analizi
@@ -1901,21 +2316,29 @@ Caused by:
 - Video: `039-karmasiklik-analizi`
 - Örnek yolu: `deneyler/mufredat-ornekleri/039-karmasiklik-analizi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:43Z
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q --release
+# Kaynak (nightly rust-src): std'nin ikili araması eşitlikte erken çıkmaz; döngü sayısı yalnız uzunluğa bağlıdır
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "intentionally doesn.t have an early exit\|on the size of the input slice" $S/core/src/slice/mod.rs | head -2'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo run -q --release
-n =        1000: doğrusal        1000 karşılaştırma | ikili 11 (log2 n = 10.0)
-n =     1000000: doğrusal     1000000 karşılaştırma | ikili 21 (log2 n = 19.9)
-n =   100000000: doğrusal   100000000 karşılaştırma | ikili 28 (log2 n = 26.6)
+n =        1000, son eleman: doğrusal        1000 karşılaştırma | ikili 11 (log2 n = 10.0)
+n =        1000, ilk eleman: doğrusal           1 karşılaştırma | ikili 11 (log2 n = 10.0)
+n =     1000000, son eleman: doğrusal     1000000 karşılaştırma | ikili 21 (log2 n = 19.9)
+n =     1000000, ilk eleman: doğrusal           1 karşılaştırma | ikili 21 (log2 n = 19.9)
+n =   100000000, son eleman: doğrusal   100000000 karşılaştırma | ikili 28 (log2 n = 26.6)
+n =   100000000, ilk eleman: doğrusal           1 karşılaştırma | ikili 28 (log2 n = 26.6)
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "intentionally doesn.t have an early exit\|on the size of the input slice" $S/core/src/slice/mod.rs | head -2
+2990:        // This loop intentionally doesn't have an early exit if the comparison
+2992:        // on the size of the input slice so that the CPU can reliably predict
 ```
 
 ## 040-vec-dinamik-dizi
@@ -1923,30 +2346,46 @@ n =   100000000: doğrusal   100000000 karşılaştırma | ikili 28 (log2 n = 26
 - Video: `040-vec-dinamik-dizi`
 - Örnek yolu: `deneyler/mufredat-ornekleri/040-vec-dinamik-dizi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:43Z
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: "(taşındı)" / "(yerinde büyüdü)" işaretleri ve "gerçekte taşınan" sayısı ayırıcıya ve süreçteki öteki ayırmalara bağlıdır
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q
+# Kaynak (nightly rust-src): büyütme kapasiteyi ikiye katlar; ilk ayırmanın en küçük kapasitesi eleman boyutuna bağlı
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "let cap = cmp::max(self.cap.as_inner() \* 2, required_cap)" $S/alloc/src/raw_vec/mod.rs; grep -n -A8 "^const fn min_non_zero_cap" $S/alloc/src/raw_vec/mod.rs'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo run -q
+size_of::<Vec<u64>>() = 24 bayt: işaretçi + kapasite + uzunluk
 başlangıç: len 0, cap 0
-len    1 → cap    4
-len    5 → cap    8
-len    9 → cap   16
-len   17 → cap   32
-len   33 → cap   64
-len   65 → cap  128
-len  129 → cap  256
-len  257 → cap  512
-len  513 → cap 1024
-1000 push, yeniden ayırmada en fazla 1020 eleman taşındı (≈ push başına 1.02)
+len    1 → cap    4  (ilk ayırma)
+len    5 → cap    8  (taşındı)
+len    9 → cap   16  (yerinde büyüdü)
+len   17 → cap   32  (yerinde büyüdü)
+len   33 → cap   64  (yerinde büyüdü)
+len   65 → cap  128  (yerinde büyüdü)
+len  129 → cap  256  (yerinde büyüdü)
+len  257 → cap  512  (yerinde büyüdü)
+len  513 → cap 1024  (yerinde büyüdü)
+1000 push: üst sınır 1020 eleman (≈ push başına 1.02), bu çalıştırmada gerçekte taşınan 4
 Vec::with_capacity(1000): cap 1000
+ilk push sonrası cap: u8 → 8, u64 → 4, [u8; 2048] → 1
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "let cap = cmp::max(self.cap.as_inner() \* 2, required_cap)" $S/alloc/src/raw_vec/mod.rs; grep -n -A8 "^const fn min_non_zero_cap" $S/alloc/src/raw_vec/mod.rs
+544:        let cap = cmp::max(self.cap.as_inner() * 2, required_cap);
+168:const fn min_non_zero_cap(size: usize) -> usize {
+169-    if size == 1 {
+170-        8
+171-    } else if size <= 1024 {
+172-        4
+173-    } else {
+174-        1
+175-    }
+176-}
 ```
 
 ## 041-hash-tablolari
@@ -1955,16 +2394,17 @@ Vec::with_capacity(1000): cap 1000
 - Örnek yolu: `deneyler/mufredat-ornekleri/041-hash-tablolari/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:03:44Z
-- Değişken çıktı: HashMap sırası ve hash değeri her süreçte değişir (rastgele tohum); BTreeMap sırası sabittir
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: HashMap sırası ve hash değeri her süreçte değişir (rastgele tohum); BTreeMap ve sabit tohumlu HashMap sırası sabittir
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q
 k ./target/debug/hash
 k ./target/debug/hash
-# Kaynak: std'nin HashMap'i hashbrown (SwissTable) üzerine kurulu
-ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "use hashbrown\|Rust port of Google" $S/std/src/collections/hash/map.rs'
+# Kaynak (nightly rust-src): HashMap hashbrown (SwissTable) üzerine kurulu; varsayılan algoritma SipHash 1-3, rastgele tohumlu
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "use hashbrown\|Rust port of Google\|SipHash 1-3\|HashDoS attacks. The" $S/std/src/collections/hash/map.rs'
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "k0.wrapping_add(1)\|SipHasher13::new_with_keys(self" $S/std/src/hash/random.rs'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -1972,16 +2412,27 @@ ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "u
 ```text
 $ cargo build -q
 $ ./target/debug/hash
-HashMap sırası : ["Bursa", "Kars", "Van", "Rize", "Ankara", "İzmir", "Muş"]
+HashMap sırası : ["Muş", "Van", "İzmir", "Ankara", "Kars", "Bursa", "Rize"]
 BTreeMap sırası: ["Ankara", "Bursa", "Kars", "Muş", "Rize", "Van", "İzmir"]
-hash("Ankara") = 26153e3c2064ee62
+hash("Ankara") = 29ed4e8a2ccdab7c  (tablonun kendi hasher'ıyla)
+aynı süreçte yeni bir RandomState aynı hash'i verdi mi: false
+sabit tohumlu HashMap sırası: ["Ankara", "Rize", "Van", "İzmir", "Kars", "Bursa", "Muş"]
+ilk bayt: "İzmir" 0xc4, "Van" 0x56
 $ ./target/debug/hash
-HashMap sırası : ["Van", "İzmir", "Ankara", "Rize", "Bursa", "Muş", "Kars"]
+HashMap sırası : ["Rize", "Van", "Kars", "İzmir", "Muş", "Bursa", "Ankara"]
 BTreeMap sırası: ["Ankara", "Bursa", "Kars", "Muş", "Rize", "Van", "İzmir"]
-hash("Ankara") = 287ed9d435cb078d
-$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "use hashbrown\|Rust port of Google" $S/std/src/collections/hash/map.rs
+hash("Ankara") = 919a6126159dc497  (tablonun kendi hasher'ıyla)
+aynı süreçte yeni bir RandomState aynı hash'i verdi mi: false
+sabit tohumlu HashMap sırası: ["Ankara", "Rize", "Van", "İzmir", "Kars", "Bursa", "Muş"]
+ilk bayt: "İzmir" 0xc4, "Van" 0x56
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "use hashbrown\|Rust port of Google\|SipHash 1-3\|HashDoS attacks. The" $S/std/src/collections/hash/map.rs
 4:use hashbrown::hash_map::{self as base, RustcOccupiedError};
+18:/// resistance against HashDoS attacks. The algorithm is randomly seeded, and a
+26:/// The default hashing algorithm is currently SipHash 1-3, though this is
 59:/// The hash table implementation is a Rust port of Google's [SwissTable].
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "k0.wrapping_add(1)\|SipHasher13::new_with_keys(self" $S/std/src/hash/random.rs
+73:            keys.set((k0.wrapping_add(1), k1));
+84:        DefaultHasher(SipHasher13::new_with_keys(self.k0, self.k1))
 ```
 
 ## 042-agaclar-ve-btreemap
@@ -1990,14 +2441,18 @@ $ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "use
 - Örnek yolu: `deneyler/mufredat-ornekleri/042-agaclar-ve-btreemap/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:03:44Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q --release
-# Kaynak: B-ağacının dallanma sabiti
-ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^const B: usize\|^pub const CAPACITY" $S/alloc/src/collections/btree/node.rs'
+# Kaynak (nightly rust-src): dallanma sabiti B = 6, düğüm en çok 2B − 1 = 11 anahtar tutar
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^const B: usize\|const CAPACITY: usize" $S/alloc/src/collections/btree/node.rs'
+# Düğümün içinde anahtarlar soldan sağa tek tek karşılaştırılır (doğrusal arama)
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "for (offset, k) in\|Ordering::Greater => {}" $S/alloc/src/collections/btree/search.rs'
+# std belgesinin kendi açıklaması: geniş düğüm daha az ayırma ve daha iyi önbellek kullanımı, ama ortalamada daha çok karşılaştırma
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A2 "A B-Tree instead makes each node contain" $S/alloc/src/collections/btree/map.rs'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -2007,9 +2462,18 @@ $ cargo run -q --release
 sıralı      : {"Ada": 64, "Ali": 72, "Can": 85, "Ece": 91, "Naz": 78}
 'B'..'D'    : [("Can", 85)]
 ilk / son   : Some(("Ada", 64)) / Some(("Naz", 78))
-1e6 arama   : HashMap   66.2 ms, BTreeMap  129.3 ms
-$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^const B: usize\|^pub const CAPACITY" $S/alloc/src/collections/btree/node.rs
+1000000 arama, arama başına karşılaştırma: BTreeMap 32.8 | sıralı dizide ikili arama 21.0
+1000000 arama   : HashMap   45.2 ms, BTreeMap  115.9 ms
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^const B: usize\|const CAPACITY: usize" $S/alloc/src/collections/btree/node.rs
 43:const B: usize = 6;
+44:pub(super) const CAPACITY: usize = 2 * B - 1;
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "for (offset, k) in\|Ordering::Greater => {}" $S/alloc/src/collections/btree/search.rs
+234:        for (offset, k) in unsafe { keys.get_unchecked(start_index..) }.iter().enumerate() {
+236:                Ordering::Greater => {}
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A2 "A B-Tree instead makes each node contain" $S/alloc/src/collections/btree/map.rs
+166:/// A B-Tree instead makes each node contain B-1 to 2B-1 elements in a contiguous array. By doing
+167-/// this, we reduce the number of allocations by a factor of B, and improve cache efficiency in
+168-/// searches. However, this does mean that searches will have to do *more* comparisons on average.
 ```
 
 ## 043-siralama-ve-arama
@@ -2018,12 +2482,12 @@ $ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^co
 - Örnek yolu: `deneyler/mufredat-ornekleri/043-siralama-ve-arama/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:03:45Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q --release
-# Kaynak: std'nin sıralama algoritmaları
+# Kaynak (nightly rust-src): std'nin sıralama algoritmaları
 ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "is based on \[driftsort\]" $S/alloc/src/slice.rs | head -1; grep -n "is based on \[ipnsort\]" $S/core/src/slice/mod.rs | head -1'
 ```
 
@@ -2032,9 +2496,13 @@ ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "i
 ```text
 $ cargo run -q --release
 sort_by_key (kararlı): [("Ayşe", 1), ("Ece", 1), ("Deniz", 2), ("Ali", 3), ("Can", 3)]
-sort (kararlı) :  20832462 karşılaştırma
-sort_unstable  :  20565895 karşılaştırma
-n log2 n       :  19931569
+rastgele     sort (kararlı) :  20832462 karşılaştırma
+rastgele     sort_unstable  :  20565895 karşılaştırma
+zaten sıralı sort (kararlı) :    999999 karşılaştırma
+zaten sıralı sort_unstable  :    999999 karşılaştırma
+n log2 n                    :  19931569
+log2(n!) (alt sınır)        :  18488885
+n - 1                       :    999999
 $ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "is based on \[driftsort\]" $S/alloc/src/slice.rs | head -1; grep -n "is based on \[ipnsort\]" $S/core/src/slice/mod.rs | head -1
 95:    /// The current implementation is based on [driftsort] by Orson Peters and Lukas Bergdoll, which
 3118:    /// The current implementation is based on [ipnsort] by Lukas Bergdoll and Orson Peters, which
@@ -2045,20 +2513,26 @@ $ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "is 
 - Video: `044-kuyruk-yigin-ve-graflar`
 - Örnek yolu: `deneyler/mufredat-ornekleri/044-kuyruk-yigin-ve-graflar/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:45Z
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q
+# Kaynak (nightly rust-src): VecDeque bir dairesel tampon, BinaryHeap bir ikili öbek
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^/// A double-ended queue implemented with a growable ring buffer" $S/alloc/src/collections/vec_deque/mod.rs; grep -n "^/// A priority queue implemented with a binary heap" $S/alloc/src/collections/binary_heap/mod.rs'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo run -q
-BFS: S → E en kısa yol 12 adım
-Dijkstra: İstanbul → Ankara 450 km, yol: İstanbul → Bolu → Ankara
+BFS (kuyruk): S → E yolu 12 adım, 21 hücre ziyaret edildi
+DFS (yığın) : S → E yolu 14 adım, 20 hücre ziyaret edildi
+Dijkstra (öncelik kuyruğu): İstanbul → Ankara 450 km, yol: İstanbul → Bolu → Ankara
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^/// A double-ended queue implemented with a growable ring buffer" $S/alloc/src/collections/vec_deque/mod.rs; grep -n "^/// A priority queue implemented with a binary heap" $S/alloc/src/collections/binary_heap/mod.rs
+75:/// A double-ended queue implemented with a growable ring buffer.
+159:/// A priority queue implemented with a binary heap.
 ```
 
 ## 045-onbellek-dostu-veri-yapilari
@@ -2066,38 +2540,49 @@ Dijkstra: İstanbul → Ankara 450 km, yol: İstanbul → Bolu → Ankara
 - Video: `045-onbellek-dostu-veri-yapilari`
 - Örnek yolu: `deneyler/mufredat-ornekleri/045-onbellek-dostu-veri-yapilari/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:45Z
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler donanıma ve yüke bağlı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q --release
+# Kaynak (nightly rust-src): std'nin kendi notu, bağlı liste yerine dizi tabanlı yapıları önerir
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A2 "^//! NOTE: It is almost always better to use" $S/alloc/src/collections/linked_list.rs'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo run -q --release
-matris satır-öncelikli gezinme         2.75 ms
-matris sütun-öncelikli gezinme        74.55 ms
-Vec<u64> toplamı                       1.84 ms
-LinkedList<u64> toplamı                6.93 ms
-AoS: Vec<Parcacik> içinden kütle       4.03 ms
-SoA: Vec<f32> kütle dizisi             2.72 ms
+matris satır öncelikli gezinme             3.12 ms
+matris sütun öncelikli gezinme            74.46 ms
+Vec<u64> toplamı                           1.94 ms
+LinkedList<u64> toplamı                    6.85 ms
+rastgele zincirin tur uzunluğu: 8000000 (eleman sayısı 8000000)
+kovalama: sonraki eleman yanda             9.29 ms
+kovalama: sonraki eleman rastgele yerde   477.01 ms
+AoS: Vec<Parcacik> içinden kütle           3.50 ms
+SoA: Vec<f32> kütle dizisi                 0.63 ms
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A2 "^//! NOTE: It is almost always better to use" $S/alloc/src/collections/linked_list.rs
+6://! NOTE: It is almost always better to use [`Vec`] or [`VecDeque`] because
+7-//! array-based containers are generally faster,
+8-//! more memory efficient, and make better use of CPU cache.
 ```
 
 ## 046-traitler-davranis-sozlesmesi
 
 - Video: `046-traitler-davranis-sozlesmesi`
 - Örnek yolu: `deneyler/mufredat-ornekleri/046-traitler-davranis-sozlesmesi/`
-- Kaynaklar: `Cargo.toml`, `src/main.rs`
+- Kaynaklar: `eksik/Cargo.toml`, `eksik/src/main.rs`, `sozlesme/Cargo.toml`, `sozlesme/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:46Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q
+cd sozlesme && k cargo run -q; cd ..
+# Sözleşmenin bir maddesi (alan) yazılmazsa derleyici kabul etmez
+cd eksik && k cargo build -q; cd ..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -2107,6 +2592,19 @@ $ cargo run -q
 daire (alan 12.57)
 3 kenarlı kare
 Daire { r: 2.0 } == Daire { r: 2.0 } → true
+$ cargo build -q
+error[E0046]: not all trait items implemented, missing: `alan`
+ --> src/main.rs:8:1
+  |
+2 |     fn alan(&self) -> f64;
+  |     ---------------------- `alan` from trait
+...
+8 | impl Sekil for Ucgen {
+  | ^^^^^^^^^^^^^^^^^^^^ missing `alan` in implementation
+
+For more information about this error, try `rustc --explain E0046`.
+error: could not compile `eksik` (bin "eksik") due to 1 previous error
+[çıkış kodu: 101]
 ```
 
 ## 047-jenerikler
@@ -2115,7 +2613,7 @@ Daire { r: 2.0 } == Daire { r: 2.0 } → true
 - Örnek yolu: `deneyler/mufredat-ornekleri/047-jenerikler/`
 - Kaynaklar: `sinirli/Cargo.toml`, `sinirli/src/main.rs`, `sinirsiz/Cargo.toml`, `sinirsiz/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:46Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -2149,59 +2647,59 @@ error: could not compile `sinirsiz` (bin "sinirsiz") due to 1 previous error
 [çıkış kodu: 101]
 ```
 
-## 048-monomorfizasyon
+## 048-tek-bicimlestirme
 
-- Video: `048-monomorfizasyon`
-- Örnek yolu: `deneyler/mufredat-ornekleri/048-monomorfizasyon/`
+- Video: `048-tek-bicimlestirme`
+- Örnek yolu: `deneyler/mufredat-ornekleri/048-tek-bicimlestirme/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:46Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q --release
-k ./target/release/monomorf
+k ./target/release/tek_bicim
 # Tek bir jenerik fonksiyon, ikilide üç ayrı makine kodu kopyası
-ks 'nm -C target/release/monomorf | grep ikiye_katla'
-ks 'objdump -d -M intel --no-show-raw-insn -C target/release/monomorf | grep -A3 "<monomorf::ikiye_katla::<"'
+ks 'nm -C target/release/tek_bicim | grep ikiye_katla'
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/tek_bicim | grep -A3 "<tek_bicim::ikiye_katla::<"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo build -q --release
-$ ./target/release/monomorf
+$ ./target/release/tek_bicim
 42 2.5 14
-$ nm -C target/release/monomorf | grep ikiye_katla
-0000000000015e40 t monomorf::ikiye_katla::<f64>
-0000000000015e48 t monomorf::ikiye_katla::<u8>
-0000000000015e4c t monomorf::ikiye_katla::<i32>
-$ objdump -d -M intel --no-show-raw-insn -C target/release/monomorf | grep -A3 "<monomorf::ikiye_katla::<"
-0000000000015e40 <monomorf::ikiye_katla::<f64>>:
+$ nm -C target/release/tek_bicim | grep ikiye_katla
+0000000000015e40 t tek_bicim::ikiye_katla::<f64>
+0000000000015e48 t tek_bicim::ikiye_katla::<u8>
+0000000000015e4c t tek_bicim::ikiye_katla::<i32>
+$ objdump -d -M intel --no-show-raw-insn -C target/release/tek_bicim | grep -A3 "<tek_bicim::ikiye_katla::<"
+0000000000015e40 <tek_bicim::ikiye_katla::<f64>>:
    15e40:	addsd  xmm0,xmm0
    15e44:	ret
    15e45:	int3
 --
-0000000000015e48 <monomorf::ikiye_katla::<u8>>:
+0000000000015e48 <tek_bicim::ikiye_katla::<u8>>:
    15e48:	lea    eax,[rdi+rdi*1]
    15e4b:	ret
 
-0000000000015e4c <monomorf::ikiye_katla::<i32>>:
+0000000000015e4c <tek_bicim::ikiye_katla::<i32>>:
    15e4c:	lea    eax,[rdi+rdi*1]
    15e4f:	ret
 
 --
-   15e95:	call   15e4c <monomorf::ikiye_katla::<i32>>
+   15e95:	call   15e4c <tek_bicim::ikiye_katla::<i32>>
    15e9a:	mov    DWORD PTR [rsp+0xc],eax
    15e9e:	movabs rax,0x3ff4000000000000
    15ea8:	mov    QWORD PTR [rsp+0x10],rax
 --
-   15eb8:	call   15e40 <monomorf::ikiye_katla::<f64>>
+   15eb8:	call   15e40 <tek_bicim::ikiye_katla::<f64>>
    15ebd:	movsd  QWORD PTR [rsp+0x40],xmm0
    15ec3:	mov    BYTE PTR [rsp+0x10],0x7
    15ec8:	lea    rax,[rsp+0x10]
 --
-   15ed2:	call   15e48 <monomorf::ikiye_katla::<u8>>
+   15ed2:	call   15e48 <tek_bicim::ikiye_katla::<u8>>
    15ed7:	mov    BYTE PTR [rsp+0xb],al
    15edb:	lea    rax,[rsp+0xc]
    15ee0:	mov    QWORD PTR [rsp+0x10],rax
@@ -2212,13 +2710,15 @@ $ objdump -d -M intel --no-show-raw-insn -C target/release/monomorf | grep -A3 "
 - Video: `049-trait-nesneleri-ve-vtable`
 - Örnek yolu: `deneyler/mufredat-ornekleri/049-trait-nesneleri-ve-vtable/`
 - Kaynaklar: `dyn-uyumsuz/Cargo.toml`, `dyn-uyumsuz/src/main.rs`, `vtable/Cargo.toml`, `vtable/src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:46Z
-- Değişken çıktı: adresler (ASLR)
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: adresler (ASLR; Miri'nin sanal adresleri de sürüme bağlı)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 cd vtable && k cargo run -q; cd ..
+# Aynı program Miri'de (Rust'ın soyut makinesini yorumlayan araç): vtable'ı sıradan bellek gibi okumak tanımsız davranış
+cd vtable && k cargo +nightly miri run -q; cd ..
 cd dyn-uyumsuz && k cargo build -q; cd ..
 ```
 
@@ -2231,13 +2731,37 @@ $ cargo run -q
 Box<dyn Sekil>  : 16 bayt
 alan = 3.142
 alan = 4.000
-veri işaretçisi : 0x558d2d6374c0
-vtable          : 0x558d2d688a58
+veri işaretçisi : 0x55dfe0719500
+  Daire'nin adresiyle aynı mı: true
+vtable          : 0x55dfe076ab78
   [0] drop      : 0x0
   [1] boyut     : 8
   [2] hizalama  : 8
-  [3] alan()    : 0x558d2d648150
-<Daire as Sekil>::alan adresi: 0x558d2d648150
+  [3] alan()    : 0x55dfe072a260
+<Daire as Sekil>::alan adresi: 0x55dfe072a260
+$ cargo +nightly miri run -q
+&Daire          :  8 bayt
+&dyn Sekil      : 16 bayt (veri işaretçisi + vtable işaretçisi)
+Box<dyn Sekil>  : 16 bayt
+alan = 3.142
+alan = 4.000
+veri işaretçisi : 0x51ca8
+  Daire'nin adresiyle aynı mı: true
+vtable          : 0x51cb8
+error: Undefined Behavior: constructing invalid value of type &usize: encountered a dangling reference (going beyond the bounds of its allocation)
+  --> src/main.rs:35:45
+   |
+35 |         println!("  [0] drop      : {:#x}", *vtablo);
+   |                                             ^^^^^^^ Undefined Behavior occurred here
+   |
+   = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+   = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
 $ cargo build -q
 error[E0038]: the trait `Kaydedici` is not dyn compatible
   --> src/main.rs:13:17
@@ -2261,42 +2785,55 @@ error: could not compile `dyn_uyumsuz` (bin "dyn_uyumsuz") due to 1 previous err
 [çıkış kodu: 101]
 ```
 
-## 050-statik-ve-dinamik-dagitim
+## 050-statik-ve-dinamik-yonlendirme
 
-- Video: `050-statik-ve-dinamik-dagitim`
-- Örnek yolu: `deneyler/mufredat-ornekleri/050-statik-ve-dinamik-dagitim/`
+- Video: `050-statik-ve-dinamik-yonlendirme`
+- Örnek yolu: `deneyler/mufredat-ornekleri/050-statik-ve-dinamik-yonlendirme/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:47Z
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q --release
-k ./target/release/dagitim
-# Üç fonksiyon yazdık, ikilide iki sembol var: &dyn ve Box<dyn> sürümleri aynı koda derlendi ve birleştirildi
-ks 'nm -C target/release/dagitim | grep toplam'
-# Dinamik sürümde dolaylı çağrı: adres bellekten (vtable'ın 4. girdisi, +0x18) okunup çağrılıyor
-ks 'objdump -d -M intel --no-show-raw-insn -C target/release/dagitim | awk "/<dagitim::toplam_kutulu>:/,/ret/" | grep -E "call|ret"'
-# Statik sürümde hiç çağrı yok: alan() satır içine açılmış
-ks 'objdump -d -M intel --no-show-raw-insn -C target/release/dagitim | awk "/<dagitim::toplam_statik::<dagitim::Kare>>:/,/ret/" | grep -E "call|ret"'
+k ./target/release/yonlendirme
+# Üç fonksiyon yazdık, ikilide iki sembol var: &dyn ve Box<dyn> sürümleri aynı makine koduna derlendi ve birleştirildi
+ks 'nm -C target/release/yonlendirme | grep toplam'
+# Karşılaştırma için nightly'nin varsayılan derlemesi: yine iki sembol (fark araç zincirinden değil bayraktan)
+ks 'cargo +nightly build -q --release --target-dir target/nightly && nm -C target/nightly/release/yonlendirme | grep toplam'
+# Nedeni LLVM'in fonksiyon birleştirme (MergeFunctions) geçişi: nightly derleyicide bu geçiş kapatılınca üç sembol kalır
+ks 'RUSTFLAGS="-Z merge-functions=disabled" cargo +nightly build -q --release --target-dir target/birlestirmesiz && nm -C target/birlestirmesiz/release/yonlendirme | grep toplam'
+# Dinamik sürümde dolaylı çağrı: adres vtable'ın 3 numaralı girdisinden (+0x18) okunup çağrılıyor
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/yonlendirme | awk "/^0000.*<yonlendirme::toplam_kutulu>:/{f=1} f&&/^$/{exit} f" | grep -E "call|ret"'
+# Statik sürümde hiç call yok: alan() satır içine alınmış, döngü açılmış (çarpma ve toplama komutları sayılıyor)
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/yonlendirme | awk "/^0000.*<yonlendirme::toplam_statik::<yonlendirme::Kare>>:/{f=1} f&&/^$/{exit} f" | grep -oE "\b(call|mulsd|addsd)\b" | sort | uniq -c'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo build -q --release
-$ ./target/release/dagitim
-statik   7.04 ms | &dyn  47.61 ms | Box<dyn>  48.22 ms | eşit: true
-statik   6.96 ms | &dyn  47.58 ms | Box<dyn>  47.82 ms | eşit: true
-$ nm -C target/release/dagitim | grep toplam
-0000000000016be0 t dagitim::toplam_statik::<dagitim::Kare>
-0000000000016e30 t dagitim::toplam_kutulu
-$ objdump -d -M intel --no-show-raw-insn -C target/release/dagitim | awk "/<dagitim::toplam_kutulu>:/,/ret/" | grep -E "call|ret"
+$ ./target/release/yonlendirme
+statik   7.11 ms | &dyn  48.58 ms | Box<dyn>  48.39 ms | eşit: true
+statik   7.02 ms | &dyn  48.24 ms | Box<dyn>  48.76 ms | eşit: true
+$ nm -C target/release/yonlendirme | grep toplam
+0000000000016be0 t yonlendirme::toplam_statik::<yonlendirme::Kare>
+0000000000016e30 t yonlendirme::toplam_kutulu
+$ cargo +nightly build -q --release --target-dir target/nightly && nm -C target/nightly/release/yonlendirme | grep toplam
+0000000000016a50 t yonlendirme::toplam_statik::<yonlendirme::Kare>
+0000000000016ca0 t yonlendirme::toplam_kutulu
+$ RUSTFLAGS="-Z merge-functions=disabled" cargo +nightly build -q --release --target-dir target/birlestirmesiz && nm -C target/birlestirmesiz/release/yonlendirme | grep toplam
+0000000000016a80 t yonlendirme::toplam_statik::<yonlendirme::Kare>
+0000000000016cd0 t yonlendirme::toplam_kutulu
+0000000000016d50 t yonlendirme::toplam_dinamik
+$ objdump -d -M intel --no-show-raw-insn -C target/release/yonlendirme | awk "/^0000.*<yonlendirme::toplam_kutulu>:/{f=1} f&&/^$/{exit} f" | grep -E "call|ret"
    16e6f:	call   QWORD PTR [rax+0x18]
    16e9a:	ret
-$ objdump -d -M intel --no-show-raw-insn -C target/release/dagitim | awk "/<dagitim::toplam_statik::<dagitim::Kare>>:/,/ret/" | grep -E "call|ret"
-   16c04:	ret
+   16ea3:	ret
+$ objdump -d -M intel --no-show-raw-insn -C target/release/yonlendirme | awk "/^0000.*<yonlendirme::toplam_statik::<yonlendirme::Kare>>:/{f=1} f&&/^$/{exit} f" | grep -oE "\b(call|mulsd|addsd)\b" | sort | uniq -c
+      5 addsd
+      5 mulsd
 ```
 
 ## 051-standart-traitler-ve-donusumler
@@ -2304,13 +2841,17 @@ $ objdump -d -M intel --no-show-raw-insn -C target/release/dagitim | awk "/<dagi
 - Video: `051-standart-traitler-ve-donusumler`
 - Örnek yolu: `deneyler/mufredat-ornekleri/051-standart-traitler-ve-donusumler/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:47Z
-- Değişken çıktı: panik satırındaki iş parçacığı kimliği
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: 1000 kümenin kaçının 1 eleman tuttuğu (rastgele tohum; beklenen ≈ 1/128); panik satırındaki iş parçacığı kimliği
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q
+# Kaynak (nightly rust-src): Hash ile Eq birlikte uygulanınca sağlanması gereken özellik
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -B3 "^/// k1 == k2 -> hash(k1) == hash(k2)" $S/core/src/hash/mod.rs'
+# Kaynak: bu özelliği bozmak bir "mantık hatası"dır, sonucu belirtilmemiştir
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A1 "^/// Violating this property is a logic error" $S/core/src/hash/mod.rs'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -2318,14 +2859,22 @@ k cargo run -q
 ```text
 $ cargo run -q
 eşit mi: true
-kümede 2 eleman var
+1000 yeni küme: 2 elemanlı 992, 1 elemanlı 8
 100 °C = 212 °F
-total_cmp ile: [-1.0, 0.0, 2.5, NaN]
+total_cmp ile: [-NaN, -1, 0, 2.5, +NaN]
 
-thread 'main' (4683) panicked at src/main.rs:41:46:
+thread 'main' (7607) panicked at src/main.rs:57:46:
 called `Option::unwrap()` on a `None` value
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -B3 "^/// k1 == k2 -> hash(k1) == hash(k2)" $S/core/src/hash/mod.rs
+138-/// property holds:
+139-///
+140-/// ```text
+141:/// k1 == k2 -> hash(k1) == hash(k2)
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A1 "^/// Violating this property is a logic error" $S/core/src/hash/mod.rs
+150:/// Violating this property is a logic error. The behavior resulting from a logic error is not
+151-/// specified, but users of the trait must ensure that such logic errors do *not* result in
 ```
 
 ## 052-closurelar
@@ -2334,7 +2883,7 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 - Örnek yolu: `deneyler/mufredat-ornekleri/052-closurelar/`
 - Kaynaklar: `fnonce/Cargo.toml`, `fnonce/src/main.rs`, `yakalama/Cargo.toml`, `yakalama/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:48Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -2349,9 +2898,10 @@ $ cargo run -q
 hiçbir şey yakalamayan :  0 bayt
 &u64 yakalayan         :  8 bayt
 &mut u32 yakalayan     :  8 bayt
+&String yakalayan      :  8 bayt
+1 11 1 2 5
 String taşıyan (move)  : 24 bayt
-1 11 1 2
-Ferris
+Deniz
 $ cargo build -q
 error[E0382]: use of moved value: `tuket`
  --> src/main.rs:5:20
@@ -2377,13 +2927,13 @@ error: could not compile `fnonce` (bin "fnonce") due to 1 previous error
 [çıkış kodu: 101]
 ```
 
-## 053-iterator-protokolu
+## 053-yineleyici-protokolu
 
-- Video: `053-iterator-protokolu`
-- Örnek yolu: `deneyler/mufredat-ornekleri/053-iterator-protokolu/`
+- Video: `053-yineleyici-protokolu`
+- Örnek yolu: `deneyler/mufredat-ornekleri/053-yineleyici-protokolu/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:48Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -2425,7 +2975,7 @@ işleniyor 3
 - Örnek yolu: `deneyler/mufredat-ornekleri/054-sifir-maliyetli-soyutlama/`
 - Kaynaklar: `iki_yol.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:48Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -2439,7 +2989,7 @@ ks 'objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target
 # Komut komut karşılaştırma (adresler ve etiketler ayıklanır)
 ks 'diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//") <(objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//") && echo "makine kodu birebir aynı"'
 # Sıra göz ardı edilirse: aynı komut kümesi mi?
-ks 'diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) <(objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) && echo "aynı 64 komut, yalnızca sıralama farklı"'
+ks 'diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) <(objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) && echo "aynı komut kümesi, yalnızca sıralama farklı"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -2464,8 +3014,8 @@ $ diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/
 7a7
 > xor    eax,eax
 [çıkış kodu: 1]
-$ diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) <(objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) && echo "aynı 64 komut, yalnızca sıralama farklı"
-aynı 64 komut, yalnızca sıralama farklı
+$ diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) <(objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) && echo "aynı komut kümesi, yalnızca sıralama farklı"
+aynı komut kümesi, yalnızca sıralama farklı
 ```
 
 ## 055-fonksiyonel-desenler
@@ -2474,7 +3024,7 @@ aynı 64 komut, yalnızca sıralama farklı
 - Örnek yolu: `deneyler/mufredat-ornekleri/055-fonksiyonel-desenler/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:48Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -2485,7 +3035,10 @@ k cargo run -q
 
 ```text
 $ cargo run -q
-{"açalım": 1, "beraber": 1, "berber": 2, "berbere": 1, "bir": 3, "demiş": 1, "dükkanı": 1, "gel": 1}
+{"açalım": 1, "beraber": 1, "berber": 2, "berbere": 1, "bir": 3, "demiş": 1, "dükkânı": 1, "gel": 1}
+ayrıştırılıyor: 10
+ayrıştırılıyor: 20
+ayrıştırılıyor: otuz
 hepsi ya da hiç : Err(ParseIntError { kind: InvalidDigit })
 geçerli olanlar : [10, 20, 40]
 çift [2, 4, 6, 8, 10], tek [1, 3, 5, 7, 9]
@@ -2495,32 +3048,43 @@ geçerli olanlar : [10, 20, 40]
 
 - Video: `056-moduller-ve-gorunurluk`
 - Örnek yolu: `deneyler/mufredat-ornekleri/056-moduller-ve-gorunurluk/`
-- Kaynaklar: `gizli-alan/Cargo.toml`, `gizli-alan/src/main.rs`, `kapsulleme/Cargo.toml`, `kapsulleme/src/main.rs`
+- Kaynaklar: `acik-alan/Cargo.toml`, `acik-alan/src/main.rs`, `gizli-alan/Cargo.toml`, `gizli-alan/src/main.rs`, `kapsulleme/Cargo.toml`, `kapsulleme/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:48Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 cd kapsulleme && k cargo run -q; cd ..
+# Gizli alana modülün dışından dokunmak derlenmez
 cd gizli-alan && k cargo build -q; cd ..
+# Alan pub olsaydı: program derlenir, değişmez bozulur ve ikili arama yanlış cevap verir
+cd acik-alan && k cargo run -q; cd ..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo run -q
-Ayşe çekmek istiyor: Err("yetersiz bakiye: 50 < 80")
-bakiye: 50
+liste: [1, 2, 3, 4, 5]
+0 var mı: false, 4 var mı: true
 $ cargo build -q
-error[E0616]: field `bakiye` of struct `Hesap` is private
-  --> src/main.rs:32:7
+error[E0616]: field `ogeler` of struct `SiraliListe` is private
+  --> src/main.rs:31:11
    |
-32 |     h.bakiye = 1_000_000; // kuralı dışarıdan delmeye çalış
-   |       ^^^^^^ private field
+31 |     liste.ogeler.push(0); // değişmezi dışarıdan bozmaya çalış: sona 0 ekle
+   |           ^^^^^^ private field
+   |
+help: a method `ogeler` also exists, call it with parentheses
+   |
+31 |     liste.ogeler().push(0); // değişmezi dışarıdan bozmaya çalış: sona 0 ekle
+   |                 ++
 
 For more information about this error, try `rustc --explain E0616`.
 error: could not compile `gizli_alan` (bin "gizli_alan") due to 1 previous error
 [çıkış kodu: 101]
+$ cargo run -q
+liste: [1, 2, 3, 4, 5, 0]
+0 var mı: false, 4 var mı: true
 ```
 
 ## 057-crateler-ve-bagimliliklar
@@ -2530,7 +3094,8 @@ error: could not compile `gizli_alan` (bin "gizli_alan") due to 1 previous error
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `itoa 1.0.19`, `memchr 2.8.3`, `proc-macro2 1.0.107`, `quote 1.0.47`, `serde 1.0.229`, `serde_core 1.0.229`, `serde_derive 1.0.229`, `serde_json 1.0.154`, `syn 3.0.10`, `unicode-ident 1.0.27`, `zmij 1.0.23`
-- Son çalıştırma (UTC): 2026-11-20T16:03:50Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: cargo update --dry-run çıktısı crates.io'da yayımlanan yeni sürümlere göre değişir (ağ gerekir)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -2538,8 +3103,14 @@ k cat Cargo.toml
 k cargo run -q
 # "1" gereksinimi hangi sürüme çözüldü? Bağımlılık ağacı:
 k cargo tree
-# Cargo.lock: tam sürüm + içerik özeti (checksum)
+# Geçişli bağımlılık: memchr'i projeye kim getirdi?
+k cargo tree -e normal -i memchr
+# Cargo.lock: tam sürüm + .crate dosyasının SHA-256 özeti (checksum alanı)
 ks 'grep -A3 "name = \"serde_json\"" Cargo.lock'
+# Özeti kendimiz hesaplayalım: cargo'nun önbelleğindeki .crate dosyasının SHA-256'sı
+ks 'sha256sum /usr/local/cargo/registry/cache/*/serde_json-1.0.154.crate | cut -d" " -f1'
+# Kilit dosyası olmasaydı bugün hangi sürümler seçilirdi? (--dry-run: dosyaya yazmaz)
+k cargo update --dry-run
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -2554,7 +3125,7 @@ edition = "2024"
 [dependencies]
 serde_json = "1"
 $ cargo run -q
-{"ad":"Ferris","bacak":10,"tur":"yengeç"}
+{"ad":"Deniz","kol":8,"tur":"ahtapot"}
 $ cargo tree
 json_ornek v0.1.0 (/work/mufredat-ornekleri/057-crateler-ve-bagimliliklar)
 └── serde_json v1.0.154
@@ -2562,36 +3133,57 @@ json_ornek v0.1.0 (/work/mufredat-ornekleri/057-crateler-ve-bagimliliklar)
     ├── memchr v2.8.3
     ├── serde_core v1.0.229
     └── zmij v1.0.23
+$ cargo tree -e normal -i memchr
+memchr v2.8.3
+└── serde_json v1.0.154
+    └── json_ornek v0.1.0 (/work/mufredat-ornekleri/057-crateler-ve-bagimliliklar)
 $ grep -A3 "name = \"serde_json\"" Cargo.lock
 name = "serde_json"
 version = "1.0.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"
+$ sha256sum /usr/local/cargo/registry/cache/*/serde_json-1.0.154.crate | cut -d" " -f1
+e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6
+$ cargo update --dry-run
+    Updating crates.io index
+     Locking 0 packages to highest Rust 1.100.0 compatible versions
+warning: not updating lockfile due to dry run
 ```
 
 ## 058-tedarik-zinciri-guvenligi
 
 - Video: `058-tedarik-zinciri-guvenligi`
 - Örnek yolu: `deneyler/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/`
-- Kaynaklar: `asgari/Cargo.toml`, `asgari/src/main.rs`, `tam/Cargo.toml`, `tam/src/main.rs`
+- Kaynaklar: `asgari/Cargo.toml`, `asgari/src/main.rs`, `derleme-betigi/Cargo.toml`, `derleme-betigi/src/main.rs`, `derleme-betigi/yardimci/Cargo.toml`, `derleme-betigi/yardimci/build.rs`, `derleme-betigi/yardimci/src/lib.rs`, `tam/Cargo.toml`, `tam/src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `bytes 1.12.2`, `cfg-if 1.0.5`, `errno 0.3.15`, `libc 0.2.191`, `lock_api 0.4.14`, `mio 1.2.5`, `parking_lot 0.12.5`, `parking_lot_core 0.9.12`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `redox_syscall 0.5.18`, `scopeguard 1.2.0`, `signal-hook-registry 1.4.8`, `smallvec 1.16.6`, `socket2 0.6.5`, `syn 3.0.10`, `tokio 1.54.1`, `tokio-macros 2.7.2`, `unicode-ident 1.0.27`, `wasi 0.11.1+wasi-snapshot-preview1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:03:52Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: cargo search sürümleri crates.io'ya göre değişir (ağ gerekir); build.rs'nin gördüğü girdi sayısı ortama bağlıdır
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-# Aynı crate, farklı özellik (feature) seçimi: kaç paket koda girer?
+# 1) Aynı crate, farklı özellik (feature) seçimi: kaç paket derlemeye girer?
 cd tam
 k grep tokio Cargo.toml
 k cargo fetch -q
-ks 'cargo tree --prefix none -e normal | sort -u | wc -l'
+# Farklı paket sayısı (kendi paketimiz dahil); --no-dedupe tekrar edenleri "(*)" ile kısaltmadan yazar
+ks 'cargo tree --prefix none -e normal --no-dedupe | sort -u | wc -l'
 k cargo tree --depth 1 -e normal
+# Bunların bir kısmı prosedürel makro ve onun bağımlılıkları: ikiliye girmez, derleme anında çalışır
+k cargo tree -e normal -i proc-macro2
 cd ../asgari
 k grep tokio Cargo.toml
 k cargo fetch -q
+ks 'cargo tree --prefix none -e normal --no-dedupe | sort -u | wc -l'
 k cargo tree -e normal
 cd ..
-# Denetim araçları crates.io'da yayımlanıyor (bu imajda kurulu değil)
+# 2) Bir bağımlılığın kodu derleme anında, bizim yetkilerimizle çalışabilir: derleme betiği (build.rs)
+cd derleme-betigi
+cargo clean -q 2>/dev/null
+ks 'cargo build 2>&1 | grep -v "^ *Finished"'
+k ./target/debug/uygulama
+cd ..
+# 3) Denetim araçları crates.io'da yayımlanıyor (bu imajda kurulu değil)
 ks 'for a in cargo-audit cargo-deny cargo-vet; do cargo search --limit 1 $a | head -n 1; done'
 ```
 
@@ -2601,22 +3193,40 @@ ks 'for a in cargo-audit cargo-deny cargo-vet; do cargo search --limit 1 $a | he
 $ grep tokio Cargo.toml
 tokio = { version = "1", features = ["full"] }
 $ cargo fetch -q
-$ cargo tree --prefix none -e normal | sort -u | wc -l
-22
+$ cargo tree --prefix none -e normal --no-dedupe | sort -u | wc -l
+20
 $ cargo tree --depth 1 -e normal
 tam v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/tam)
 └── tokio v1.54.1
+$ cargo tree -e normal -i proc-macro2
+proc-macro2 v1.0.107
+├── quote v1.0.47
+│   ├── syn v3.0.10
+│   │   └── tokio-macros v2.7.2 (proc-macro)
+│   │       └── tokio v1.54.1
+│   │           └── tam v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/tam)
+│   └── tokio-macros v2.7.2 (proc-macro) (*)
+├── syn v3.0.10 (*)
+└── tokio-macros v2.7.2 (proc-macro) (*)
 $ grep tokio Cargo.toml
 tokio = { version = "1", default-features = false, features = ["rt"] }
 $ cargo fetch -q
+$ cargo tree --prefix none -e normal --no-dedupe | sort -u | wc -l
+3
 $ cargo tree -e normal
 asgari v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/asgari)
 └── tokio v1.54.1
     └── pin-project-lite v0.2.18
+$ cargo build 2>&1 | grep -v "^ *Finished"
+   Compiling yardimci v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/derleme-betigi/yardimci)
+warning: yardimci@0.1.0: build.rs çalıştı: HOME = /root, orada 2 girdi görebiliyorum
+   Compiling uygulama v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/derleme-betigi)
+$ ./target/debug/uygulama
+merhaba, ben yardimci crate'iyim
 $ for a in cargo-audit cargo-deny cargo-vet; do cargo search --limit 1 $a | head -n 1; done
 cargo-audit = "0.23.0"    # Audit Cargo.lock for crates with security vulnerabilities
 note: to learn more about a package, run `cargo info <name>`
-cargo-deny = "0.22.0"    # Cargo plugin to help you manage large dependency graphs
+cargo-deny = "0.22.1"    # Cargo plugin to help you manage large dependency graphs
 note: to learn more about a package, run `cargo info <name>`
 cargo-vet = "0.10.3"    # Supply-chain security for Rust
 note: to learn more about a package, run `cargo info <name>`
@@ -2628,15 +3238,15 @@ note: to learn more about a package, run `cargo info <name>`
 - Örnek yolu: `deneyler/mufredat-ornekleri/059-birim-ve-entegrasyon-testleri/`
 - Kaynaklar: `duzeltilmis/Cargo.toml`, `duzeltilmis/src/lib.rs`, `duzeltilmis/tests/disaridan.rs`, `hatali/Cargo.toml`, `hatali/src/lib.rs`, `hatali/tests/disaridan.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:53Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: test süreleri, iş parçacığı kimliği
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-# Birim + entegrasyon + belge testleri (ilk hatada durmadan)
+# Birim + entegrasyon + dokümantasyon testleri (ilk hatada durmadan)
 cd hatali && k cargo test -q --no-fail-fast; cd ..
-# Düzeltme: fark
-ks 'diff -u hatali/src/lib.rs duzeltilmis/src/lib.rs'
+# Düzeltme: fark (dosya tarihleri yazılmasın diye etiketle)
+ks 'diff -u --label hatali/src/lib.rs --label duzeltilmis/src/lib.rs hatali/src/lib.rs duzeltilmis/src/lib.rs'
 cd duzeltilmis && k cargo test -q; cd ..
 ```
 
@@ -2653,7 +3263,7 @@ failures:
 
 ---- testler::cift_uzunlukta_medyan stdout ----
 
-thread 'testler::cift_uzunlukta_medyan' (5761) panicked at src/lib.rs:40:9:
+thread 'testler::cift_uzunlukta_medyan' (8978) panicked at src/lib.rs:40:9:
 assertion `left == right` failed
   left: Some(3.0)
  right: Some(2.5)
@@ -2676,13 +3286,13 @@ running 1 test
 .
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
-all doctests ran in 0.15s; merged doctests compilation took 0.14s
+all doctests ran in 0.12s; merged doctests compilation took 0.11s
 error: 1 target failed:
     `--lib`
 [çıkış kodu: 101]
-$ diff -u hatali/src/lib.rs duzeltilmis/src/lib.rs
---- hatali/src/lib.rs	2026-11-20 15:28:52.858579606 +0000
-+++ duzeltilmis/src/lib.rs	2026-11-20 15:29:51.180755268 +0000
+$ diff -u --label hatali/src/lib.rs --label duzeltilmis/src/lib.rs hatali/src/lib.rs duzeltilmis/src/lib.rs
+--- hatali/src/lib.rs
++++ duzeltilmis/src/lib.rs
 @@ -18,7 +18,12 @@
          return None;
      }
@@ -2724,24 +3334,36 @@ all doctests ran in 0.12s; merged doctests compilation took 0.11s
 - Kaynaklar: `Cargo.toml`, `src/lib.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `autocfg 1.5.1`, `bit-set 0.11.1`, `bit-vec 0.10.2`, `bitflags 2.13.2`, `borsh 1.8.1`, `borsh-derive 1.8.1`, `bytes 1.12.2`, `cfg-if 1.0.5`, `cfg_aliases 0.2.2`, `chacha20 0.10.2`, `core_detect 1.0.0`, `cpufeatures 0.3.1`, `equivalent 1.0.3`, `errno 0.3.15`, `fastrand 2.5.0`, `fnv 1.0.7`, `getrandom 0.4.3`, `hashbrown 0.17.1`, `indexmap 2.14.2`, `libc 0.2.191`, `linux-raw-sys 0.12.1`, `memchr 2.8.3`, `num-traits 0.2.19`, `once_cell 1.21.4`, `proc-macro-crate 3.5.0`, `proc-macro2 1.0.107`, `proptest 1.12.0`, `quick-error 1.2.3`, `quote 1.0.47`, `r-efi 6.0.0`, `rand 0.10.4`, `rand_core 0.10.1`, `rand_xorshift 0.5.0`, `regex-syntax 0.8.12`, `rustix 1.1.6`, `rusty-fork 0.3.1`, `serde 1.0.229`, `serde_core 1.0.229`, `serde_derive 1.0.229`, `syn 3.0.10`, `tempfile 3.27.0`, `toml_datetime 1.1.3+spec-1.1.0`, `toml_edit 0.25.19+spec-1.1.0`, `toml_parser 1.1.5+spec-1.1.0`, `unarray 0.1.4`, `unicode-ident 1.0.27`, `wait-timeout 0.2.1`, `windows-link 0.2.1`, `windows-sys 0.61.2`, `winnow 1.0.5`
-- Son çalıştırma (UTC): 2026-11-20T16:03:56Z
-- Değişken çıktı: proptest rastgele girdilerle başlar; küçültülmüş (shrink) örnek ve süreler her çalıştırmada değişebilir
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: proptest rastgele girdilerle başlar; küçültülmüş (shrink) çiftin sayıları ve süreler her çalıştırmada değişir, toplamları değişmez
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 rm -rf proptest-regressions
-ks 'cargo test -q 2>&1 | grep -E "^---- |minimal failing input|successes|^test result"'
+ks 'cargo test -q > /tmp/test.txt 2>&1; grep -m1 -B1 "attempt to add with overflow" /tmp/test.txt; grep -E "minimal failing input|^test result" /tmp/test.txt'
+# Beklenen satırlar yoksa (ör. derleme ya da ağ hatası) test çıktısının sonu kayda düşsün
+ks 'grep -q "minimal failing input" /tmp/test.txt || tail -n 20 /tmp/test.txt'
+# Küçültülmüş çiftin toplamı: taşma sınırı 2^32 = 4294967296
+ks 'grep -o "a = [0-9]*, b = [0-9]*" /tmp/test.txt | head -1 | tr -dc "0-9 \n" | awk "{print \"a + b =\", \$1 + \$2}"'
+# proptest bulduğu karşı örneğin tohumunu bir regresyon dosyasına yazar; sonraki çalıştırma önce onu dener
+ks 'ls proptest-regressions && grep -c "^cc " proptest-regressions/*.txt'
 rm -rf proptest-regressions
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo test -q 2>&1 | grep -E "^---- |minimal failing input|successes|^test result"
----- testler::saf_surum_aralikta stdout ----
-minimal failing input: a = 2903406468, b = 1391560828
-	successes: 0
-test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+$ cargo test -q > /tmp/test.txt 2>&1; grep -m1 -B1 "attempt to add with overflow" /tmp/test.txt; grep -E "minimal failing input|^test result" /tmp/test.txt
+thread 'testler::saf_surum_aralikta' (9697) panicked at src/lib.rs:3:5:
+attempt to add with overflow
+minimal failing input: a = 1313757965, b = 2981209331
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ grep -q "minimal failing input" /tmp/test.txt || tail -n 20 /tmp/test.txt
+$ grep -o "a = [0-9]*, b = [0-9]*" /tmp/test.txt | head -1 | tr -dc "0-9 \n" | awk "{print \"a + b =\", \$1 + \$2}"
+a + b = 4294967296
+$ ls proptest-regressions && grep -c "^cc " proptest-regressions/*.txt
+lib.txt
+1
 ```
 
 ## 061-clippy-rustfmt-ve-ci
@@ -2750,7 +3372,7 @@ test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; 
 - Örnek yolu: `deneyler/mufredat-ornekleri/061-clippy-rustfmt-ve-ci/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:56Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -2856,7 +3478,7 @@ Diff in /work/mufredat-ornekleri/061-clippy-rustfmt-ve-ci/src/main.rs:10:
 - Örnek yolu: `deneyler/mufredat-ornekleri/062-box-ve-ozyinelemeli-tipler/`
 - Kaynaklar: `agac/Cargo.toml`, `agac/src/main.rs`, `sonsuz/Cargo.toml`, `sonsuz/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:56Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -2886,7 +3508,7 @@ For more information about this error, try `rustc --explain E0072`.
 error: could not compile `sonsuz` (bin "sonsuz") due to 1 previous error
 [çıkış kodu: 101]
 $ cargo run -q
-sıralı gezinme: [20, 30, 35, 40, 50, 60, 70, 80], derinlik 4
+kök ortada gezinme (sol, kök, sağ): [20, 30, 35, 40, 50, 60, 70, 80], derinlik 4
 size_of::<Box<Agac>>() = 8 bayt, size_of::<Agac>() = 24 bayt
 ```
 
@@ -2894,13 +3516,15 @@ size_of::<Box<Agac>>() = 8 bayt, size_of::<Agac>() = 24 bayt
 
 - Video: `063-rc-ve-arc-referans-sayma`
 - Örnek yolu: `deneyler/mufredat-ornekleri/063-rc-ve-arc-referans-sayma/`
-- Kaynaklar: `Cargo.toml`, `src/main.rs`
+- Kaynaklar: `rc-is-parcacigi/Cargo.toml`, `rc-is-parcacigi/src/main.rs`, `sayac/Cargo.toml`, `sayac/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:56Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q
+cd sayac && k cargo run -q; cd ..
+# Rc'yi başka bir iş parçacığına göndermek derlenmez (Rc: !Send); Arc'ın atomik sayacı bunun için var
+cd rc-is-parcacigi && k cargo build -q; cd ..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -2913,20 +3537,45 @@ güçlü sayaç: 2 (c kapsam dışında)
 zayıf sayaç: 1, upgrade: Some(18)
 upgrade (sahipler gittikten sonra): None
 Arc ile paylaşılan vektörden: [10, 20, 30], sayaç şimdi 1
+$ cargo build -q
+error[E0277]: `Rc<Vec<i32>>` cannot be sent between threads safely
+ --> src/main.rs:8:27
+  |
+8 |     let t = thread::spawn(move || kopya.len());
+  |             ------------- -------^^^^^^^^^^^^
+  |             |             |
+  |             |             `Rc<Vec<i32>>` cannot be sent between threads safely
+  |             |             within this `{closure@src/main.rs:8:27: 8:34}`
+  |             required by a bound introduced by this call
+  |
+  = help: within `{closure@src/main.rs:8:27: 8:34}`, the trait `Send` is not implemented for `Rc<Vec<i32>>`
+note: required because `kopya` is used within this closure
+ --> src/main.rs:8:35
+  |
+8 |     let t = thread::spawn(move || kopya.len());
+  |                                   ^^^^^
+note: required by a bound in `spawn`
+ --> /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/thread/functions.rs:125:0
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `rc_is_parcacigi` (bin "rc_is_parcacigi") due to 1 previous error
+[çıkış kodu: 101]
 ```
 
 ## 064-ic-degistirilebilirlik
 
 - Video: `064-ic-degistirilebilirlik`
 - Örnek yolu: `deneyler/mufredat-ornekleri/064-ic-degistirilebilirlik/`
-- Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:57Z
-- Değişken çıktı: panik satırındaki iş parçacığı kimliği
+- Kaynaklar: `hucreler/Cargo.toml`, `hucreler/src/main.rs`, `sizinti/Cargo.toml`, `sizinti/src/main.rs`
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: panik satırındaki iş parçacığı kimliği; Miri'nin ayırma numaraları sürüme bağlı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q
+cd hucreler && k cargo run -q; cd ..
+# Sızıntıyı bir araçla görelim: Miri program bitince iade edilmemiş öbek bloklarını raporlar
+cd sizinti && k cargo +nightly miri run -q; cd ..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -2937,17 +3586,60 @@ Cell sayaç: 2
 RefCell: [1, 2, 3]
 --- Rc + RefCell ile döngü:
 x sayaç 2, y sayaç 2
-kapsam bitti, hiçbiri bırakılmadı: bellek sızdı (güvenli ama sızıntı)
+kapsam bitti: x'in güçlü sayacı hâlâ 1, hiçbiri bırakılmadı: bellek sızdı (güvenli ama sızıntı)
 --- Weak geri bağlantı ile:
 ebeveyn güçlü 1, zayıf 1
   ebeveyn bırakıldı
 kapsam bitti
 --- aynı anda iki borrow_mut:
 
-thread 'main' (6846) panicked at src/main.rs:62:25:
+thread 'main' (10098) panicked at src/main.rs:64:25:
 RefCell already borrowed
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]
+$ cargo +nightly miri run -q
+x sayaç 2, y sayaç 2
+error: memory leaked: alloc385 (Rust heap, size: 32, align: 8), allocated here:
+   --> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49
+    |
+438 |               Self::from_inner(Box::into_non_null(Box::new(RcInner {
+    |  _________________________________________________^
+439 | |                 strong: Cell::new(1),
+440 | |                 weak: Cell::new(1),
+441 | |                 value,
+442 | |             })))
+    | |______________^
+    |
+    = note: stack backtrace:
+            0: std::rc::Rc::<Dugum>::new
+                at /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49: 442:15
+            1: main
+                at src/main.rs:10:13: 10:72
+
+error: memory leaked: alloc319 (Rust heap, size: 32, align: 8), allocated here:
+   --> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49
+    |
+438 |               Self::from_inner(Box::into_non_null(Box::new(RcInner {
+    |  _________________________________________________^
+439 | |                 strong: Cell::new(1),
+440 | |                 weak: Cell::new(1),
+441 | |                 value,
+442 | |             })))
+    | |______________^
+    |
+    = note: stack backtrace:
+            0: std::rc::Rc::<Dugum>::new
+                at /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49: 442:15
+            1: main
+                at src/main.rs:9:13: 9:57
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+note: set `MIRIFLAGS=-Zmiri-ignore-leaks` to disable this check
+
+error: aborting due to 2 previous errors
+
+[çıkış kodu: 1]
 ```
 
 ## 065-bellek-ayiricilar
@@ -2955,22 +3647,32 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 - Video: `065-bellek-ayiricilar`
 - Örnek yolu: `deneyler/mufredat-ornekleri/065-bellek-ayiricilar/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:57Z
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: blok adımları ve yeniden kullanım sırası sistemin ayırıcısına (burada glibc malloc) bağlıdır
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q --release
+# Kaynak (nightly rust-src): System ayırıcısı Unix'te küçük hizalamalar için libc'nin malloc'unu çağırır
+ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "libc::malloc(layout.size())\|libc::realloc(ptr as \*mut libc::c_void, new_size)" $S/std/src/sys/alloc/unix.rs'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo run -q --release
-String::new + 1000 × push_str              ayırma     1  büyütme   8
-String::with_capacity(2000) + 1000 × push  ayırma     1  büyütme   0
-1000 × format!("{i}") → Vec<String>        ayırma  1001  büyütme   0
-1000 × Box::new(i)                         ayırma  1001  büyütme   0
+istenen   8 bayt → bloklar 32 bayt arayla
+istenen  25 bayt → bloklar 48 bayt arayla
+istenen 100 bayt → bloklar 112 bayt arayla
+24 baytlık yeni kutular, iade edilen 8 baytlıkların adreslerini ters sırayla aldı mı: true
+String::new + 1000 × push_str                 ayırma     1  büyütme   8
+String::with_capacity(2000) + 1000 × push_str ayırma     1  büyütme   0
+1000 × format!("{i}") → Vec<String>           ayırma  1001  büyütme   0
+1000 × Box::new(i)                            ayırma  1001  büyütme   0
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "libc::malloc(layout.size())\|libc::realloc(ptr as \*mut libc::c_void, new_size)" $S/std/src/sys/alloc/unix.rs
+31:        unsafe { libc::malloc(layout.size()) as *mut u8 }
+71:        unsafe { libc::realloc(ptr as *mut libc::c_void, new_size) as *mut u8 }
 ```
 
 ## 066-eszamanlilik-ve-is-parcaciklari
@@ -2979,68 +3681,133 @@ String::with_capacity(2000) + 1000 × push  ayırma     1  büyütme   0
 - Örnek yolu: `deneyler/mufredat-ornekleri/066-eszamanlilik-ve-is-parcaciklari/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:58Z
-- Değişken çıktı: görülen sıralar ve süreler her çalıştırmada değişir
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: görülen sıralar, süreler, hızlanma oranları ve bağlam değiştirme sayıları her çalıştırmada ve her makinede değişir
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k nproc
-k cargo run -q --release
+# Bu makinenin işlemcisi: kaç çekirdek, çekirdek başına kaç donanım iş parçacığı?
+ks 'lscpu | grep -E "^(CPU\(s\)|Thread\(s\) per core|Core\(s\) per socket):"'
+k cargo build -q --release
+# 1) Sıra garantisi yok
+k ./target/release/is_parcacigi sira
+# 2) İşi bölmek: blok, döngüsel ve dinamik dağıtım (son satır: çekirdeğin bu süreçte yaptığı bağlam değiştirmeler)
+ks '/usr/bin/time -f "bağlam değiştirme: gönüllü %w, zorunlu %c" ./target/release/is_parcacigi hizlanma 2>&1'
+# Kendin dene: programı tek bir mantıksal işlemciye kısıtla (eşzamanlı ama paralel değil)
+ks '/usr/bin/time -f "bağlam değiştirme: gönüllü %w, zorunlu %c" taskset -c 0 ./target/release/is_parcacigi hizlanma 2>&1'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ nproc
-12
-$ cargo run -q --release
-1000 denemede 7 farklı sıra görüldü; en sık: [("0123", 976), ("0132", 14), ("0213", 3), ("1023", 3)]
- 1 iş parçacığı: 216816 asal,   439.6 ms, hızlanma 1.00×
- 2 iş parçacığı: 216816 asal,   272.7 ms, hızlanma 1.61×
- 4 iş parçacığı: 216816 asal,   149.3 ms, hızlanma 2.95×
- 6 iş parçacığı: 216816 asal,   108.0 ms, hızlanma 4.07×
-12 iş parçacığı: 216816 asal,    84.7 ms, hızlanma 5.19×
+$ lscpu | grep -E "^(CPU\(s\)|Thread\(s\) per core|Core\(s\) per socket):"
+CPU(s):                                  12
+Thread(s) per core:                      2
+Core(s) per socket:                      6
+$ cargo build -q --release
+$ ./target/release/is_parcacigi sira
+1000 denemede 10 farklı sıra görüldü; en sık: [("0123", 972), ("0132", 15), ("0213", 4), ("0231", 3)]
+$ /usr/bin/time -f "bağlam değiştirme: gönüllü %w, zorunlu %c" ./target/release/is_parcacigi hizlanma 2>&1
+available_parallelism = 12
+4 iş parçacığının kendi süreleri (ms), blok    :  63 103 127 145
+4 iş parçacığının kendi süreleri (ms), döngüsel:   1 218   1 217
+4 iş parçacığının kendi süreleri (ms), dinamik : 110 110 109 110
+1 iş parçacığı: 216816 asal, 446.6 ms
+ 2 iş parçacığı | blok 271.8 ms (1.64×) | döngüsel 442.5 ms (1.01×) | dinamik 222.5 ms (2.01×)
+ 4 iş parçacığı | blok 147.5 ms (3.03×) | döngüsel 220.1 ms (2.03×) | dinamik 111.6 ms (4.00×)
+ 6 iş parçacığı | blok  99.6 ms (4.49×) | döngüsel 218.6 ms (2.04×) | dinamik  74.0 ms (6.03×)
+12 iş parçacığı | blok  87.2 ms (5.12×) | döngüsel 109.9 ms (4.06×) | dinamik  74.7 ms (5.98×)
+bağlam değiştirme: gönüllü 62, zorunlu 888
+$ /usr/bin/time -f "bağlam değiştirme: gönüllü %w, zorunlu %c" taskset -c 0 ./target/release/is_parcacigi hizlanma 2>&1
+available_parallelism = 1
+4 iş parçacığının kendi süreleri (ms), blok    : 247 367 415 433
+4 iş parçacığının kendi süreleri (ms), döngüsel:   4 435   6 434
+4 iş parçacığının kendi süreleri (ms), dinamik : 435 433 431 433
+1 iş parçacığı: 216816 asal, 435.6 ms
+ 2 iş parçacığı | blok 436.6 ms (1.00×) | döngüsel 437.0 ms (1.00×) | dinamik 437.0 ms (1.00×)
+ 4 iş parçacığı | blok 436.4 ms (1.00×) | döngüsel 437.4 ms (1.00×) | dinamik 436.8 ms (1.00×)
+bağlam değiştirme: gönüllü 27, zorunlu 1954
 ```
 
 ## 067-veri-yarisi-ve-send-sync
 
 - Video: `067-veri-yarisi-ve-send-sync`
 - Örnek yolu: `deneyler/mufredat-ornekleri/067-veri-yarisi-ve-send-sync/`
-- Kaynaklar: `atomik/Cargo.toml`, `atomik/src/main.rs`, `c/yaris.c`, `rc-gonderilemez/Cargo.toml`, `rc-gonderilemez/src/main.rs`
-- Toolchain: stable 1.100.0, gcc 14.2.0
-- Son çalıştırma (UTC): 2026-11-20T16:03:59Z
-- Değişken çıktı: C yarışının sonucu her çalıştırmada farklıdır
+- Kaynaklar: `arc-mutex/Cargo.toml`, `arc-mutex/src/main.rs`, `atomik/Cargo.toml`, `atomik/src/main.rs`, `ortak-mut/Cargo.toml`, `ortak-mut/src/main.rs`, `rc-gonderilemez/Cargo.toml`, `rc-gonderilemez/src/main.rs`, `yaris/Cargo.toml`, `yaris/src/main.rs`
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: yarışlı sayacın sonucu ve adresler her çalıştırmada değişir
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-mkdir -p target
-k gcc -O2 -pthread -o target/yaris c/yaris.c
-k ./target/yaris
-k ./target/yaris
-# ThreadSanitizer yarışı adıyla bildirir
-k gcc -O1 -g -fsanitize=thread -pthread -o target/yaris_tsan c/yaris.c
-ks './target/yaris_tsan 2>&1 | grep -E "WARNING|Write of size|Previous write|SUMMARY" | head -n 6'
-# Rust: aynı paylaşım denemesi derlenmez
+# 1) unsafe Rust ile bilerek yazılmış veri yarışı: kaybolan artışlar
+cd yaris
+k cargo build -q --release
+k ./target/release/yaris
+k ./target/release/yaris
+# Makine kodu: belleği doğrudan artıran tek bir inc komutu (lock öneki yok)
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/yaris | grep -A12 "<yaris::artir>:" | grep -m1 "inc"'
+# miri (Rust'ın tanımsız davranış denetleyicisi) aynı programı yorumlayarak çalıştırır
+ks 'cargo +nightly miri run -q -- 100 2>&1 | head -n 12'
+cd ..
+# 2) Güvenli Rust: aynı paylaşım denemeleri derlenmez
+cd ortak-mut && k cargo build -q; cd ..
 cd rc-gonderilemez && k cargo build -q; cd ..
-cd atomik && k cargo run -q --release; cd ..
+# 3) Atomik sayaç: doğru sonuç; makine kodunda aynı inc komutu, bu kez lock önekiyle
+cd atomik
+k cargo run -q --release
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/atomik | grep -A12 "<atomik::artir>:" | grep -m1 lock'
+cd ..
+# Kendin dene: rc-gonderilemez/'de Rc → Arc, RefCell → Mutex, borrow_mut()/borrow() → lock().unwrap()
+cd arc-mutex && k cargo run -q; cd ..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ gcc -O2 -pthread -o target/yaris c/yaris.c
-$ ./target/yaris
-beklenen 20000000, bulunan 10006703
-$ ./target/yaris
-beklenen 20000000, bulunan 10726010
-$ gcc -O1 -g -fsanitize=thread -pthread -o target/yaris_tsan c/yaris.c
-$ ./target/yaris_tsan 2>&1 | grep -E "WARNING|Write of size|Previous write|SUMMARY" | head -n 6
-WARNING: ThreadSanitizer: data race (pid=11088)
-  Previous write of size 8 at 0x562caf17f058 by thread T1:
-SUMMARY: ThreadSanitizer: data race c/yaris.c:8 in artir
-WARNING: ThreadSanitizer: data race (pid=11088)
-  Write of size 8 at 0x562caf17f058 by thread T2:
-  Previous write of size 8 at 0x562caf17f058 by thread T1:
+$ cargo build -q --release
+$ ./target/release/yaris
+beklenen 20000000, bulunan 11033628
+$ ./target/release/yaris
+beklenen 20000000, bulunan 13847993
+$ objdump -d -M intel --no-show-raw-insn -C target/release/yaris | grep -A12 "<yaris::artir>:" | grep -m1 "inc"
+   18e60:	inc    QWORD PTR [rip+0x44851]        # 5d6b8 <yaris::SAYAC>
+$ cargo +nightly miri run -q -- 100 2>&1 | head -n 12
+error: Undefined Behavior: Data race detected between (1) non-atomic write on thread `unnamed-1` and (2) non-atomic read on thread `unnamed-2` at alloc1
+  --> src/main.rs:13:24
+   |
+13 |             let eski = p.read_volatile(); // 1) oku
+   |                        ^^^^^^^^^^^^^^^^^ (2) just happened here
+   |
+help: and (1) occurred earlier here
+  --> src/main.rs:14:13
+   |
+14 |             p.write_volatile(eski + 1); //   2) bir ekle, 3) yaz
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+$ cargo build -q
+error[E0499]: cannot borrow `sayac` as mutable more than once at a time
+ --> src/main.rs:8:17
+  |
+6 |     thread::scope(|s| {
+  |                    - has type `&'1 Scope<'1, '_>`
+7 |         s.spawn(|| sayac += 1);
+  |         ----------------------
+  |         |       |  |
+  |         |       |  first borrow occurs due to use of `sayac` in closure
+  |         |       first mutable borrow occurs here
+  |         argument requires that `sayac` is borrowed for `'1`
+8 |         s.spawn(|| sayac += 1);
+  |                 ^^ ----- second borrow occurs due to use of `sayac` in closure
+  |                 |
+  |                 second mutable borrow occurs here
+  |
+note: requirement that the value outlives `'1` introduced here
+ --> /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/thread/scoped.rs:203:34
+
+For more information about this error, try `rustc --explain E0499`.
+error: could not compile `ortak_mut` (bin "ortak_mut") due to 1 previous error
+[çıkış kodu: 101]
 $ cargo build -q
 error[E0277]: `Rc<RefCell<i32>>` cannot be sent between threads safely
   --> src/main.rs:8:27
@@ -3069,6 +3836,10 @@ error: could not compile `rc_gonderilemez` (bin "rc_gonderilemez") due to 1 prev
 [çıkış kodu: 101]
 $ cargo run -q --release
 beklenen 20000000, bulunan 20000000
+$ objdump -d -M intel --no-show-raw-insn -C target/release/atomik | grep -A12 "<atomik::artir>:" | grep -m1 lock
+   18a70:	lock inc QWORD PTR [rip+0x44718]        # 5d190 <atomik::SAYAC>
+$ cargo run -q
+1
 ```
 
 ## 068-mutex-ve-kilitler
@@ -3077,26 +3848,64 @@ beklenen 20000000, bulunan 20000000
 - Örnek yolu: `deneyler/mufredat-ornekleri/068-mutex-ve-kilitler/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:00Z
-- Değişken çıktı: süreler; panik satırındaki iş parçacığı kimliği
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süreler, futex çağrı sayıları, adresler ve iş parçacığı kimlikleri
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q --release
+k cargo build -q --release
+# 1) Aynı sayaç üç yolla: Mutex, atomik, paylaşmamak
+k ./target/release/kilitler sayaclar
+# 2) Çekişmenin çekirdekteki izi: futex sistem çağrıları (1 iş parçacığı ve 8 iş parçacığı)
+ks 'strace -f -c -e trace=futex ./target/release/kilitler mutex 1 2>&1 | grep -E "^Mutex|futex$|total$"'
+ks 'strace -f -c -e trace=futex ./target/release/kilitler mutex 8 2>&1 | grep -E "^Mutex|futex$|total$"'
+# Tek iş parçacığındaki tek futex çağrısı nereden? Ana iş parçacığı, alt iş parçacığının bitmesini (join) bekliyor
+ks 'strace -f -e trace=futex,clone3 ./target/release/kilitler mutex 1 2>&1 | grep -E "clone3|futex"'
+# 3) Kritik bölgeyi kısa tutmak: yavaş işi kilidin dışına almak
+k ./target/release/kilitler kilitte-bekleme
+# 4) Zehirlenme
+k ./target/release/kilitler zehir
+# Kendin dene: futex çağrısı sayısı 2 ve 4 iş parçacığıyla; iş 5 ms sürünce kilitte bekleme
+ks 'for n in 2 4; do strace -f -c -e trace=futex ./target/release/kilitler mutex $n 2>&1 | grep -E "^Mutex|futex$"; done'
+k ./target/release/kilitler kilitte-bekleme 5
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo run -q --release
-Mutex           : 8000000 ( 216.9 ms)
-AtomicU64       : 8000000 (  90.0 ms)
+$ cargo build -q --release
+$ ./target/release/kilitler sayaclar
+Mutex           : 8000000 ( 223.4 ms)
+AtomicU64       : 8000000 (  82.7 ms)
 yerel + toplama : 8000000 (   0.6 ms)
+$ strace -f -c -e trace=futex ./target/release/kilitler mutex 1 2>&1 | grep -E "^Mutex|futex$|total$"
+Mutex, 1 iş parçacığı: sayaç = 1000000
+100.00    0.000224         224         1           futex
+100.00    0.000224         224         1           total
+$ strace -f -c -e trace=futex ./target/release/kilitler mutex 8 2>&1 | grep -E "^Mutex|futex$|total$"
+Mutex, 8 iş parçacığı: sayaç = 8000000
+100.00    0.175140          14     11947      2251 futex
+100.00    0.175140          14     11947      2251 total
+$ strace -f -e trace=futex,clone3 ./target/release/kilitler mutex 1 2>&1 | grep -E "clone3|futex"
+clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7f2e27d5a990, parent_tid=0x7f2e27d5a990, exit_signal=0, stack=0x7f2e27b5a000, stack_size=0x1fff00, tls=0x7f2e27d5a6c0}strace: Process 14916 attached
+[pid 14915] futex(0x7f2e27d5a990, FUTEX_WAIT_BITSET|FUTEX_CLOCK_REALTIME, 14916, NULL, FUTEX_BITSET_MATCH_ANY) = 0
+$ ./target/release/kilitler kilitte-bekleme
+iş kilidin içinde : 8 × 20 iş, iş başına 1 ms,  168.8 ms
+iş kilidin dışında: 8 × 20 iş, iş başına 1 ms,   21.2 ms
+$ ./target/release/kilitler zehir
 
-thread '<unnamed>' (11251) panicked at src/main.rs:50:9:
+thread '<unnamed>' (14935) panicked at src/main.rs:102:9:
 kilit elimdeyken çöktüm
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 kilit zehirlenmiş! içerik yine de okunabilir: [1, 2, 3, 4]
+$ for n in 2 4; do strace -f -c -e trace=futex ./target/release/kilitler mutex $n 2>&1 | grep -E "^Mutex|futex$"; done
+Mutex, 2 iş parçacığı: sayaç = 2000000
+100.00    0.009229           7      1236       211 futex
+Mutex, 4 iş parçacığı: sayaç = 4000000
+100.00    0.041286           9      4279       797 futex
+$ ./target/release/kilitler kilitte-bekleme 5
+iş kilidin içinde : 8 × 20 iş, iş başına 5 ms,  809.5 ms
+iş kilidin dışında: 8 × 20 iş, iş başına 5 ms,  101.5 ms
 ```
 
 ## 069-kilitlenme-ve-esgudum
@@ -3105,17 +3914,23 @@ kilit zehirlenmiş! içerik yine de okunabilir: [1, 2, 3, 4]
 - Örnek yolu: `deneyler/mufredat-ornekleri/069-kilitlenme-ve-esgudum/`
 - Kaynaklar: `kilitlenme/Cargo.toml`, `kilitlenme/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:03Z
-- Değişken çıktı: iki iş parçacığının yazdırma sırası
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: iki iş parçacığının yazdırma sırası; döngülü sürümlerde kaç çalıştırmanın kilitlendiği (makineye ve yüke bağlı)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 cd kilitlenme
 k cargo build -q
-# Ters sıralı kilitler: sonsuza dek bekler; 3 saniye sonra timeout öldürür (124)
+# 1) Ters sıralı kilitler: sonsuza dek bekler; 3 saniye sonra timeout öldürür (124)
 k timeout 3 ./target/debug/kilitlenme
-# Tek bir kilit sırası: kilitlenme yok
+# 2) Kilitlenmiş süreç ne yapıyor? Her iş parçacığının çekirdekte beklediği yer (wchan), durumu ve işlemci süresi (utime, stime; saat tıkı)
+ks './target/debug/kilitlenme > /dev/null & P=$!; sleep 1; for t in /proc/$P/task/*; do echo "bekliyor: $(cat $t/wchan)  durum, utime, stime: $(cut -d" " -f3,14,15 $t/stat)"; done; kill $P'
+# 3) Tek bir kilit sırası: kilitlenme yok
 k timeout 3 ./target/debug/kilitlenme sirali
+# 4) Beklemesiz döngü, her iş parçacığı 100, 300 ve 1000 transfer: kilitlenme yalnız bazen olur (her biri 20 çalıştırma; 0 = bitti, 124 = kilitlendi)
+ks 'for n in 100 300 1000; do echo "$n transfer:"; for i in $(seq 20); do timeout 2 ./target/debug/kilitlenme dongu $n > /dev/null; echo "  çıkış kodu $?"; done | sort | uniq -c; done'
+# Kendin dene: aynı döngü, tek kilit sırasıyla (1000 transfer, 20 çalıştırma)
+ks 'for i in $(seq 20); do timeout 2 ./target/debug/kilitlenme dongu-sirali 1000 > /dev/null; echo "  sıralı, çıkış kodu $?"; done | sort | uniq -c'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -3126,37 +3941,62 @@ $ timeout 3 ./target/debug/kilitlenme
 1. iş parçacığı A'yı aldı, B'yi bekliyor
 2. iş parçacığı ilk kilidi aldı, ikincisini bekliyor
 [çıkış kodu: 124]
+$ ./target/debug/kilitlenme > /dev/null & P=$!; sleep 1; for t in /proc/$P/task/*; do echo "bekliyor: $(cat $t/wchan)  durum, utime, stime: $(cut -d" " -f3,14,15 $t/stat)"; done; kill $P
+bekliyor: __futex_wait  durum, utime, stime: S 0 0
+bekliyor: __futex_wait  durum, utime, stime: S 0 0
+bekliyor: __futex_wait  durum, utime, stime: S 0 0
 $ timeout 3 ./target/debug/kilitlenme sirali
 1. iş parçacığı A'yı aldı, B'yi bekliyor
-1. iş parçacığı transferi yaptı (100 / 100)
+1. iş parçacığı transferi yaptı (A = 99, B = 101)
 2. iş parçacığı ilk kilidi aldı, ikincisini bekliyor
-2. iş parçacığı transferi yaptı (100 / 100)
-bitti
+2. iş parçacığı transferi yaptı
+bitti: A = 100, B = 100
+$ for n in 100 300 1000; do echo "$n transfer:"; for i in $(seq 20); do timeout 2 ./target/debug/kilitlenme dongu $n > /dev/null; echo "  çıkış kodu $?"; done | sort | uniq -c; done
+100 transfer:
+     20   çıkış kodu 0
+300 transfer:
+     11   çıkış kodu 0
+      9   çıkış kodu 124
+1000 transfer:
+     20   çıkış kodu 124
+$ for i in $(seq 20); do timeout 2 ./target/debug/kilitlenme dongu-sirali 1000 > /dev/null; echo "  sıralı, çıkış kodu $?"; done | sort | uniq -c
+     20   sıralı, çıkış kodu 0
 ```
 
 ## 070-kanallar-ve-mesajlasma
 
 - Video: `070-kanallar-ve-mesajlasma`
 - Örnek yolu: `deneyler/mufredat-ornekleri/070-kanallar-ve-mesajlasma/`
-- Kaynaklar: `Cargo.toml`, `src/main.rs`
+- Kaynaklar: `Cargo.toml`, `gonderince-tasinir/Cargo.toml`, `gonderince-tasinir/src/main.rs`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:04Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: milisaniye zaman damgaları ve aynı anlara düşen satırların sırası
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q
+k cargo build -q
+# 1) Üç aşamalı boru hattı
+k ./target/debug/kanallar boru-hatti
+# 2) Kapasitesi 2 olan kanal: hızlı üretici, yavaş tüketici
+k ./target/debug/kanallar 2
+# Kendin dene: kapasite 0 (buluşma kanalı)
+k ./target/debug/kanallar 0
+# 3) Gönderilen değerin sahibi değişir
+cd gonderince-tasinir && k cargo build -q; cd ..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo run -q
+$ cargo build -q
+$ ./target/debug/kanallar boru-hatti
 1² = 1
 2² = 4
 3² = 9
 4² = 16
 5² = 25
+$ ./target/debug/kanallar 2
+sync_channel(2):
 [   0 ms] üretici 1 gönderdi
 [   0 ms] üretici 2 gönderdi
 [ 300 ms] yavaş tüketici 1 aldı
@@ -3167,6 +4007,37 @@ $ cargo run -q
 [ 500 ms] üretici 5 gönderdi
 [ 600 ms] yavaş tüketici 4 aldı
 [ 700 ms] yavaş tüketici 5 aldı
+$ ./target/debug/kanallar 0
+sync_channel(0):
+[ 300 ms] yavaş tüketici 1 aldı
+[ 300 ms] üretici 1 gönderdi
+[ 400 ms] yavaş tüketici 2 aldı
+[ 400 ms] üretici 2 gönderdi
+[ 500 ms] yavaş tüketici 3 aldı
+[ 500 ms] üretici 3 gönderdi
+[ 600 ms] yavaş tüketici 4 aldı
+[ 600 ms] üretici 4 gönderdi
+[ 700 ms] yavaş tüketici 5 aldı
+[ 700 ms] üretici 5 gönderdi
+$ cargo build -q
+error[E0382]: borrow of moved value: `olcumler`
+ --> src/main.rs:9:16
+  |
+7 |     let olcumler = vec![1, 2, 3];
+  |         -------- move occurs because `olcumler` has type `Vec<u32>`, which does not implement the `Copy` trait
+8 |     tx.send(olcumler).unwrap(); // değer kanala taşındı: sahibi artık alıcı
+  |             -------- value moved here
+9 |     println!("{olcumler:?}"); // gönderdikten sonra kullanmaya çalışmak
+  |                ^^^^^^^^ value borrowed here after move
+  |
+help: consider cloning the value if the performance cost is acceptable
+  |
+8 |     tx.send(olcumler.clone()).unwrap(); // değer kanala taşındı: sahibi artık alıcı
+  |                     ++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `gonderince_tasinir` (bin "gonderince_tasinir") due to 1 previous error
+[çıkış kodu: 101]
 ```
 
 ## 071-atomikler-ve-bellek-siralamasi
@@ -3175,16 +4046,23 @@ $ cargo run -q
 - Örnek yolu: `deneyler/mufredat-ornekleri/071-atomikler-ve-bellek-siralamasi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:05Z
-- Değişken çıktı: Relaxed sayımı her çalıştırmada değişir (SeqCst her zaman 0 olmalı)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: Relaxed, Release/Acquire ve fence(AcqRel) sayımları her çalıştırmada ve makinede değişir (SeqCst ve fence(SeqCst) sürümlerinde 0 olmalı); fonksiyon adresleri
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q --release
 k ./target/release/siralama_testi
-# Makine kodundaki fark: SeqCst yazma xchg (tam bariyer) olarak derleniyor
-ks 'objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_oku_gevsek>:"'
-ks 'objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A5 "<siralama_testi::yaz_oku_sirali>:"'
+# Makine kodundaki fark: yalnız yazma komutu ve bariyer değişiyor
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A3 "<siralama_testi::yaz_oku_gevsek>:"'
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A3 "<siralama_testi::yaz_oku_edin_birak>:"'
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_oku_sirali>:"'
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_bariyer_oku>:"'
+# Yalnız 2 mantıksal işlemcide: program (bekleme döngüsündeki yield sayesinde) biter, ama iki işçi ve ana iş parçacığı 2 işlemciyi paylaştığı için işçiler nadiren aynı anda koşar
+k taskset -c 0,1 ./target/release/siralama_testi gevsek
+# Kendin dene: SeqCst yerine daha zayıf bir bariyer (AcqRel)
+k ./target/release/siralama_testi zayif-bariyer
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A3 "<siralama_testi::yaz_zayif_bariyer_oku>:"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -3192,21 +4070,41 @@ ks 'objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | gr
 ```text
 $ cargo build -q --release
 $ ./target/release/siralama_testi
-Relaxed : 1000000 turda r1 = r2 = 0 sonucu 495535 kez görüldü
-SeqCst  : 1000000 turda r1 = r2 = 0 sonucu 0 kez görüldü
-$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_oku_gevsek>:"
-00000000000182e0 <siralama_testi::yaz_oku_gevsek>:
-   182e0:	mov    DWORD PTR [rdi],0x1
-   182e6:	mov    eax,DWORD PTR [rsi]
-   182e8:	ret
-   182e9:	int3
-$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A5 "<siralama_testi::yaz_oku_sirali>:"
-00000000000182f0 <siralama_testi::yaz_oku_sirali>:
-   182f0:	mov    eax,0x1
-   182f5:	xchg   DWORD PTR [rdi],eax
-   182f7:	mov    eax,DWORD PTR [rsi]
-   182f9:	ret
-   182fa:	int3
+Relaxed                : 1000000 turda r1 = r2 = 0 sonucu 412797 kez görüldü
+Release/Acquire        : 1000000 turda r1 = r2 = 0 sonucu 307631 kez görüldü
+SeqCst                 : 1000000 turda r1 = r2 = 0 sonucu 0 kez görüldü
+Relaxed + fence(SeqCst): 1000000 turda r1 = r2 = 0 sonucu 0 kez görüldü
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A3 "<siralama_testi::yaz_oku_gevsek>:"
+0000000000018780 <siralama_testi::yaz_oku_gevsek>:
+   18780:	mov    DWORD PTR [rdi],0x1
+   18786:	mov    eax,DWORD PTR [rsi]
+   18788:	ret
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A3 "<siralama_testi::yaz_oku_edin_birak>:"
+00000000000187b0 <siralama_testi::yaz_oku_edin_birak>:
+   187b0:	mov    DWORD PTR [rdi],0x1
+   187b6:	mov    eax,DWORD PTR [rsi]
+   187b8:	ret
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_oku_sirali>:"
+0000000000018790 <siralama_testi::yaz_oku_sirali>:
+   18790:	mov    eax,0x1
+   18795:	xchg   DWORD PTR [rdi],eax
+   18797:	mov    eax,DWORD PTR [rsi]
+   18799:	ret
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_bariyer_oku>:"
+00000000000187a0 <siralama_testi::yaz_bariyer_oku>:
+   187a0:	mov    DWORD PTR [rdi],0x1
+   187a6:	lock or DWORD PTR [rsp-0x40],0x0
+   187ac:	mov    eax,DWORD PTR [rsi]
+   187ae:	ret
+$ taskset -c 0,1 ./target/release/siralama_testi gevsek
+Relaxed                : 1000000 turda r1 = r2 = 0 sonucu 0 kez görüldü
+$ ./target/release/siralama_testi zayif-bariyer
+Relaxed + fence(AcqRel): 1000000 turda r1 = r2 = 0 sonucu 275178 kez görüldü
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A3 "<siralama_testi::yaz_zayif_bariyer_oku>:"
+00000000000187c0 <siralama_testi::yaz_zayif_bariyer_oku>:
+   187c0:	mov    DWORD PTR [rdi],0x1
+   187c6:	mov    eax,DWORD PTR [rsi]
+   187c8:	ret
 ```
 
 ## 072-veri-paralelligi
@@ -3216,23 +4114,37 @@ $ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `crossbeam-deque 0.8.8`, `crossbeam-epoch 0.9.21`, `crossbeam-utils 0.8.23`, `either 1.19.0`, `rayon 1.12.0`, `rayon-core 1.13.0`
-- Son çalıştırma (UTC): 2026-11-20T16:04:08Z
-- Değişken çıktı: süreler
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süreler, adresler ve iş parçacığı başına düşen öğe sayıları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q --release
+# Önbellek satırı boyutu (çekirdeğin bildirdiği, bayt)
+k cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size
+k cargo build -q --release
+k ./target/release/parallel
+# Kendin dene: iki sayaç arasında 48 bayt dolgu (aynı satır) ve 56 bayt dolgu (ayrı satır)
+k ./target/release/parallel dolgu
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo run -q --release
+$ cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size
+64
+$ cargo build -q --release
+$ ./target/release/parallel
 rayon iş parçacığı: 12
-sıralı  :   112.0 ms
-paralel :    15.4 ms  (hızlanma 7.28×, sonuç aynı: true)
-yanlış paylaşım (aynı satır):   982.0 ms
-ayrı önbellek satırları     :    87.8 ms
+iş parçacığı başına işlenen öğe: [452079, 454844, 500544, 231035, 449272, 452214, 445881, 451753, 445568, 448855, 217285, 450670] (toplam 5000000)
+sıralı  :   109.9 ms
+paralel :    15.5 ms  (hızlanma 7.10×, sonuç aynı: true)
+bitişik sayaçlar: a @ 0x7fff409b1b90 (satır 0x1fffd026c6e), b @ 0x7fff409b1b98 (satır 0x1fffd026c6e)
+hizalı sayaçlar : a @ 0x7fff409b1a40 (satır 0x1fffd026c69), b @ 0x7fff409b1ac0 (satır 0x1fffd026c6b)
+yanlış paylaşım (aynı satır):   942.2 ms
+ayrı önbellek satırları     :    83.7 ms
+$ ./target/release/parallel dolgu
+dolgu 48 bayt: a @ 0x7ffc5bb07540 (satır 0x1fff16ec1d5), b @ 0x7ffc5bb07578 (satır 0x1fff16ec1d5) →  920.5 ms
+dolgu 56 bayt: a @ 0x7ffc5bb075c0 (satır 0x1fff16ec1d7), b @ 0x7ffc5bb07600 (satır 0x1fff16ec1d8) →   86.0 ms
 ```
 
 ## 073-surecler
@@ -3241,15 +4153,25 @@ ayrı önbellek satırları     :    87.8 ms
 - Örnek yolu: `deneyler/mufredat-ornekleri/073-surecler/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:08Z
-- Değişken çıktı: süreç kimlikleri (pid)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süreç kimlikleri (pid), strace'teki adresler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q
 k ./target/debug/surecler
-# Çekirdek düzeyinde: yeni süreç (clone/clone3), yeni program (execve), bekleme (wait4)
-ks 'strace -f -e trace=clone,clone3,vfork,execve,wait4,exit_group ./target/debug/surecler 2>&1 | grep -vE "^(ebeveyn|çocuk|uname|başlatıl)"'
+# PATH: programın arandığı dizinler, bu sırayla
+ks 'echo "$PATH"'
+# C kütüphanesinin sürümü (posix_spawn'ı o uygular)
+ks 'ldd --version | head -n 1'
+# Çekirdek düzeyinde: yeni süreç (clone3), yeni program (execve), bekleme (wait4); strace'in kaydı programın çıktısına karışmasın diye dosyaya yazılır (-o), ek iletileri susturulur (-qq)
+ks 'strace -f -qq -e trace=clone,clone3,vfork,execve,wait4,exit_group -o /tmp/iz.txt ./target/debug/surecler > /dev/null; cat /tmp/iz.txt'
+# Zombi süreç: bitmiş ama çıkış durumu henüz alınmamış alt süreç
+k ./target/debug/surecler zombi
+# Kendin dene: PATH yalnız /usr/bin olunca execve ilk denemede bulur
+ks 'PATH=/usr/bin strace -f -qq -e trace=execve -o /tmp/iz2.txt ./target/debug/surecler > /dev/null; grep -E "execve\(\"/usr/bin/(sh|uname)\"" /tmp/iz2.txt'
+# Kendin dene: wait() hiç çağrılmazsa
+k ./target/debug/surecler zombi-beklemesiz
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -3257,57 +4179,61 @@ ks 'strace -f -e trace=clone,clone3,vfork,execve,wait4,exit_group ./target/debug
 ```text
 $ cargo build -q
 $ ./target/debug/surecler
-ebeveyn: pid 11889
-çocuk: pid 11890, ebeveyni 11889
-çocuğun çıkış durumu: exit status: 3 (code = Some(3))
+üst süreç: pid 16044
+alt süreç: pid 16045, üst süreci 16044
+alt sürecin çıkış durumu: exit status: 3 (code = Some(3))
 uname -sr çıktısı yakalandı: "Linux 7.2.15-1-omarchy"
 başlatılamadı: No such file or directory (os error 2)
-$ strace -f -e trace=clone,clone3,vfork,execve,wait4,exit_group ./target/debug/surecler 2>&1 | grep -vE "^(ebeveyn|çocuk|uname|başlatıl)"
-execve("./target/debug/surecler", ["./target/debug/surecler"], 0x7ffc43765eb8 /* 15 vars */) = 0
-clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7f8f6f122000, stack_size=0x9000}, 88strace: Process 11899 attached
- <unfinished ...>
-[pid 11899] execve("/usr/local/cargo/bin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11899] execve("/usr/local/sbin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11899] execve("/usr/local/bin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11899] execve("/usr/sbin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11899] execve("/usr/bin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */ <unfinished ...>
-[pid 11898] <... clone3 resumed>)       = 11899
-[pid 11898] wait4(11899,  <unfinished ...>
-[pid 11899] <... execve resumed>)       = 0
-[pid 11899] exit_group(3)               = ?
-[pid 11899] +++ exited with 3 +++
-<... wait4 resumed>[{WIFEXITED(s) && WEXITSTATUS(s) == 3}], 0, NULL) = 11899
---- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=11899, si_uid=0, si_status=3, si_utime=0, si_stime=0} ---
-çocuğun çıkış durumu: exit status: 3 (code = Some(3))
-clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7f8f6f122000, stack_size=0x9000}, 88strace: Process 11900 attached
- <unfinished ...>
-[pid 11900] execve("/usr/local/cargo/bin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11900] execve("/usr/local/sbin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11900] execve("/usr/local/bin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11900] execve("/usr/sbin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11900] execve("/usr/bin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */ <unfinished ...>
-[pid 11898] <... clone3 resumed>)       = 11900
-[pid 11900] <... execve resumed>)       = 0
-[pid 11900] exit_group(0)               = ?
-[pid 11898] wait4(11900,  <unfinished ...>
-[pid 11900] +++ exited with 0 +++
-<... wait4 resumed>[{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0, NULL) = 11900
---- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=11900, si_uid=0, si_status=0, si_utime=0, si_stime=0} ---
-clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7f8f6f122000, stack_size=0x9000}, 88strace: Process 11901 attached
- <unfinished ...>
-[pid 11901] execve("/usr/local/cargo/bin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/usr/local/sbin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/usr/local/bin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/usr/sbin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/usr/bin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/sbin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/bin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] exit_group(127)             = ?
-[pid 11898] <... clone3 resumed>)       = 11901
-[pid 11901] +++ exited with 127 +++
---- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=11901, si_uid=0, si_status=127, si_utime=0, si_stime=0} ---
-exit_group(0)                           = ?
-+++ exited with 0 +++
+$ echo "$PATH"
+/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+$ ldd --version | head -n 1
+ldd (Debian GLIBC 2.41-12+deb13u5) 2.41
+$ strace -f -qq -e trace=clone,clone3,vfork,execve,wait4,exit_group -o /tmp/iz.txt ./target/debug/surecler > /dev/null; cat /tmp/iz.txt
+16056 execve("./target/debug/surecler", ["./target/debug/surecler"], 0x7ffe50a259a0 /* 15 vars */) = 0
+16056 clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7fa7869a2000, stack_size=0x9000}, 88 <unfinished ...>
+16057 execve("/usr/local/cargo/bin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16057 execve("/usr/local/sbin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16057 execve("/usr/local/bin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16057 execve("/usr/sbin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16057 execve("/usr/bin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */ <unfinished ...>
+16056 <... clone3 resumed>)             = 16057
+16056 wait4(16057,  <unfinished ...>
+16057 <... execve resumed>)             = 0
+16057 exit_group(3)                     = ?
+16056 <... wait4 resumed>[{WIFEXITED(s) && WEXITSTATUS(s) == 3}], 0, NULL) = 16057
+16056 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=16057, si_uid=0, si_status=3, si_utime=0, si_stime=0} ---
+16056 clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7fa7869a2000, stack_size=0x9000}, 88 <unfinished ...>
+16058 execve("/usr/local/cargo/bin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16058 execve("/usr/local/sbin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16058 execve("/usr/local/bin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16058 execve("/usr/sbin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16058 execve("/usr/bin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */ <unfinished ...>
+16056 <... clone3 resumed>)             = 16058
+16058 <... execve resumed>)             = 0
+16058 exit_group(0)                     = ?
+16056 wait4(16058, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0, NULL) = 16058
+16056 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=16058, si_uid=0, si_status=0, si_utime=0, si_stime=0} ---
+16056 clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7fa7869a2000, stack_size=0x9000}, 88 <unfinished ...>
+16059 execve("/usr/local/cargo/bin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/usr/local/sbin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/usr/local/bin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/usr/sbin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/usr/bin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/sbin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/bin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 exit_group(127)                   = ?
+16056 <... clone3 resumed>)             = 16059
+16056 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=16059, si_uid=0, si_status=127, si_utime=0, si_stime=0} ---
+16056 exit_group(0)                     = ?
+$ ./target/debug/surecler zombi
+alt süreç 16061 bitti, 200 ms sonra henüz beklenmedi: durum = Z
+wait() → exit status: 0; şimdi durum = yok (/proc'ta kaydı kalmadı)
+$ PATH=/usr/bin strace -f -qq -e trace=execve -o /tmp/iz2.txt ./target/debug/surecler > /dev/null; grep -E "execve\(\"/usr/bin/(sh|uname)\"" /tmp/iz2.txt
+16067 execve("/usr/bin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff90cc79d8 /* 15 vars */) = 0
+16068 execve("/usr/bin/uname", ["uname", "-sr"], 0x7fff90cc79d8 /* 15 vars */) = 0
+$ ./target/debug/surecler zombi-beklemesiz
+beklenmeyen alt süreç 16071, başlatıldıktan 200 ms sonra: durum = Z
+beklenmeyen alt süreç 16071, başlatıldıktan 1200 ms sonra: durum = Z
 ```
 
 ## 074-dosyalar-ve-tamponlama
@@ -3316,56 +4242,74 @@ exit_group(0)                           = ?
 - Örnek yolu: `deneyler/mufredat-ornekleri/074-dosyalar-ve-tamponlama/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:04:24Z
-- Değişken çıktı: süreler
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süreler; dosya tanımlayıcı numarası
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q --release
+# Tamponsuz yazmanın ilk sistem çağrıları: dosya açılır (fd 3), her satır parça parça yazılır
+ks 'strace -e trace=openat,write ./target/release/tamponlama tamponsuz 2>&1 | grep -A6 "tamponsuz.txt"'
+# 100 000 satır: kaç write çağrısı?
 ks 'strace -c -e trace=write ./target/release/tamponlama tamponsuz 2>&1 | tail -n 4'
 ks 'strace -c -e trace=write ./target/release/tamponlama tamponlu 2>&1 | tail -n 4'
 k hyperfine -N --warmup 2 --runs 10 --style basic "./target/release/tamponlama tamponsuz" "./target/release/tamponlama tamponlu"
-ks 'wc -l /tmp/tamponsuz.txt /tmp/tamponlu.txt && cmp /tmp/tamponsuz.txt /tmp/tamponlu.txt && echo "iki dosya aynı"'
+ks 'wc -c /tmp/tamponsuz.txt /tmp/tamponlu.txt && cmp /tmp/tamponsuz.txt /tmp/tamponlu.txt && echo "iki dosya aynı"'
 # Kaynak (nightly rust-src): BufWriter/BufReader varsayılan tampon boyutu
 ks 'S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A3 "pub const DEFAULT_BUF_SIZE" $S/alloc/src/io/read.rs'
+# Kendin dene: 64 KiB'lık tampon
+ks 'strace -c -e trace=write ./target/release/tamponlama tamponlu64 2>&1 | tail -n 4'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo build -q --release
+$ strace -e trace=openat,write ./target/release/tamponlama tamponsuz 2>&1 | grep -A6 "tamponsuz.txt"
+openat(AT_FDCWD, "/tmp/tamponsuz.txt", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+write(3, "sat\304\261r ", 7)            = 7
+write(3, "0", 1)                        = 1
+write(3, "\n", 1)                       = 1
+write(3, "sat\304\261r ", 7)            = 7
+write(3, "1", 1)                        = 1
+write(3, "\n", 1)                       = 1
 $ strace -c -e trace=write ./target/release/tamponlama tamponsuz 2>&1 | tail -n 4
 ------ ----------- ----------- --------- --------- ----------------
-100.00    1.510840           5    300000           write
+100.00    1.547800           5    300000           write
 ------ ----------- ----------- --------- --------- ----------------
-100.00    1.510840           5    300000           total
+100.00    1.547800           5    300000           total
 $ strace -c -e trace=write ./target/release/tamponlama tamponlu 2>&1 | tail -n 4
 ------ ----------- ----------- --------- --------- ----------------
-100.00    0.001929          12       158           write
+100.00    0.000577           3       158           write
 ------ ----------- ----------- --------- --------- ----------------
-100.00    0.001929          12       158           total
+100.00    0.000577           3       158           total
 $ hyperfine -N --warmup 2 --runs 10 --style basic "./target/release/tamponlama tamponsuz" "./target/release/tamponlama tamponlu"
 Benchmark 1: ./target/release/tamponlama tamponsuz
-  Time (mean ± σ):     814.7 ms ±  13.9 ms    [User: 81.4 ms, System: 726.5 ms]
-  Range (min … max):   796.8 ms … 837.0 ms    10 runs
+  Time (mean ± σ):     829.1 ms ±  12.4 ms    [User: 83.1 ms, System: 739.7 ms]
+  Range (min … max):   802.6 ms … 848.2 ms    10 runs
  
 Benchmark 2: ./target/release/tamponlama tamponlu
-  Time (mean ± σ):       5.8 ms ±   0.1 ms    [User: 1.5 ms, System: 2.8 ms]
-  Range (min … max):     5.7 ms …   6.0 ms    10 runs
+  Time (mean ± σ):       5.8 ms ±   0.1 ms    [User: 2.7 ms, System: 1.6 ms]
+  Range (min … max):     5.7 ms …   6.1 ms    10 runs
  
 Summary
   ./target/release/tamponlama tamponlu ran
-  139.88 ± 4.09 times faster than ./target/release/tamponlama tamponsuz
-$ wc -l /tmp/tamponsuz.txt /tmp/tamponlu.txt && cmp /tmp/tamponsuz.txt /tmp/tamponlu.txt && echo "iki dosya aynı"
- 100000 /tmp/tamponsuz.txt
- 100000 /tmp/tamponlu.txt
- 200000 total
+  142.11 ± 4.01 times faster than ./target/release/tamponlama tamponsuz
+$ wc -c /tmp/tamponsuz.txt /tmp/tamponlu.txt && cmp /tmp/tamponsuz.txt /tmp/tamponlu.txt && echo "iki dosya aynı"
+1288890 /tmp/tamponsuz.txt
+1288890 /tmp/tamponlu.txt
+2577780 total
 iki dosya aynı
 $ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A3 "pub const DEFAULT_BUF_SIZE" $S/alloc/src/io/read.rs
 787:pub const DEFAULT_BUF_SIZE: usize = cfg_select! {
 788-    target_os = "espidf" => 512,
 789-    _ => 8 * 1024,
 790-};
+$ strace -c -e trace=write ./target/release/tamponlama tamponlu64 2>&1 | tail -n 4
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.000333          16        20           write
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.000333          16        20           total
 ```
 
 ## 075-dayaniklilik-ve-fsync
@@ -3374,8 +4318,8 @@ $ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A3 
 - Örnek yolu: `deneyler/mufredat-ornekleri/075-dayaniklilik-ve-fsync/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:24Z
-- Değişken çıktı: süreler diske ve dosya sistemine bağlı
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süreler diske ve dosya sistemine bağlı; inode numaraları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -3383,14 +4327,22 @@ mkdir -p calisma
 k cargo build -q --release
 # Ana makinenin diskine bağlı dizin (btrfs)
 k ./target/release/dayaniklilik olc calisma
+# sync_data() hangi sistem çağrısı, kaç kez? (her kayıtta 200 + iki döngünün sonundaki 2)
+ks 'strace -c -e trace=fsync,fdatasync ./target/release/dayaniklilik olc calisma 2>&1 | grep -E "fdatasync$|^her|^sonda"'
 # Konteynerin kendi kök dosya sistemi (/tmp burada)
 k ./target/release/dayaniklilik olc /tmp
-# Neden bu kadar hızlı? Kök dizinin bağlama seçeneklerine bakalım
+# Neden bu kadar hızlı? Kök dizinin ve /work'ün bağlama bilgileri
 ks 'grep " / " /proc/mounts | grep -oE "^overlay|fsync=[a-z]+"'
 ks 'grep " /work " /proc/mounts | cut -d" " -f1-3'
-# Atomik değiştirme kalıbının sistem çağrıları
+# fsync çağrılmazsa: çekirdek kirli sayfaları kendisi yazar; bu kadar santisaniyeden eski kirli veri geri yazmaya uygun olur
+k cat /proc/sys/vm/dirty_expire_centisecs
+# Atomik değiştirme: önce eski sürüm (1), sonra kalıp; dosya adı aynı kalır, dosyanın kendisi (inode) değişir
+ks 'echo "{\"surum\": 1}" > calisma/ayar.json && cat calisma/ayar.json && stat -c "inode %i" calisma/ayar.json'
 ks 'strace -e trace=openat,write,fsync,fdatasync,rename,renameat2 ./target/release/dayaniklilik atomik calisma 2>&1 | grep -v "/lib\|/etc\|/proc\|/sys"'
-k cat calisma/ayar.json
+ks 'cat calisma/ayar.json && stat -c "inode %i" calisma/ayar.json'
+# Kendin dene: sync_data yerine sync_all (fsync)
+ks 'strace -c -e trace=fsync,fdatasync ./target/release/dayaniklilik olc-tum calisma 2>&1 | grep -E "fsync$|^her|^sonda"'
+k ./target/release/dayaniklilik olc-tum calisma
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -3398,16 +4350,25 @@ k cat calisma/ayar.json
 ```text
 $ cargo build -q --release
 $ ./target/release/dayaniklilik olc calisma
-her kayıtta fsync : 200 kayıt   163.71 ms (0.819 ms/kayıt)
-sonda tek fsync   : 200 kayıt     2.62 ms (0.013 ms/kayıt)
+her kayıtta fsync : 200 kayıt   170.81 ms (0.854 ms/kayıt)
+sonda tek fsync   : 200 kayıt     2.90 ms (0.015 ms/kayıt)
+$ strace -c -e trace=fsync,fdatasync ./target/release/dayaniklilik olc calisma 2>&1 | grep -E "fdatasync$|^her|^sonda"
+her kayıtta fsync : 200 kayıt   179.44 ms (0.897 ms/kayıt)
+sonda tek fsync   : 200 kayıt    12.04 ms (0.060 ms/kayıt)
+100.00    0.023037         114       202           fdatasync
 $ ./target/release/dayaniklilik olc /tmp
-her kayıtta fsync : 200 kayıt     1.69 ms (0.008 ms/kayıt)
-sonda tek fsync   : 200 kayıt     1.60 ms (0.008 ms/kayıt)
+her kayıtta fsync : 200 kayıt     1.89 ms (0.009 ms/kayıt)
+sonda tek fsync   : 200 kayıt     1.69 ms (0.008 ms/kayıt)
 $ grep " / " /proc/mounts | grep -oE "^overlay|fsync=[a-z]+"
 overlay
 fsync=volatile
 $ grep " /work " /proc/mounts | cut -d" " -f1-3
 /dev/mapper/root /work btrfs
+$ cat /proc/sys/vm/dirty_expire_centisecs
+3000
+$ echo "{\"surum\": 1}" > calisma/ayar.json && cat calisma/ayar.json && stat -c "inode %i" calisma/ayar.json
+{"surum": 1}
+inode 80371611
 $ strace -e trace=openat,write,fsync,fdatasync,rename,renameat2 ./target/release/dayaniklilik atomik calisma 2>&1 | grep -v "/lib\|/etc\|/proc\|/sys"
 openat(AT_FDCWD, "calisma/ayar.json.gecici", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
 write(3, "{\"surum\": 2}\n", 13)        = 13
@@ -3416,8 +4377,16 @@ rename("calisma/ayar.json.gecici", "calisma/ayar.json") = 0
 openat(AT_FDCWD, "calisma", O_RDONLY|O_CLOEXEC) = 4
 fsync(4)                                = 0
 +++ exited with 0 +++
-$ cat calisma/ayar.json
+$ cat calisma/ayar.json && stat -c "inode %i" calisma/ayar.json
 {"surum": 2}
+inode 80371612
+$ strace -c -e trace=fsync,fdatasync ./target/release/dayaniklilik olc-tum calisma 2>&1 | grep -E "fsync$|^her|^sonda"
+her kayıtta fsync : 200 kayıt   190.01 ms (0.950 ms/kayıt)
+sonda tek fsync   : 200 kayıt    14.59 ms (0.073 ms/kayıt)
+100.00    0.023794         117       202           fsync
+$ ./target/release/dayaniklilik olc-tum calisma
+her kayıtta fsync : 200 kayıt   164.38 ms (0.822 ms/kayıt)
+sonda tek fsync   : 200 kayıt     3.00 ms (0.015 ms/kayıt)
 ```
 
 ## 076-borular-ve-sinyaller
@@ -3426,15 +4395,21 @@ $ cat calisma/ayar.json
 - Örnek yolu: `deneyler/mufredat-ornekleri/076-borular-ve-sinyaller/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:25Z
-- Değişken çıktı: iş parçacığı kimliği
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: iş parçacığı kimliği; sa_restorer adresi
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q
 k ./target/debug/borular
-# Okuyan taraf boruyu erken kapatırsa: Rust SIGPIPE'ı yok sayar, yazma EPIPE hatası döner, println! paniğe dönüşür
+# Rust çalışma zamanı, main'den önce SIGPIPE'ı "yok say" olarak ayarlar
+ks 'strace -e trace=rt_sigaction ./target/debug/borular kapasite 2>&1 | grep SIGPIPE'
+# Boru tamponunun kapasitesi ve okuma ucu kapanınca yazma
+k ./target/debug/borular kapasite
+# Okuyan taraf boruyu erken kapatırsa: yazma EPIPE hatası döner, println! paniğe dönüşür
 ks './target/debug/borular cok-yaz | head -n 2'
+# Kendin dene: hatayı yakalayıp sessizce bitirmek
+ks './target/debug/borular dikkatli-yaz | head -n 2; echo "yazanın çıkış kodu: ${PIPESTATUS[0]}"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -3448,13 +4423,23 @@ kiraz
 zeytin
 SIGTERM sonrası: signal: 15 (SIGTERM)
 kill() sonrası  : signal: 9 (SIGKILL)
+$ strace -e trace=rt_sigaction ./target/debug/borular kapasite 2>&1 | grep SIGPIPE
+rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN, sa_mask=[PIPE], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f033e073d70}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+$ ./target/debug/borular kapasite
+kimse okumazken yazılan: 8192 bayt (yazan şimdi bekliyor)
+4096 bayt okununca     : 12288 bayt
+okuma ucu kapanınca yazma: Broken pipe (os error 32) (BrokenPipe)
 $ ./target/debug/borular cok-yaz | head -n 2
 satır 0
 satır 1
 
-thread 'main' (12192) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/io/stdio.rs:1209:9:
+thread 'main' (16422) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/io/stdio.rs:1209:9:
 failed printing to stdout: Broken pipe (os error 32)
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+$ ./target/debug/borular dikkatli-yaz | head -n 2; echo "yazanın çıkış kodu: ${PIPESTATUS[0]}"
+satır 0
+satır 1
+yazanın çıkış kodu: 0
 ```
 
 ## 077-ag-katmanlari-ve-soketler
@@ -3463,15 +4448,21 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 - Örnek yolu: `deneyler/mufredat-ornekleri/077-ag-katmanlari-ve-soketler/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:25Z
-- Değişken çıktı: port numaraları ve dosya tanımlayıcı numaraları
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: port numaraları (onaltılık /proc/net/tcp satırlarında da), dosya tanımlayıcı numaraları, milisaniyeler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q
 k ./target/debug/soketler
+# Çekirdeğin istemci tarafına geçici port seçtiği aralık
+k cat /proc/sys/net/ipv4/ip_local_port_range
+# accept çağrılmadan önce (120. ms) çekirdeğin TCP tablosu: 0A = LISTEN, 01 = ESTABLISHED; tx_queue:rx_queue onaltılık bayt sayısı
+ks './target/debug/soketler > /dev/null & sleep 0.12; awk "NR==1 || \$4==\"01\" || \$4==\"0A\"" /proc/net/tcp | cut -c1-60; wait'
 # Aynı programın ağ sistem çağrıları
-ks 'strace -f -e trace=socket,bind,listen,accept4,connect,write,sendto,recvfrom,read,shutdown,close ./target/debug/soketler 2>&1 | grep -E "socket\(|bind\(|listen\(|accept4\(|connect\(|sendto\(|recvfrom\(" '
+ks 'strace -f -e trace=socket,bind,listen,accept4,connect,sendto,recvfrom ./target/debug/soketler 2>&1 | grep -E "socket\(|bind\(|listen\(|accept4\(|connect\(|sendto\(|recvfrom\([0-9]+, \""'
+# Kendin dene: accept 3 saniye geciktirilince
+k ./target/debug/soketler 3000
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -3479,22 +4470,37 @@ ks 'strace -f -e trace=socket,bind,listen,accept4,connect,write,sendto,recvfrom,
 ```text
 $ cargo build -q
 $ ./target/debug/soketler
-sunucu dinliyor: 127.0.0.1:40917
-istemci: 127.0.0.1:38338 → 127.0.0.1:40917
-sunucu: 127.0.0.1:38338 bağlandı
-istemci aldı: "MERHABA AĞ"
-$ strace -f -e trace=socket,bind,listen,accept4,connect,write,sendto,recvfrom,read,shutdown,close ./target/debug/soketler 2>&1 | grep -E "socket\(|bind\(|listen\(|accept4\(|connect\(|sendto\(|recvfrom\(" 
+sunucu dinliyor: 127.0.0.1:40555
+[   0 ms] istemci bağlandı: 127.0.0.1:56676 → 127.0.0.1:40555
+[   0 ms] istemci veriyi gönderdi
+[ 300 ms] sunucu accept çağırıyor
+sunucu: 127.0.0.1:56676 bağlandı
+[ 300 ms] istemci aldı: "MERHABA AĞ"
+$ cat /proc/sys/net/ipv4/ip_local_port_range
+32768	60999
+$ ./target/debug/soketler > /dev/null & sleep 0.12; awk "NR==1 || \$4==\"01\" || \$4==\"0A\"" /proc/net/tcp | cut -c1-60; wait
+  sl  local_address rem_address   st tx_queue rx_queue tr tm
+   0: 0100007F:88D3 00000000:0000 0A 00000000:00000001 00:00
+   2: 0100007F:90B8 0100007F:88D3 01 00000000:00000000 00:00
+   3: 0100007F:88D3 0100007F:90B8 01 00000000:0000000B 00:00
+$ strace -f -e trace=socket,bind,listen,accept4,connect,sendto,recvfrom ./target/debug/soketler 2>&1 | grep -E "socket\(|bind\(|listen\(|accept4\(|connect\(|sendto\(|recvfrom\([0-9]+, \""
 socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_IP) = 3
 bind(3, {sa_family=AF_INET, sin_port=htons(0), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
 listen(3, 128)                          = 0
-[pid 12311] socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_IP) = 4
-[pid 12311] connect(4, {sa_family=AF_INET, sin_port=htons(38593), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
-[pid 12311] sendto(4, "merhaba a\304\237", 11, MSG_NOSIGNAL, NULL, 0) = 11
-[pid 12311] recvfrom(4,  <unfinished ...>
-[pid 12312] accept4(3, {sa_family=AF_INET, sin_port=htons(33160), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC) = 5
-[pid 12312] recvfrom(5, "merhaba a\304\237", 64, 0, NULL, NULL) = 11
-[pid 12312] sendto(5, "MERHABA A\304\236", 11, MSG_NOSIGNAL, NULL, 0 <unfinished ...>
-[pid 12311] recvfrom(4,  <unfinished ...>
+[pid 16555] socket(AF_INET, SOCK_STREAM|SOCK_CLOEXEC, IPPROTO_IP) = 4
+[pid 16555] connect(4, {sa_family=AF_INET, sin_port=htons(38035), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
+[pid 16555] sendto(4, "merhaba a\304\237", 11, MSG_NOSIGNAL, NULL, 0) = 11
+[pid 16556] accept4(3, {sa_family=AF_INET, sin_port=htons(33898), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC) = 5
+[pid 16556] recvfrom(5, "merhaba a\304\237", 64, 0, NULL, NULL) = 11
+[pid 16556] sendto(5, "MERHABA A\304\236", 11, MSG_NOSIGNAL, NULL, 0 <unfinished ...>
+[pid 16555] recvfrom(4, "", 32, 0, NULL, NULL) = 0
+$ ./target/debug/soketler 3000
+sunucu dinliyor: 127.0.0.1:42715
+[   0 ms] istemci bağlandı: 127.0.0.1:55132 → 127.0.0.1:42715
+[   0 ms] istemci veriyi gönderdi
+[3000 ms] sunucu accept çağırıyor
+sunucu: 127.0.0.1:55132 bağlandı
+[3000 ms] istemci aldı: "MERHABA AĞ"
 ```
 
 ## 078-tcp-akis-dogasi
@@ -3503,12 +4509,16 @@ listen(3, 128)                          = 0
 - Örnek yolu: `deneyler/mufredat-ornekleri/078-tcp-akis-dogasi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:26Z
-- Değişken çıktı: süreler
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süreler; dosya tanımlayıcı numaraları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q --release
+# set_nodelay hangi sistem çağrısına dönüşüyor?
+ks 'strace -f -e trace=setsockopt ./target/release/tcp_akis 2>&1 | grep TCP_NODELAY'
+# Kendin dene: NODELAY'i istemci yerine sunucuda açmak
+k ./target/release/tcp_akis sunucu-nodelay
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -3516,8 +4526,21 @@ k cargo run -q --release
 ```text
 $ cargo run -q --release
 sunucu tek read ile 13 bayt aldı: "bir|iki|üç|"
-TCP_NODELAY = false: 20 istek   781.6 ms (istek başına 39.08 ms)
-TCP_NODELAY = true : 20 istek     0.4 ms (istek başına 0.02 ms)
+iki küçük yazma, TCP_NODELAY = false    : 20 istek  780.9 ms (istek başına 39.04 ms)
+iki küçük yazma, TCP_NODELAY = true     : 20 istek    0.4 ms (istek başına 0.02 ms)
+tek yazma,       TCP_NODELAY = false    : 20 istek    0.3 ms (istek başına 0.01 ms)
+$ strace -f -e trace=setsockopt ./target/release/tcp_akis 2>&1 | grep TCP_NODELAY
+[pid 16623] setsockopt(5, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+[pid 16625] setsockopt(6, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+iki küçük yazma, TCP_NODELAY = false    : 20 istek  781.1 ms (istek başına 39.06 ms)
+[pid 16623] setsockopt(5, SOL_TCP, TCP_NODELAY, [1], 4) = 0
+[pid 16626] setsockopt(6, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+iki küçük yazma, TCP_NODELAY = true     : 20 istek    1.4 ms (istek başına 0.07 ms)
+[pid 16623] setsockopt(5, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+[pid 16627] setsockopt(6, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+tek yazma,       TCP_NODELAY = false    : 20 istek    0.9 ms (istek başına 0.04 ms)
+$ ./target/release/tcp_akis sunucu-nodelay
+iki küçük yazma, yalnız sunucuda NODELAY: 20 istek  781.9 ms (istek başına 39.09 ms)
 ```
 
 ## 079-udp-ve-dns
@@ -3526,26 +4549,51 @@ TCP_NODELAY = true : 20 istek     0.4 ms (istek başına 0.02 ms)
 - Örnek yolu: `deneyler/mufredat-ornekleri/079-udp-ve-dns/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:26Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: kaynak port numaraları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q
+k cargo build -q
+k ./target/debug/udp_dns
+# Ad çözümleme: kaynağı /etc/hosts; hangi sırayla bakılacağını /etc/nsswitch.conf söyler
+k ./target/debug/udp_dns coz
+ks 'grep -E "^hosts:" /etc/nsswitch.conf'
 ks 'grep -v "^#" /etc/hosts | grep localhost'
+# Çözümleme sırasında açılan dosyalar
+ks 'strace -e trace=openat ./target/debug/udp_dns coz 2>&1 | grep -E "nsswitch|hosts|resolv"'
+# Kendin dene: /etc/hosts'a yeni bir ad eklemek (yalnız bu geçici konteynerde); ağ çağrılarına da bakalım (53 numaralı porta gidilmemeli)
+ks 'echo "127.0.0.1 laboratuvar.test" >> /etc/hosts && strace -e trace=openat,connect,sendto ./target/debug/udp_dns coz laboratuvar.test 2>&1 | grep -E "nsswitch|hosts|resolv|connect|sendto|laboratuvar"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo run -q
-3 bayt datagram (127.0.0.1:46781 kaynaklı): "bir"
-3 bayt datagram (127.0.0.1:46781 kaynaklı): "iki"
-4 bayt datagram (127.0.0.1:46781 kaynaklı): "üç"
+$ cargo build -q
+$ ./target/debug/udp_dns
+3 bayt datagram (127.0.0.1:49181 kaynaklı): "bir"
+3 bayt datagram (127.0.0.1:49181 kaynaklı): "iki"
+4 bayt datagram (127.0.0.1:49181 kaynaklı): "üç"
+dinleyeni olmayan 127.0.0.1:45336 portuna send: Ok(13)
+sonraki recv: Connection refused (os error 111) (ConnectionRefused)
+$ ./target/debug/udp_dns coz
 localhost:80 → [[::1]:80, 127.0.0.1:80]
+$ grep -E "^hosts:" /etc/nsswitch.conf
+hosts:          files dns
 $ grep -v "^#" /etc/hosts | grep localhost
 127.0.0.1	localhost
 ::1	localhost
+$ strace -e trace=openat ./target/debug/udp_dns coz 2>&1 | grep -E "nsswitch|hosts|resolv"
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/hosts", O_RDONLY|O_CLOEXEC) = 3
+$ echo "127.0.0.1 laboratuvar.test" >> /etc/hosts && strace -e trace=openat,connect,sendto ./target/debug/udp_dns coz laboratuvar.test 2>&1 | grep -E "nsswitch|hosts|resolv|connect|sendto|laboratuvar"
+connect(3, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+connect(3, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/hosts", O_RDONLY|O_CLOEXEC) = 3
+laboratuvar.test:80 → [127.0.0.1:80]
 ```
 
 ## 080-http-elle
@@ -3554,27 +4602,32 @@ $ grep -v "^#" /etc/hosts | grep localhost
 - Örnek yolu: `deneyler/mufredat-ornekleri/080-http-elle/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:27Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q
 ./target/debug/http_elle 2 2> calisma_sunucu.log &
 sleep 0.5
-# 1) Elle yazılmış ham istek (bash'in /dev/tcp yönlendirmesiyle)
-ks 'exec 3<>/dev/tcp/127.0.0.1/8099; printf "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" >&3; cat <&3 | od -c | head -n 12'
+# 1) Elle yazılmış ham istek; yanıtın baytları od -c ile (\r ve \n görünür)
+ks './target/debug/http_elle istemci | od -c | head -n 12'
 # 2) curl ile: > giden, < gelen satırlar
 ks 'curl -sv http://127.0.0.1:8099/ 2>&1 | grep -E "^[<>] |^Merhaba"'
 wait
 k cat calisma_sunucu.log
 rm -f calisma_sunucu.log
+# Kendin dene: Content-Length 15 yerine 10
+./target/debug/http_elle 1 10 2> /dev/null &
+sleep 0.5
+ks 'curl -s http://127.0.0.1:8099/; echo " ← curl çıktısının sonu"'
+wait
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo build -q
-$ exec 3<>/dev/tcp/127.0.0.1/8099; printf "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" >&3; cat <&3 | od -c | head -n 12
+$ ./target/debug/http_elle istemci | od -c | head -n 12
 0000000   H   T   T   P   /   1   .   1       2   0   0       O   K  \r
 0000020  \n   C   o   n   t   e   n   t   -   T   y   p   e   :       t
 0000040   e   x   t   /   p   l   a   i   n   ;       c   h   a   r   s
@@ -3599,6 +4652,8 @@ Merhaba, HTTP!
 $ cat calisma_sunucu.log
 [sunucu] istek: GET / HTTP/1.1
 [sunucu] istek: GET / HTTP/1.1
+$ curl -s http://127.0.0.1:8099/; echo " ← curl çıktısının sonu"
+Merhaba, H ← curl çıktısının sonu
 ```
 
 ## 081-protokol-tasarimi
@@ -3607,22 +4662,33 @@ $ cat calisma_sunucu.log
 - Örnek yolu: `deneyler/mufredat-ornekleri/081-protokol-tasarimi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:28Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q
+k cargo build -q
+k ./target/debug/cerceve
+# Kendin dene: uzunluk alanı little-endian yazılır, big-endian okunur
+k ./target/debug/cerceve kendin-dene
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo run -q
+$ cargo build -q
+$ ./target/debug/cerceve
 tel üzerindeki baytlar: [00, 00, 00, 07, 6d, 65, 72, 68, 61, 62, 61]
 saf sunucu tek read'de 48 bayt aldı (3 mesaj yapışık geldi)
 çerçeveli sunucu mesaj aldı: "GET anahtar"
 çerçeveli sunucu mesaj aldı: "SET anahtar 42"
 çerçeveli sunucu mesaj aldı: "DEL anahtar"
+saf sunucu tek read'de 7 bayt aldı (mesajın yalnız başı)
+çerçeveli sunucu kalanı bekledi, mesajı tam aldı: "GET anahtar"
+dev uzunluklu çerçeve: "çerçeve çok büyük: 4294967295 bayt"
+$ ./target/debug/cerceve kendin-dene
+tel üzerindeki baytlar: [07, 00, 00, 00, 6d, 65, 72, 68, 61, 62, 61]
+big-endian okuyan alıcının gördüğü uzunluk: 117440512
+çerçeve okuma: "çerçeve çok büyük: 117440512 bayt"
 ```
 
 ## 082-serilestirme
@@ -3632,22 +4698,32 @@ saf sunucu tek read'de 48 bayt aldı (3 mesaj yapışık geldi)
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `itoa 1.0.19`, `memchr 2.8.3`, `proc-macro2 1.0.107`, `quote 1.0.47`, `serde 1.0.229`, `serde_core 1.0.229`, `serde_derive 1.0.229`, `serde_json 1.0.154`, `syn 3.0.10`, `unicode-ident 1.0.27`, `zmij 1.0.23`
-- Son çalıştırma (UTC): 2026-11-20T16:04:30Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q
+k cargo build -q
+k ./target/debug/serilestirme
+# Kendin dene: varsayılansız yeni alan, Option'lı yeni alan, alanları ters sırayla çözmek
+k ./target/debug/serilestirme kendin-dene
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo run -q
+$ cargo build -q
+$ ./target/debug/serilestirme
 JSON  (59 bayt): {"sensor":7,"sicaklik":21.5,"zaman":1763640000,"birim":"C"}
 ikili (16 bayt): [07, 00, 00, 00, ac, 41, c0, 02, 1f, 69, 00, 00, 00, 00, 01, 43]
 JSON'dan geri okundu, aynı mı: true
+ikiliden geri okundu, aynı mı: true
 eski kayıt okundu: Olcum { sensor: 3, sicaklik: 19.0, zaman: 1700000000, birim: "" }
 "invalid type: string \"yedi\", expected u16 at line 1 column 16"
+ilk 10 baytı gelen ikili kayıt: Err("zaman için 8 bayt gerekli, 4 bayt kaldı")
+$ ./target/debug/serilestirme kendin-dene
+varsayılansız yeni alan: "missing field `konum` at line 1 column 47"
+Option'lı yeni alan    : OlcumKonumSecimli { sensor: 3, sicaklik: 19.0, zaman: 1700000000, konum: None }
+ters sırayla çözülen: sicaklik = 1e-44, sensor = 16812
 ```
 
 ## 083-neden-async
@@ -3657,17 +4733,23 @@ eski kayıt okundu: Olcum { sensor: 3, sicaklik: 19.0, zaman: 1700000000, birim:
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `bytes 1.12.2`, `cfg-if 1.0.5`, `errno 0.3.15`, `libc 0.2.191`, `lock_api 0.4.14`, `mio 1.2.5`, `parking_lot 0.12.5`, `parking_lot_core 0.9.12`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `redox_syscall 0.5.18`, `scopeguard 1.2.0`, `signal-hook-registry 1.4.8`, `smallvec 1.16.6`, `socket2 0.6.5`, `syn 3.0.10`, `tokio 1.54.1`, `tokio-macros 2.7.2`, `unicode-ident 1.0.27`, `wasi 0.11.1+wasi-snapshot-preview1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:04:39Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler ve bellek ölçümleri
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
+# Bu konteynerde açılabilecek en fazla süreç + iş parçacığı sayısı (cgroup sınırı)
 k cat /sys/fs/cgroup/pids.max
 k cargo build -q --release
 k ./target/release/neden_async is-parcacigi 1000
 k ./target/release/neden_async gorev 1000
 k ./target/release/neden_async gorev 100000
-# Bu konteynerde süreç/iş parçacığı sınırı var: 5000 iş parçacığı açılamaz
+# Sanal bellek nereden geliyor? C kütüphanesinin iş parçacığı başına bellek alanlarını (arena) teke indir: geriye yığınlar kalır
+ks 'MALLOC_ARENA_MAX=1 ./target/release/neden_async is-parcacigi 1000'
+# Kendin dene: iş parçacığı yığınını 64 KiB'a indir (arenalar teke indirilmiş olarak ve tek başına)
+ks 'MALLOC_ARENA_MAX=1 RUST_MIN_STACK=65536 ./target/release/neden_async is-parcacigi 1000'
+ks 'RUST_MIN_STACK=65536 ./target/release/neden_async is-parcacigi 1000'
+# Sınıra çarpmak: 5000 iş parçacığı açılamaz
 ks './target/release/neden_async is-parcacigi 5000 2>&1 | grep -E "panicked|failed|Resource" | head -n 3'
 ```
 
@@ -3678,16 +4760,25 @@ $ cat /sys/fs/cgroup/pids.max
 2048
 $ cargo build -q --release
 $ ./target/release/neden_async is-parcacigi 1000
-1000 iş parçacığı : başlatma   19.5 ms, RSS 12672 kB, sanal 8294860 kB
+1000 iş parçacığı : başlatma   19.9 ms, RSS 12716 kB, sanal 8294860 kB
     toplam süre 1.02 s
 $ ./target/release/neden_async gorev 1000
-1000 async görev   : başlatma    0.9 ms, RSS 3656 kB, sanal 816016 kB
+1000 async görev   : başlatma    0.9 ms, RSS 3588 kB, sanal 816016 kB
     toplam süre 1.00 s
 $ ./target/release/neden_async gorev 100000
-100000 async görev   : başlatma   32.9 ms, RSS 41504 kB, sanal 853892 kB
-    toplam süre 1.03 s
+100000 async görev   : başlatma   34.9 ms, RSS 41668 kB, sanal 853892 kB
+    toplam süre 1.04 s
+$ MALLOC_ARENA_MAX=1 ./target/release/neden_async is-parcacigi 1000
+1000 iş parçacığı : başlatma   21.4 ms, RSS 12112 kB, sanal 2069864 kB
+    toplam süre 1.02 s
+$ MALLOC_ARENA_MAX=1 RUST_MIN_STACK=65536 ./target/release/neden_async is-parcacigi 1000
+1000 iş parçacığı : başlatma   19.7 ms, RSS 12148 kB, sanal 85864 kB
+    toplam süre 1.02 s
+$ RUST_MIN_STACK=65536 ./target/release/neden_async is-parcacigi 1000
+1000 iş parçacığı : başlatma   19.9 ms, RSS 12540 kB, sanal 6310860 kB
+    toplam süre 1.02 s
 $ ./target/release/neden_async is-parcacigi 5000 2>&1 | grep -E "panicked|failed|Resource" | head -n 3
-thread 'main' (14541) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/thread/functions.rs:131:29:
+thread 'main' (21862) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/thread/functions.rs:131:29:
 failed to spawn thread: Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }
 ```
 
@@ -3698,38 +4789,51 @@ failed to spawn thread: Os { code: 11, kind: WouldBlock, message: "Resource temp
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `bytes 1.12.2`, `cfg-if 1.0.5`, `errno 0.3.15`, `libc 0.2.191`, `lock_api 0.4.14`, `mio 1.2.5`, `parking_lot 0.12.5`, `parking_lot_core 0.9.12`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `redox_syscall 0.5.18`, `scopeguard 1.2.0`, `signal-hook-registry 1.4.8`, `smallvec 1.16.6`, `socket2 0.6.5`, `syn 3.0.10`, `tokio 1.54.1`, `tokio-macros 2.7.2`, `unicode-ident 1.0.27`, `wasi 0.11.1+wasi-snapshot-preview1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:04:44Z
-- Değişken çıktı: dosya tanımlayıcı numaraları
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: dosya tanımlayıcı numaraları, port numaraları, data= alanındaki adresler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q
+# std ile engellemeyen soket (ve aynı çağrının çekirdekten dönen makbuzu)
+k ./target/debug/olay_dongusu std
+ks 'strace -e trace=accept4 ./target/debug/olay_dongusu std 2>&1 | grep accept4'
 k ./target/debug/olay_dongusu
-# Olay döngüsünün çekirdekle konuşması: epoll
-ks 'strace -f -e trace=epoll_create1,epoll_ctl,epoll_wait,epoll_pwait,epoll_pwait2,accept4,connect ./target/debug/olay_dongusu 2>&1 | grep -v "^yankı"'
+# Olay döngüsünün çekirdekle konuşması: epoll (fcntl satırı: epoll tanımlayıcısının kopyası)
+ks 'strace -f -e trace=epoll_create1,epoll_ctl,epoll_wait,epoll_pwait,epoll_pwait2,accept4,connect,fcntl ./target/debug/olay_dongusu 2>&1 | grep -v "^yankı" | grep -vE "fcntl\([0-9]+, F_(GETFL|SETFL|GETFD|SETFD)"'
+# Kendin dene: aynı accept engelleyen sokette (bağlantı gelmediği için bekler; 2 saniye sonra timeout)
+k timeout 2 ./target/debug/olay_dongusu std-engelleyen
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo build -q
+$ ./target/debug/olay_dongusu std
+engellemeyen accept: Resource temporarily unavailable (os error 11) (WouldBlock)
+$ strace -e trace=accept4 ./target/debug/olay_dongusu std 2>&1 | grep accept4
+accept4(3, 0x7ffce217fd08, [128], SOCK_CLOEXEC) = -1 EAGAIN (Resource temporarily unavailable)
 $ ./target/debug/olay_dongusu
 yankı: yanki
-$ strace -f -e trace=epoll_create1,epoll_ctl,epoll_wait,epoll_pwait,epoll_pwait2,accept4,connect ./target/debug/olay_dongusu 2>&1 | grep -v "^yankı"
+$ strace -f -e trace=epoll_create1,epoll_ctl,epoll_wait,epoll_pwait,epoll_pwait2,accept4,connect,fcntl ./target/debug/olay_dongusu 2>&1 | grep -v "^yankı" | grep -vE "fcntl\([0-9]+, F_(GETFL|SETFL|GETFD|SETFD)"
 epoll_create1(EPOLL_CLOEXEC)            = 3
 epoll_ctl(3, EPOLL_CTL_ADD, 4, {events=EPOLLIN|EPOLLRDHUP|EPOLLET, data=0}) = 0
+fcntl(3, F_DUPFD_CLOEXEC, 3)            = 5
+fcntl(6, F_DUPFD_CLOEXEC, 3)            = 8
 epoll_ctl(5, EPOLL_CTL_ADD, 8, {events=EPOLLIN|EPOLLRDHUP|EPOLLET, data=0x1}) = 0
-epoll_ctl(5, EPOLL_CTL_ADD, 9, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x560fd2859380}) = 0
-connect(10, {sa_family=AF_INET, sin_port=htons(37981), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
-epoll_ctl(5, EPOLL_CTL_ADD, 10, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x560fd2859780}) = 0
-epoll_wait(3, [{events=EPOLLIN, data=0x560fd2859380}, {events=EPOLLOUT, data=0x560fd2859780}], 1024, -1) = 2
-accept4(9, {sa_family=AF_INET, sin_port=htons(60602), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC|SOCK_NONBLOCK) = 11
-epoll_ctl(5, EPOLL_CTL_ADD, 11, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x560fd2859900}) = 0
+epoll_ctl(5, EPOLL_CTL_ADD, 9, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x556b82b0e380}) = 0
+connect(10, {sa_family=AF_INET, sin_port=htons(43115), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
+epoll_ctl(5, EPOLL_CTL_ADD, 10, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x556b82b0e780}) = 0
+epoll_wait(3, [{events=EPOLLIN, data=0x556b82b0e380}, {events=EPOLLOUT, data=0x556b82b0e780}], 1024, -1) = 2
+accept4(9, {sa_family=AF_INET, sin_port=htons(55874), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC|SOCK_NONBLOCK) = 11
+epoll_ctl(5, EPOLL_CTL_ADD, 11, {events=EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET, data=0x556b82b0e900}) = 0
 epoll_ctl(5, EPOLL_CTL_DEL, 11, NULL)   = 0
 epoll_ctl(5, EPOLL_CTL_DEL, 9, NULL)    = 0
-epoll_wait(3, [{events=EPOLLIN|EPOLLOUT|EPOLLRDHUP, data=0x560fd2859780}], 1024, -1) = 1
+epoll_wait(3, [{events=EPOLLIN|EPOLLOUT|EPOLLRDHUP, data=0x556b82b0e780}], 1024, -1) = 1
 epoll_ctl(5, EPOLL_CTL_DEL, 10, NULL)   = 0
 +++ exited with 0 +++
+$ timeout 2 ./target/debug/olay_dongusu std-engelleyen
+[çıkış kodu: 124]
 ```
 
 ## 085-future-durum-makinesi
@@ -3737,18 +4841,26 @@ epoll_ctl(5, EPOLL_CTL_DEL, 10, NULL)   = 0
 - Video: `085-future-durum-makinesi`
 - Örnek yolu: `deneyler/mufredat-ornekleri/085-future-durum-makinesi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:44Z
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q
+k cargo build -q
+k ./target/debug/durum_makinesi
+# Derleyicinin ürettiği durum makinesi: varyantlar ve her varyantta saklanan yerel değişkenler (nightly 1.102.0 -Zprint-type-sizes; artımlı derleme kapalı ki tablo her seferinde yazılsın)
+ks 'touch src/main.rs && CARGO_INCREMENTAL=0 cargo +nightly rustc -q -- -Zprint-type-sizes > target/tip-boyutlari.txt 2>&1; grep -A7 "async fn body of tampon_await_boyunca()}" target/tip-boyutlari.txt'
+ks 'grep -A8 "async fn body of tampon_await_oncesi()}" target/tip-boyutlari.txt'
+# Kendin dene: ikinci bir await (yeni varyant Suspend1) ve 64 baytlık tampon
+k ./target/debug/durum_makinesi kendin-dene
+ks 'grep -A13 "async fn body of tampon_iki_await()}" target/tip-boyutlari.txt'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo run -q
+$ cargo build -q
+$ ./target/debug/durum_makinesi
 size_of_val(bos())                  = 1 bayt
 size_of_val(tampon_await_boyunca()) = 4098 bayt
 size_of_val(tampon_await_oncesi())  = 16 bayt
@@ -3759,6 +4871,43 @@ poll 1 → Pending
 poll 2 → Pending
 poll 3 → Pending
 poll 4 → Ready("bitti")
+$ touch src/main.rs && CARGO_INCREMENTAL=0 cargo +nightly rustc -q -- -Zprint-type-sizes > target/tip-boyutlari.txt 2>&1; grep -A7 "async fn body of tampon_await_boyunca()}" target/tip-boyutlari.txt
+print-type-size type: `{async fn body of tampon_await_boyunca()}`: 4098 bytes, alignment: 1 bytes
+print-type-size     discriminant: 1 bytes
+print-type-size     variant `Unresumed`: 0 bytes
+print-type-size     variant `Suspend0`: 4097 bytes
+print-type-size         local `.tampon`: 4096 bytes
+print-type-size         local `.__awaitee`: 1 bytes, type: {async fn body of bos()}
+print-type-size     variant `Returned`: 0 bytes
+print-type-size     variant `Panicked`: 0 bytes
+$ grep -A8 "async fn body of tampon_await_oncesi()}" target/tip-boyutlari.txt
+print-type-size type: `{async fn body of tampon_await_oncesi()}`: 16 bytes, alignment: 8 bytes
+print-type-size     discriminant: 1 bytes
+print-type-size     variant `Unresumed`: 0 bytes
+print-type-size     variant `Suspend0`: 9 bytes
+print-type-size         local `.n`: 8 bytes, offset: 0 bytes, alignment: 8 bytes
+print-type-size         local `.__awaitee`: 1 bytes, type: {async fn body of bos()}
+print-type-size     variant `Returned`: 0 bytes
+print-type-size     variant `Panicked`: 0 bytes
+print-type-size     end padding: 6 bytes
+$ ./target/debug/durum_makinesi kendin-dene
+size_of_val(tampon_iki_await())          = 24 bayt
+size_of_val(kucuk_tampon_await_boyunca()) = 66 bayt
+$ grep -A13 "async fn body of tampon_iki_await()}" target/tip-boyutlari.txt
+print-type-size type: `{async fn body of tampon_iki_await()}`: 24 bytes, alignment: 8 bytes
+print-type-size     discriminant: 1 bytes
+print-type-size     variant `Unresumed`: 0 bytes
+print-type-size     variant `Suspend0`: 16 bytes
+print-type-size         local `.n`: 8 bytes, offset: 0 bytes, alignment: 8 bytes
+print-type-size         padding: 8 bytes
+print-type-size         local `.__awaitee`: 1 bytes, alignment: 1 bytes, type: {async fn body of bos()}
+print-type-size     variant `Suspend1`: 16 bytes
+print-type-size         local `.n`: 8 bytes, offset: 0 bytes, alignment: 8 bytes
+print-type-size         padding: 8 bytes
+print-type-size         local `.__awaitee`: 1 bytes, alignment: 1 bytes, type: {async fn body of bos()}
+print-type-size     variant `Returned`: 0 bytes
+print-type-size     variant `Panicked`: 0 bytes
+print-type-size     end padding: 7 bytes
 ```
 
 ## 086-kendi-yurutucumuz
@@ -3767,23 +4916,39 @@ poll 4 → Ready("bitti")
 - Örnek yolu: `deneyler/mufredat-ornekleri/086-kendi-yurutucumuz/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:45Z
-- Değişken çıktı: milisaniye değerleri ±1-2 ms oynayabilir
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: milisaniye değerleri ±1-2 ms oynayabilir; işlemci süreleri ve meşgul sürümdeki yoklama sayısı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q
+k cargo build -q
+k ./target/debug/yurutucu
+# İşlemci ne kadar çalıştı? Uyuyan yürütücü ile hiç uyumadan yoklayan (meşgul) yürütücü
+ks '/usr/bin/time -f "uyuyan yürütücü: işlemci kullanıcı %U s, sistem %S s; geçen süre %e s" ./target/debug/yurutucu 2>&1 | tail -n 1'
+ks '/usr/bin/time -f "meşgul yürütücü: işlemci kullanıcı %U s, sistem %S s; geçen süre %e s" ./target/debug/yurutucu mesgul 2>&1 | tail -n 3'
+# Kendin dene: uyandırıcı unpark yapmazsa (2 saniye sonra timeout)
+k timeout 2 ./target/debug/yurutucu unpark-yok
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo run -q
+$ cargo build -q
+$ ./target/debug/yurutucu
 [görev] başladı          (  0 ms)
 [görev] 1. bekleme bitti (200 ms)
 [görev] 2. bekleme bitti (500 ms)
 [yürütücü] 3 yoklamada tamamlandı
 sonuç = 42
+$ /usr/bin/time -f "uyuyan yürütücü: işlemci kullanıcı %U s, sistem %S s; geçen süre %e s" ./target/debug/yurutucu 2>&1 | tail -n 1
+uyuyan yürütücü: işlemci kullanıcı 0.00 s, sistem 0.00 s; geçen süre 0.50 s
+$ /usr/bin/time -f "meşgul yürütücü: işlemci kullanıcı %U s, sistem %S s; geçen süre %e s" ./target/debug/yurutucu mesgul 2>&1 | tail -n 3
+[yürütücü] 9315507 yoklamada tamamlandı
+sonuç = 42
+meşgul yürütücü: işlemci kullanıcı 0.49 s, sistem 0.00 s; geçen süre 0.50 s
+$ timeout 2 ./target/debug/yurutucu unpark-yok
+[görev] başladı          (  0 ms)
+[çıkış kodu: 124]
 ```
 
 ## 087-pin-ve-kendine-referans
@@ -3791,13 +4956,19 @@ sonuç = 42
 - Video: `087-pin-ve-kendine-referans`
 - Örnek yolu: `deneyler/mufredat-ornekleri/087-pin-ve-kendine-referans/`
 - Kaynaklar: `sabitlenmis/Cargo.toml`, `sabitlenmis/src/main.rs`, `tasima-sorunu/Cargo.toml`, `tasima-sorunu/src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:04:45Z
-- Değişken çıktı: adresler (ASLR)
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: adresler (ASLR); miri'nin bellek bloğu numarası
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd tasima-sorunu && k cargo run -q; cd ..
+cd tasima-sorunu
+k cargo run -q
+# Eski yeri okumak: miri tanımsız davranışı yakalar
+ks 'cargo +nightly miri run -q -- oku 2>&1 | head -n 12'
+# Kendin dene: aynı program miri'de oku kipi olmadan (işaretçi yalnız yazdırılır, okunmaz)
+ks 'cargo +nightly miri run -q 2>&1 | head -n 6'
+cd ..
 cd sabitlenmis && k cargo build -q; cd ..
 ```
 
@@ -3805,8 +4976,28 @@ cd sabitlenmis && k cargo build -q; cd ..
 
 ```text
 $ cargo run -q
-a.veri @ 0x7ffeed0fbb08   a.isaretci = 0x7ffeed0fbb08
-b.veri @ 0x7ffeed0fbb68   b.isaretci = 0x7ffeed0fbb08  ← hâlâ eski yeri gösteriyor
+a.veri @ 0x7ffcefd44c00   a.isaretci = 0x7ffcefd44c00
+b.veri @ 0x7ffcefd44c60   b.isaretci = 0x7ffcefd44c00  ← hâlâ eski yeri gösteriyor
+sabitlenmiş değer @ 0x5613c0990d68, isaretci = 0x5613c0990d68
+kutu taşındıktan sonra @ 0x5613c0990d68, isaretci = 0x5613c0990d68  ← aynı yer
+$ cargo +nightly miri run -q -- oku 2>&1 | head -n 12
+error: Undefined Behavior: memory access failed: alloc869 has been freed, so this pointer is dangling
+  --> src/main.rs:24:28
+   |
+24 |         let ilk = unsafe { *b.isaretci }; // eski (artık geçersiz) yeri okumak
+   |                            ^^^^^^^^^^^ Undefined Behavior occurred here
+   |
+   = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+   = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc869 was allocated here:
+  --> src/main.rs:10:9
+   |
+10 |     let mut k = KendineBakan { veri: *b"abcd", isaretci: std::ptr::null() };
+$ cargo +nightly miri run -q 2>&1 | head -n 6
+a.veri @ 0x237a0   a.isaretci = 0x237a0
+b.veri @ 0x2c8f8   b.isaretci = 0x237a0  ← hâlâ eski yeri gösteriyor
+sabitlenmiş değer @ 0x34608, isaretci = 0x34608
+kutu taşındıktan sonra @ 0x34608, isaretci = 0x34608  ← aynı yer
 $ cargo build -q
 error[E0277]: `PhantomPinned` cannot be unpinned
   --> src/main.rs:10:23
@@ -3827,8 +5018,21 @@ note: required because it appears within the type `Sabit`
 note: required by a bound in `Pin::<Ptr>::new`
   --> /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/core/src/pin.rs:1181:4
 
+error[E0277]: `{async block@src/main.rs:13:23: 13:28}` cannot be unpinned
+  --> src/main.rs:19:23
+   |
+19 |     let _q = Pin::new(&mut gelecek);
+   |              -------- ^^^^^^^^^^^^ the trait `Unpin` is not implemented for `{async block@src/main.rs:13:23: 13:28}`
+   |              |
+   |              required by a bound introduced by this call
+   |
+   = note: consider using the `pin!` macro
+           consider using `Box::pin` if you need to access the pinned value outside of the current scope
+note: required by a bound in `Pin::<Ptr>::new`
+  --> /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/core/src/pin.rs:1181:4
+
 For more information about this error, try `rustc --explain E0277`.
-error: could not compile `sabitlenmis` (bin "sabitlenmis") due to 1 previous error
+error: could not compile `sabitlenmis` (bin "sabitlenmis") due to 2 previous errors
 [çıkış kodu: 101]
 ```
 
@@ -3836,63 +5040,75 @@ error: could not compile `sabitlenmis` (bin "sabitlenmis") due to 1 previous err
 
 - Video: `088-tokio-ile-async`
 - Örnek yolu: `deneyler/mufredat-ornekleri/088-tokio-ile-async/`
-- Kaynaklar: `Cargo.toml`, `src/main.rs`
+- Kaynaklar: `Cargo.toml`, `sayac.sh`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `bytes 1.12.2`, `cfg-if 1.0.5`, `errno 0.3.15`, `libc 0.2.191`, `lock_api 0.4.14`, `mio 1.2.5`, `parking_lot 0.12.5`, `parking_lot_core 0.9.12`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `redox_syscall 0.5.18`, `scopeguard 1.2.0`, `signal-hook-registry 1.4.8`, `smallvec 1.16.6`, `socket2 0.6.5`, `syn 3.0.10`, `tokio 1.54.1`, `tokio-macros 2.7.2`, `unicode-ident 1.0.27`, `wasi 0.11.1+wasi-snapshot-preview1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:04:53Z
-- Değişken çıktı: süreler ve kovalara düşen istemci sayıları
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süreler, kovalara düşen istemci sayıları ve taşma sayaçları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo build -q --release
+k bash sayac.sh başta
 k ./target/release/tokio_sunucu 100
-# Dinleme kuyruğu taşma sayaçları (bu konteynerin ağ ad alanı) — önce
-ks "awk '/^TcpExt:/ { if (!h) { split(\$0, ad); h=1 } else { for (i=2;i<=NF;i++) if (ad[i] ~ /^Listen(Overflows|Drops)\$/) print ad[i], \$i } }' /proc/net/netstat"
 k ./target/release/tokio_sunucu 1000
-# ... ve sonra
-ks "awk '/^TcpExt:/ { if (!h) { split(\$0, ad); h=1 } else { for (i=2;i<=NF;i++) if (ad[i] ~ /^Listen(Overflows|Drops)\$/) print ad[i], \$i } }' /proc/net/netstat"
-# tokio'nun bind() ile kurduğu dinleme kuyruğu uzunluğu
+k bash sayac.sh "1000 istemciden sonra"
+# tokio'nun bind() ile kurduğu kuyruk uzunluğu ve çekirdeğin üst sınırı
 ks 'strace -f -e trace=listen ./target/release/tokio_sunucu 10 2>&1 | grep "listen("'
+k cat /proc/sys/net/core/somaxconn
+# Kuyruk doluyken çekirdek ret mi gönderir (1), adımı sessizce mi düşürür (0)?
+k cat /proc/sys/net/ipv4/tcp_abort_on_overflow
+# Kendin dene: kuyruğu 1024 yap
+k ./target/release/tokio_sunucu 1000 1024
+k bash sayac.sh "kuyruk 1024 ile sonra"
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo build -q --release
+$ bash sayac.sh başta
+başta: ListenOverflows 0
 $ ./target/release/tokio_sunucu 100
 çalışma zamanı işçi iş parçacığı: 12
-100 eşzamanlı istemci (her biri sunucuda 100 ms bekletildi): toplam 123 ms
-  istemci süreleri: <0,5 s: 100  ~1 s: 0  ~2 s: 0  ≥2,5 s: 0
+100 istemci, kuyruk 128 (bind varsayılanı): toplam 122 ms | süreler <0,5 s: 100  ~1 s: 0  ~2 s: 0  ≥2,5 s: 0
 zaman aşımı: yavaş iş iptal edildi
-$ awk '/^TcpExt:/ { if (!h) { split($0, ad); h=1 } else { for (i=2;i<=NF;i++) if (ad[i] ~ /^Listen(Overflows|Drops)$/) print ad[i], $i } }' /proc/net/netstat
-ListenOverflows 0
-ListenDrops 0
 $ ./target/release/tokio_sunucu 1000
 çalışma zamanı işçi iş parçacığı: 12
-1000 eşzamanlı istemci (her biri sunucuda 100 ms bekletildi): toplam 1815 ms
-  istemci süreleri: <0,5 s: 444  ~1 s: 380  ~2 s: 176  ≥2,5 s: 0
+1000 istemci, kuyruk 128 (bind varsayılanı): toplam 1356 ms | süreler <0,5 s: 371  ~1 s: 629  ~2 s: 0  ≥2,5 s: 0
 zaman aşımı: yavaş iş iptal edildi
-$ awk '/^TcpExt:/ { if (!h) { split($0, ad); h=1 } else { for (i=2;i<=NF;i++) if (ad[i] ~ /^Listen(Overflows|Drops)$/) print ad[i], $i } }' /proc/net/netstat
-ListenOverflows 1682
-ListenDrops 1682
+$ bash sayac.sh "1000 istemciden sonra"
+1000 istemciden sonra: ListenOverflows 1213
 $ strace -f -e trace=listen ./target/release/tokio_sunucu 10 2>&1 | grep "listen("
-[pid 17733] listen(9, 128)              = 0
+[pid 25258] listen(9, 128)              = 0
+$ cat /proc/sys/net/core/somaxconn
+4096
+$ cat /proc/sys/net/ipv4/tcp_abort_on_overflow
+0
+$ ./target/release/tokio_sunucu 1000 1024
+çalışma zamanı işçi iş parçacığı: 12
+1000 istemci, kuyruk 1024: toplam 155 ms | süreler <0,5 s: 1000  ~1 s: 0  ~2 s: 0  ≥2,5 s: 0
+zaman aşımı: yavaş iş iptal edildi
+$ bash sayac.sh "kuyruk 1024 ile sonra"
+kuyruk 1024 ile sonra: ListenOverflows 1213
 ```
 
 ## 089-async-tuzaklari
 
 - Video: `089-async-tuzaklari`
 - Örnek yolu: `deneyler/mufredat-ornekleri/089-async-tuzaklari/`
-- Kaynaklar: `bloklama/Cargo.toml`, `bloklama/src/main.rs`, `kilit-await/Cargo.toml`, `kilit-await/src/main.rs`
+- Kaynaklar: `bloklama/Cargo.toml`, `bloklama/src/main.rs`, `kilit-await/Cargo.toml`, `kilit-await/src/main.rs`, `kilit-await-duzeltilmis/Cargo.toml`, `kilit-await-duzeltilmis/src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `bytes 1.12.2`, `cfg-if 1.0.5`, `errno 0.3.15`, `libc 0.2.191`, `lock_api 0.4.14`, `mio 1.2.5`, `parking_lot 0.12.5`, `parking_lot_core 0.9.12`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `redox_syscall 0.5.18`, `scopeguard 1.2.0`, `signal-hook-registry 1.4.8`, `smallvec 1.16.6`, `socket2 0.6.5`, `syn 3.0.10`, `tokio 1.54.1`, `tokio-macros 2.7.2`, `unicode-ident 1.0.27`, `wasi 0.11.1+wasi-snapshot-preview1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:05:03Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: milisaniye değerleri
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 cd bloklama && k cargo run -q; cd ..
 cd kilit-await && k cargo build -q; cd ..
+# Kendin dene: kilidi await'ten önce bırakmak
+cd kilit-await-duzeltilmis && k cargo run -q; cd ..
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -3901,6 +5117,7 @@ cd kilit-await && k cargo build -q; cd ..
 $ cargo run -q
 std::thread::sleep ile iki görev : 1000 ms
 tokio::time::sleep ile iki görev :  501 ms
+spawn_blocking ile iki görev     :  500 ms
   [uzun iş] 1. adım yapıldı
   [uzun iş] future düşürüldü (iptal)
 zaman aşımı kazandı
@@ -3933,6 +5150,8 @@ note: required by a bound in `tokio::spawn`
 
 error: could not compile `kilit_await` (bin "kilit_await") due to 1 previous error
 [çıkış kodu: 101]
+$ cargo run -q
+sayaç = 1
 ```
 
 ## 090-unsafe-ne-demek
@@ -3941,16 +5160,21 @@ error: could not compile `kilit_await` (bin "kilit_await") due to 1 previous err
 - Örnek yolu: `deneyler/mufredat-ornekleri/090-unsafe-ne-demek/`
 - Kaynaklar: `ham-isaretci/Cargo.toml`, `ham-isaretci/src/main.rs`, `sozlesme/Cargo.toml`, `sozlesme/src/main.rs`, `surum-2024/Cargo.toml`, `surum-2024/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:04Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
+# Ham işaretçi oluşturmak güvenli; gösterdiği yere erişmek unsafe ister (E0133)
 cd ham-isaretci && k cargo build -q; cd ..
-# Hangi işlemler unsafe gerektirir? Derleyicinin hata açıklaması listeler
-ks 'rustc --explain E0133 | head -n 12'
+# Hangi işlemler unsafe gerektirir? Derleyicinin kendi açıklamasındaki örnekler
+ks 'rustc --explain E0133 | sed -n "/^Using unsafe/,/^\* Calling functions marked/p"'
 cd sozlesme && k cargo run -q; cd ..
 # 2024 sürümünün kuralları: no_mangle ve extern blokları da "unsafe" diye işaretlenmeli
 cd surum-2024 && k cargo build -q; cd ..
+# Kendin dene: aynı dosya 2021 baskısıyla derlenir; bu iki kural 2024 baskısıyla geldi
+ks 'rustc --edition 2021 -o /tmp/surum2021 surum-2024/src/main.rs && /tmp/surum2021'
+# Kendin dene: sozlesme'de *p'yi unsafe { *p } içine almak; 2024 uyarısı kaybolur
+ks 'rm -rf /tmp/sozlesme-kopya && mkdir /tmp/sozlesme-kopya && cp -r sozlesme/Cargo.toml sozlesme/Cargo.lock sozlesme/src /tmp/sozlesme-kopya/ && cd /tmp/sozlesme-kopya && sed -i "s/^    \*p \/\/.*/    unsafe { *p }/" src/main.rs && grep -n "unsafe { \*p }" src/main.rs && cargo run -q 2>&1'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -3960,7 +5184,7 @@ $ cargo build -q
 error[E0133]: dereference of raw pointer is unsafe and requires unsafe block
  --> src/main.rs:4:20
   |
-4 |     println!("{}", *p); // izlemek (dereference) değil
+4 |     println!("{}", *p); // içeriğine erişmek (dereference) ayrı iş
   |                    ^^ dereference of raw pointer
   |
   = note: raw pointers may be null, dangling or unaligned; they can violate aliasing rules and cause data races: all of these are undefined behavior
@@ -3968,24 +5192,18 @@ error[E0133]: dereference of raw pointer is unsafe and requires unsafe block
 For more information about this error, try `rustc --explain E0133`.
 error: could not compile `ham_isaretci` (bin "ham_isaretci") due to 1 previous error
 [çıkış kodu: 101]
-$ rustc --explain E0133 | head -n 12
-Unsafe code was used outside of an unsafe block.
+$ rustc --explain E0133 | sed -n "/^Using unsafe/,/^\* Calling functions marked/p"
+Using unsafe functionality is potentially dangerous and disallowed by safety
+checks. Examples:
 
-Erroneous code example:
-
-```
-unsafe fn f() { return; } // This is the unsafe code
-
-fn main() {
-    f(); // error: call to unsafe function requires unsafe function or block
-}
-```
-
+* Dereferencing raw pointers
+* Calling functions via FFI
+* Calling functions marked unsafe
 $ cargo run -q
 warning[E0133]: dereference of raw pointer is unsafe and requires unsafe block
  --> src/main.rs:4:5
   |
-4 |     *p // 2024 sürümünde: unsafe fn gövdesi de unsafe blok ister (uyarı)
+4 |     *p // 2024 baskısında: unsafe fn gövdesi de unsafe blok ister (uyarı)
   |     ^^ dereference of raw pointer
   |
   = note: raw pointers may be null, dangling or unaligned; they can violate aliasing rules and cause data races: all of these are undefined behavior
@@ -4025,6 +5243,11 @@ help: wrap the attribute in `unsafe(...)`
 
 error: could not compile `surum_2024` (bin "surum_2024") due to 2 previous errors
 [çıkış kodu: 101]
+$ rustc --edition 2021 -o /tmp/surum2021 surum-2024/src/main.rs && /tmp/surum2021
+4
+$ rm -rf /tmp/sozlesme-kopya && mkdir /tmp/sozlesme-kopya && cp -r sozlesme/Cargo.toml sozlesme/Cargo.lock sozlesme/src /tmp/sozlesme-kopya/ && cd /tmp/sozlesme-kopya && sed -i "s/^    \*p \/\/.*/    unsafe { *p }/" src/main.rs && grep -n "unsafe { \*p }" src/main.rs && cargo run -q 2>&1
+4:    unsafe { *p }
+7
 ```
 
 ## 091-tanimsiz-davranis-ve-miri
@@ -4033,19 +5256,31 @@ error: could not compile `surum_2024` (bin "surum_2024") due to 2 previous error
 - Örnek yolu: `deneyler/mufredat-ornekleri/091-tanimsiz-davranis-ve-miri/`
 - Kaynaklar: `Cargo.toml`, `src/bin/birak_sonra_kullan.rs`, `src/bin/gecersiz_bool.rs`, `src/bin/sinir_disi.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:05:04Z
-- Değişken çıktı: sınır dışı ve bırakılmış bellekten okunan değerler tanımsızdır, her derlemede/çalıştırmada değişebilir
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: sınır dışı ve bırakılmış bellekten okunan değerler tanımsızdır, her derlemede/çalıştırmada değişebilir; Miri'nin ayırma numaraları (alloc…)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 # Normal çalıştırma: "çalışıyor gibi" görünür
 k cargo run -q --bin sinir_disi
 k cargo run -q --release --bin birak_sonra_kullan
+# Aynı program, iki derleme, iki farklı sonuç: tanımsız davranışlı programın anlamı yoktur
+k cargo run -q --bin gecersiz_bool
 k cargo run -q --release --bin gecersiz_bool
-# miri: programı yorumlayarak her bellek erişimini denetler
+# İki ikilide de karşılaştırma komutu yok: hangi kolun çalışacağına derleme anında karar verilmiş
+ks 'objdump -d -M intel --no-show-raw-insn -C target/debug/gecersiz_bool | awk "/<gecersiz_bool::main>:/,/ret/"'
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/gecersiz_bool | awk "/<gecersiz_bool::main>:/,/jmp/"'
+# Seçilen metin: lea'nın gösterdiği adreste duran sabit (debug 9 bayt "yanlış\n", release 7 bayt "doğru\n")
+ks 'a=$(objdump -d -M intel --no-show-raw-insn -C target/debug/gecersiz_bool | awk "/<gecersiz_bool::main>:/,/ret/" | grep -oE "# [0-9a-f]+ <" | head -n 1 | grep -oE "[0-9a-f]+"); objdump -s -j .rodata --start-address=0x$a --stop-address=$((0x$a + 9)) target/debug/gecersiz_bool | tail -n 1'
+ks 'a=$(objdump -d -M intel --no-show-raw-insn -C target/release/gecersiz_bool | awk "/<gecersiz_bool::main>:/,/jmp/" | grep -oE "# [0-9a-f]+ <" | head -n 1 | grep -oE "[0-9a-f]+"); objdump -s -j .rodata --start-address=0x$a --stop-address=$((0x$a + 7)) target/release/gecersiz_bool | tail -n 1'
+# Miri: programı soyut makine üzerinde yorumlayarak her bellek erişimini denetler
 ks 'cargo +nightly miri run -q --bin sinir_disi 2>&1 | head -n 12'
 ks 'cargo +nightly miri run -q --bin birak_sonra_kullan 2>&1 | head -n 12'
 ks 'cargo +nightly miri run -q --bin gecersiz_bool 2>&1 | head -n 10'
+# Kendin dene 1: p.add(3) yerine p.add(2) (etiket de v[2]); tanımlı okuma, Miri sessiz (çıkış kodu 0)
+ks 'rm -rf /tmp/ub-kopya && mkdir /tmp/ub-kopya && cp -r Cargo.toml Cargo.lock src /tmp/ub-kopya/ && cd /tmp/ub-kopya && sed -i "s/p.add(3)/p.add(2)/; s/v\[3\] = /v[2] = /" src/bin/sinir_disi.rs && cargo run -q --bin sinir_disi && cargo +nightly miri run -q --bin sinir_disi && echo "Miri: tanımsız davranış yok"'
+# Kendin dene 2: transmute(2u8) yerine transmute(1u8); iki derleme aynı sonucu verir
+ks 'cd /tmp/ub-kopya && sed -i "s/transmute(2u8)/transmute(1u8)/" src/bin/gecersiz_bool.rs && cargo run -q --bin gecersiz_bool && cargo run -q --release --bin gecersiz_bool'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -4055,8 +5290,31 @@ $ cargo run -q --bin sinir_disi
 v[3] = 0
 $ cargo run -q --release --bin birak_sonra_kullan
 değer = 32767
+$ cargo run -q --bin gecersiz_bool
+yanlış
 $ cargo run -q --release --bin gecersiz_bool
 doğru
+$ objdump -d -M intel --no-show-raw-insn -C target/debug/gecersiz_bool | awk "/<gecersiz_bool::main>:/,/ret/"
+0000000000014c20 <gecersiz_bool::main>:
+   14c20:	push   rax
+   14c21:	mov    BYTE PTR [rsp+0x7],0x0
+   14c26:	lea    rdi,[rip+0xffffffffffff01d3]        # 4e00 <__rustc_debug_gdb_scripts_section__+0x28>
+   14c2d:	mov    esi,0x9
+   14c32:	call   14c70 <<core::fmt::Arguments>::from_str>
+   14c37:	mov    rdi,rax
+   14c3a:	mov    rsi,rdx
+   14c3d:	call   QWORD PTR [rip+0x3dd8d]        # 529d0 <_DYNAMIC+0x238>
+   14c43:	pop    rax
+   14c44:	ret
+$ objdump -d -M intel --no-show-raw-insn -C target/release/gecersiz_bool | awk "/<gecersiz_bool::main>:/,/jmp/"
+0000000000014b20 <gecersiz_bool::main>:
+   14b20:	lea    rdi,[rip+0xffffffffffff0299]        # 4dc0 <__abi_tag+0x4ac4>
+   14b27:	mov    esi,0xf
+   14b2c:	jmp    QWORD PTR [rip+0x3dce6]        # 52818 <_DYNAMIC+0x230>
+$ a=$(objdump -d -M intel --no-show-raw-insn -C target/debug/gecersiz_bool | awk "/<gecersiz_bool::main>:/,/ret/" | grep -oE "# [0-9a-f]+ <" | head -n 1 | grep -oE "[0-9a-f]+"); objdump -s -j .rodata --start-address=0x$a --stop-address=$((0x$a + 9)) target/debug/gecersiz_bool | tail -n 1
+ 4e00 79616e6c c4b1c59f 0a                 yanl.....       
+$ a=$(objdump -d -M intel --no-show-raw-insn -C target/release/gecersiz_bool | awk "/<gecersiz_bool::main>:/,/jmp/" | grep -oE "# [0-9a-f]+ <" | head -n 1 | grep -oE "[0-9a-f]+"); objdump -s -j .rodata --start-address=0x$a --stop-address=$((0x$a + 7)) target/release/gecersiz_bool | tail -n 1
+ 4dc0 646fc49f 72750a                      do..ru.         
 $ cargo +nightly miri run -q --bin sinir_disi 2>&1 | head -n 12
 error: Undefined Behavior: memory access failed: attempting to access 1 byte, but got alloc309+0x3 which is at or beyond the end of the allocation of size 3 bytes
  --> src/bin/sinir_disi.rs:4:27
@@ -4094,6 +5352,13 @@ error: Undefined Behavior: constructing invalid value of type bool: encountered 
   = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
 
 note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+$ rm -rf /tmp/ub-kopya && mkdir /tmp/ub-kopya && cp -r Cargo.toml Cargo.lock src /tmp/ub-kopya/ && cd /tmp/ub-kopya && sed -i "s/p.add(3)/p.add(2)/; s/v\[3\] = /v[2] = /" src/bin/sinir_disi.rs && cargo run -q --bin sinir_disi && cargo +nightly miri run -q --bin sinir_disi && echo "Miri: tanımsız davranış yok"
+v[2] = 30
+v[2] = 30
+Miri: tanımsız davranış yok
+$ cd /tmp/ub-kopya && sed -i "s/transmute(2u8)/transmute(1u8)/" src/bin/gecersiz_bool.rs && cargo run -q --bin gecersiz_bool && cargo run -q --release --bin gecersiz_bool
+doğru
+doğru
 ```
 
 ## 092-guvenli-soyutlama-yazmak
@@ -4102,15 +5367,22 @@ note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a
 - Örnek yolu: `deneyler/mufredat-ornekleri/092-guvenli-soyutlama-yazmak/`
 - Kaynaklar: `Cargo.toml`, `src/lib.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:05:06Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: Miri'nin etiket (<…>) ve ayırma (alloc…) numaraları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-# Normal testler: ikisi de "geçer" — hatalı sürümün tanımsız davranışı görünmez
+# Normal testler: ikisi de "geçer"; hatalı sürümün tanımsız davranışı görünmez
 k cargo test -q
-# miri altında: doğru sürüm temiz, hatalı sürüm yakalanır
+# Miri altında: doğru sürüm temiz
 ks 'cargo +nightly miri test -q dogru_surum 2>&1 | grep -E "test result|running"'
-ks 'cargo +nightly miri test -q hatali_surum 2>&1 | grep -E "Undefined Behavior|error:|-->" | head -n 6'
+# Hatalı sürüm, varsayılan ödünç modeli (Stacked Borrows): çakışan &mut daha oluşurken yakalanır
+ks 'cargo +nightly miri test -q hatali_surum 2>&1 | sed -n "/^error: Undefined Behavior/,/this is on thread/p"'
+# Kendin dene: Tree Borrows modeliyle aynı test; ihlal ilk çakışan yazmada yakalanır
+ks 'MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -q hatali_surum 2>&1 | sed -n "/^error: Undefined Behavior/,/this is on thread/p"'
+# Kendin dene: hatalı sürümün testinden iki yazmayı ve assert_eq! satırını silmek; yalnız dilimler oluşturuluyor
+ks 'rm -rf /tmp/bolme-kopya && mkdir /tmp/bolme-kopya && cp -r Cargo.toml Cargo.lock src /tmp/bolme-kopya/ && cd /tmp/bolme-kopya && sed -i "/a\[1\] = 20;/d; /b\[0\] = 99;/d; /assert_eq!(v\[1\], 99);/d" src/lib.rs && cargo +nightly miri test -q hatali_surum 2>&1 | grep -E "^error: Undefined Behavior|^test result"'
+ks 'cd /tmp/bolme-kopya && MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -q hatali_surum 2>&1 | grep -E "^error: Undefined Behavior|^test result"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -4130,13 +5402,58 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 $ cargo +nightly miri test -q dogru_surum 2>&1 | grep -E "test result|running"
 running 1 test
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.11s
-$ cargo +nightly miri test -q hatali_surum 2>&1 | grep -E "Undefined Behavior|error:|-->" | head -n 6
+$ cargo +nightly miri test -q hatali_surum 2>&1 | sed -n "/^error: Undefined Behavior/,/this is on thread/p"
 error: Undefined Behavior: trying to retag from <130716> for Unique permission at alloc40299[0x4], but that tag does not exist in the borrow stack for this location
   --> src/lib.rs:23:9
+   |
+23 | /         (
+24 | |             std::slice::from_raw_parts_mut(p, orta),
+25 | |             std::slice::from_raw_parts_mut(p.add(orta - 1), n - orta + 1),
+26 | |         )
+   | |         ^
+   | |         |
+   | |_________this error occurs as part of retag at alloc40299[0x0..0x8]
+   |           while retagging field .0
+   |
+   = help: this indicates a potential bug in the program: it performed an invalid operation, but the Stacked Borrows rules it violated are still experimental
+   = help: see https://github.com/rust-lang/unsafe-code-guidelines/blob/master/wip/stacked-borrows.md for further information
+help: <130716> was created by a Unique retag at offsets [0x0..0x8]
   --> src/lib.rs:24:13
+   |
+24 |             std::slice::from_raw_parts_mut(p, orta),
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: <130716> was later invalidated at offsets [0x4..0x14] by a Unique retag
   --> src/lib.rs:25:13
-error: aborting due to 1 previous error
-error: test failed, to rerun pass `--lib`
+   |
+25 |             std::slice::from_raw_parts_mut(p.add(orta - 1), n - orta + 1),
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this is on thread `testler::hatali`
+$ MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -q hatali_surum 2>&1 | sed -n "/^error: Undefined Behavior/,/this is on thread/p"
+error: Undefined Behavior: write access through <128158> at alloc40274[0x4] is forbidden
+  --> src/lib.rs:48:9
+   |
+48 |         b[0] = 99;
+   |         ^^^^^^^^^ Undefined Behavior occurred here
+   |
+   = help: this indicates a potential bug in the program: it performed an invalid operation, but the Tree Borrows rules it violated are still experimental
+   = help: see https://github.com/rust-lang/unsafe-code-guidelines/blob/master/wip/tree-borrows.md for further information
+   = help: the accessed tag <128158> has state Disabled which forbids this child write access
+help: the accessed tag <128158> was created here, in the initial state Reserved
+  --> src/lib.rs:46:17
+   |
+46 |         let (a, b) = ikiye_bol_hatali(&mut v, 2);
+   |                 ^
+help: the accessed tag <128158> later transitioned to Disabled due to a foreign write access at offsets [0x4..0x8]
+  --> src/lib.rs:47:9
+   |
+47 |         a[1] = 20; // aynı elemana iki ayrı &mut üzerinden yazılıyor
+   |         ^^^^^^^^^
+   = help: this transition corresponds to a loss of read and write permissions
+   = note: this is on thread `testler::hatali`
+$ rm -rf /tmp/bolme-kopya && mkdir /tmp/bolme-kopya && cp -r Cargo.toml Cargo.lock src /tmp/bolme-kopya/ && cd /tmp/bolme-kopya && sed -i "/a\[1\] = 20;/d; /b\[0\] = 99;/d; /assert_eq!(v\[1\], 99);/d" src/lib.rs && cargo +nightly miri test -q hatali_surum 2>&1 | grep -E "^error: Undefined Behavior|^test result"
+error: Undefined Behavior: trying to retag from <130716> for Unique permission at alloc40938[0x4], but that tag does not exist in the borrow stack for this location
+$ cd /tmp/bolme-kopya && MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -q hatali_surum 2>&1 | grep -E "^error: Undefined Behavior|^test result"
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.13s
 ```
 
 ## 093-ffi-c-ile-konusmak
@@ -4146,13 +5463,25 @@ error: test failed, to rerun pass `--lib`
 - Kaynaklar: `Cargo.toml`, `build.rs`, `c/hesap.c`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `cc 1.11.3`, `find-msvc-tools 0.1.15`, `shlex 2.0.1`
-- Son çalıştırma (UTC): 2026-11-20T16:05:07Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: sembol adresleri; v0 adındaki crate özeti (Cs…_) derleme ayarlarına göre değişebilir; yanlış beyanla okunan topla değeri tanımsızdır
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q
-# İkilide iki dünyanın sembolleri yan yana
+# İkilide iki tarafın sembolleri yan yana: no_mangle ile adlar olduğu gibi kalır
 ks 'nm target/debug/ffi | grep -E " T (topla|selamla|karesi_arti_bir|rust_kare)$"'
+# no_mangle olmayan bir Rust fonksiyonu (main): ad karıştırma, v0 biçimi (_R ile başlar)
+ks 'nm target/debug/ffi | grep -E "_R[A-Za-z0-9_]*3ffi4main$"'
+# Çağırma kuralı makine kodunda (x86-64 System V): ilk tamsayı argüman edi'de, dönüş değeri eax'te
+k cargo build -q --release
+ks 'objdump -d -M intel --no-show-raw-insn target/release/ffi | awk "/<rust_kare>:/,/ret/"'
+ks 'objdump -d -M intel --no-show-raw-insn target/release/ffi | awk "/<karesi_arti_bir>:/,/ret/"'
+# Kendin dene: no_mangle satırı silinince C tarafı rust_kare adını bulamaz (bağlama hatası)
+ks 'rm -rf /tmp/ffi-kopya && mkdir /tmp/ffi-kopya && cp -r Cargo.toml Cargo.lock build.rs c src /tmp/ffi-kopya/ && cd /tmp/ffi-kopya && sed -i "/no_mangle/d" src/main.rs && cargo build -q 2>&1 | grep -E "undefined symbol|^error: linking"'
+# Kendin dene: Rust tarafındaki topla beyanını f64 döndürür yapmak. rustc C kaynağını görmediği için itiraz etmez;
+# kayan noktalı dönüş değeri xmm0'dan okunur, C ise sonucu eax'e koymuştu: anlamsız sayı (tanımsız davranış, sizde farklı)
+ks 'rm -rf /tmp/ffi-kopya2 && mkdir /tmp/ffi-kopya2 && cp -r Cargo.toml Cargo.lock build.rs c src /tmp/ffi-kopya2/ && cd /tmp/ffi-kopya2 && sed -i "s/fn topla(a: c_int, b: c_int) -> c_int;/fn topla(a: c_int, b: c_int) -> f64;/" src/main.rs && cargo run -q 2>&1 | head -n 1'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -4160,15 +5489,35 @@ ks 'nm target/debug/ffi | grep -E " T (topla|selamla|karesi_arti_bir|rust_kare)$
 ```text
 $ cargo run -q
 topla(2, 3) = 5
-C diyor ki: merhaba Ferris
-strlen("Ferris") = 6
+C diyor ki: merhaba Atölye
+strlen("Atölye") = 7 bayt, Rust'ta 6 karakter
 karesi_arti_bir(7) = 50 (C, Rust'taki rust_kare'yi çağırdı)
-C dizgisinin baytları: [70, 101, 114, 114, 105, 115, 0]
+C dizesinin baytları: [65, 116, 195, 182, 108, 121, 101, 0]
 $ nm target/debug/ffi | grep -E " T (topla|selamla|karesi_arti_bir|rust_kare)$"
-0000000000016676 T karesi_arti_bir
-0000000000016230 T rust_kare
-000000000001663a T selamla
-0000000000016626 T topla
+0000000000016e76 T karesi_arti_bir
+00000000000167d0 T rust_kare
+0000000000016e3a T selamla
+0000000000016e26 T topla
+$ nm target/debug/ffi | grep -E "_R[A-Za-z0-9_]*3ffi4main$"
+0000000000016330 t _RNvCsdQBekWUDKTL_3ffi4main
+$ cargo build -q --release
+$ objdump -d -M intel --no-show-raw-insn target/release/ffi | awk "/<rust_kare>:/,/ret/"
+00000000000153f8 <rust_kare>:
+   153f8:	mov    eax,edi
+   153fa:	imul   eax,edi
+   153fd:	ret
+$ objdump -d -M intel --no-show-raw-insn target/release/ffi | awk "/<karesi_arti_bir>:/,/ret/"
+0000000000015490 <karesi_arti_bir>:
+   15490:	sub    rsp,0x8
+   15494:	call   153f8 <rust_kare>
+   15499:	add    rsp,0x8
+   1549d:	add    eax,0x1
+   154a0:	ret
+$ rm -rf /tmp/ffi-kopya && mkdir /tmp/ffi-kopya && cp -r Cargo.toml Cargo.lock build.rs c src /tmp/ffi-kopya/ && cd /tmp/ffi-kopya && sed -i "/no_mangle/d" src/main.rs && cargo build -q 2>&1 | grep -E "undefined symbol|^error: linking"
+error: linking with `cc` failed: exit status: 1
+  = note: rust-lld: error: undefined symbol: rust_kare
+$ rm -rf /tmp/ffi-kopya2 && mkdir /tmp/ffi-kopya2 && cp -r Cargo.toml Cargo.lock build.rs c src /tmp/ffi-kopya2/ && cd /tmp/ffi-kopya2 && sed -i "s/fn topla(a: c_int, b: c_int) -> c_int;/fn topla(a: c_int, b: c_int) -> f64;/" src/main.rs && cargo run -q 2>&1 | head -n 1
+topla(2, 3) = 847448912897781200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 ```
 
 ## 094-bellek-esleme
@@ -4178,26 +5527,37 @@ $ nm target/debug/ffi | grep -E " T (topla|selamla|karesi_arti_bir|rust_kare)$"
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `libc 0.2.191`
-- Son çalıştırma (UTC): 2026-11-20T16:05:08Z
-- Değişken çıktı: adres (ASLR) ve sayfa hatası sayısı (çekirdeğin bir hatada kaç sayfa eşlediğine bağlı)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: sayfa hatası sayıları (çekirdek sürümü, dosya sistemi ve önbellek durumuna bağlı) ve eşleme adresleri (ASLR)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-k cargo run -q --release
-ks 'strace -e trace=openat,mmap,munmap ./target/release/mmap 2>&1 | grep -E "esleme.bin|67108864"'
+k cargo build -q --release
+# Aynı 64 MiB'lık seyrek dosya üç kez eşlenir; her seferinde dosya baştan yazılır (sayfa önbelleği soğuk)
+k ./target/release/mmap
+# Programın çekirdekten istediği: mmap (MAP_POPULATE bayrağı) ve madvise (MADV_RANDOM)
+ks 'strace -e trace=mmap,madvise,munmap ./target/release/mmap 2>&1 | grep -E "67108864"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo run -q --release
-eşlendi: 0x7f8bb182e000, ilk 7 bayt: "MERHABA"
-16384 sayfaya dokunuldu → 492 küçük sayfa hatası (toplam = 77)
-$ strace -e trace=openat,mmap,munmap ./target/release/mmap 2>&1 | grep -E "esleme.bin|67108864"
-openat(AT_FDCWD, "/tmp/esleme.bin", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
-openat(AT_FDCWD, "/tmp/esleme.bin", O_RDONLY|O_CLOEXEC) = 3
-mmap(NULL, 67108864, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f749b51d000
-munmap(0x7f749b51d000, 67108864)        = 0
+$ cargo build -q --release
+$ ./target/release/mmap
+varsayılan    16384 sayfaya dokunuldu:   485 hafif, 1 ağır sayfa hatası (ilk 7 bayt "MERHABA", toplam 77)
+              smaps: Rss 65536 kB, FilePmdMapped 0 kB; diskten okunan: 0 bayt
+MADV_RANDOM   16384 sayfaya dokunuldu:     1 hafif, 16383 ağır sayfa hatası (ilk 7 bayt "MERHABA", toplam 77)
+              smaps: Rss 65536 kB, FilePmdMapped 0 kB; diskten okunan: 0 bayt
+MAP_POPULATE  16384 sayfaya dokunuldu:     0 hafif, 0 ağır sayfa hatası (ilk 7 bayt "MERHABA", toplam 77)
+              smaps: Rss 65536 kB, FilePmdMapped 0 kB; diskten okunan: 0 bayt
+$ strace -e trace=mmap,madvise,munmap ./target/release/mmap 2>&1 | grep -E "67108864"
+mmap(NULL, 67108864, PROT_READ, MAP_PRIVATE, 4, 0) = 0x7f8d25b53000
+munmap(0x7f8d25b53000, 67108864)        = 0
+mmap(NULL, 67108864, PROT_READ, MAP_PRIVATE, 4, 0) = 0x7f8d25b53000
+madvise(0x7f8d25b53000, 67108864, MADV_RANDOM) = 0
+munmap(0x7f8d25b53000, 67108864)        = 0
+mmap(NULL, 67108864, PROT_READ, MAP_PRIVATE|MAP_POPULATE, 4, 0) = 0x7f8d25b53000
+munmap(0x7f8d25b53000, 67108864)        = 0
 ```
 
 ## 095-bildirimsel-makrolar
@@ -4205,12 +5565,17 @@ munmap(0x7f749b51d000, 67108864)        = 0
 - Video: `095-bildirimsel-makrolar`
 - Örnek yolu: `deneyler/mufredat-ornekleri/095-bildirimsel-makrolar/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:08Z
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: hijyen işaretlerindeki numaralar (ad kimliği ve söz dizimi bağlamı) derleyici sürümüne göre değişebilir
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q
+# Genişletilmiş kod ve hijyen işaretleri (yalnızca nightly): aynı ad x, iki farklı söz dizimi bağlamı (#…)
+ks 'cargo +nightly rustc -q -- -Zunpretty=expanded,hygiene 2>&1 | grep -A4 "iki_kati!(x) ="'
+# Kendin dene: adı çağıran versin ($ad:ident); iki x de bizim bağlamımızda (#0), sonuç 2 * 2
+ks 'rm -rf /tmp/makro-kopya && mkdir /tmp/makro-kopya && cp -r Cargo.toml Cargo.lock src /tmp/makro-kopya/ && cd /tmp/makro-kopya && sed -i "s/(\$e:expr) => {{/(\$ad:ident, \$e:expr) => {{/; s/let x = 2;/let \$ad = 2;/; s/x \* \$e/\$ad * \$e/; s/iki_kati!(x))/iki_kati!(x, x))/; s/(makronun x.i 2, bizim x.imiz 10)/(adı çağıran verdi: tek bir x)/" src/main.rs && cargo run -q | grep iki_kati && cargo +nightly rustc -q -- -Zunpretty=expanded,hygiene 2>&1 | grep -A4 "iki_kati!(x) ="'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -4219,7 +5584,27 @@ k cargo run -q
 $ cargo run -q
 {"armut": 5, "ayva": 1, "elma": 3}
 en_buyuk!(3, 9, 4, 7) = 9
-iki_kati!(x) = 20 (C önişlemcisi gibi metin yapıştırsaydı 2 * 2 = 4 olurdu)
+iki_kati!(x) = 20 (makronun x'i 2, bizim x'imiz 10)
+$ cargo +nightly rustc -q -- -Zunpretty=expanded,hygiene 2>&1 | grep -A4 "iki_kati!(x) ="
+                */(format_args!("iki_kati!(x) = {0} (makronun x\'i 2, bizim x\'imiz 10)\n",
+                {
+                    let x /* 2417#15 */ = 2;
+                    x /* 2417#15 */ * x /* 2417#0 */
+                }));
+$ rm -rf /tmp/makro-kopya && mkdir /tmp/makro-kopya && cp -r Cargo.toml Cargo.lock src /tmp/makro-kopya/ && cd /tmp/makro-kopya && sed -i "s/(\$e:expr) => {{/(\$ad:ident, \$e:expr) => {{/; s/let x = 2;/let \$ad = 2;/; s/x \* \$e/\$ad * \$e/; s/iki_kati!(x))/iki_kati!(x, x))/; s/(makronun x.i 2, bizim x.imiz 10)/(adı çağıran verdi: tek bir x)/" src/main.rs && cargo run -q | grep iki_kati && cargo +nightly rustc -q -- -Zunpretty=expanded,hygiene 2>&1 | grep -A4 "iki_kati!(x) ="
+warning: unused variable: `x`
+  --> src/main.rs:32:9
+   |
+32 |     let x = 10;
+   |         ^ help: if this is intentional, prefix it with an underscore: `_x`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+iki_kati!(x) = 4 (adı çağıran verdi: tek bir x)
+                */(format_args!("iki_kati!(x) = {0} (adı çağıran verdi: tek bir x)\n",
+                { let x /* 2417#0 */ = 2; x /* 2417#0 */ * x /* 2417#0 */ }));
+    };
+}
 ```
 
 ## 096-makro-genisletme
@@ -4228,7 +5613,7 @@ iki_kati!(x) = 20 (C önişlemcisi gibi metin yapıştırsaydı 2 * 2 = 4 olurdu
 - Örnek yolu: `deneyler/mufredat-ornekleri/096-makro-genisletme/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:05:08Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -4245,7 +5630,7 @@ extern crate std;
 #[prelude_import]
 use std::prelude::rust_2024::*;
 fn main() {
-    let ad = "Ferris";
+    let ad = "Atölye";
     let v =
         ::alloc::boxed::box_assume_init_into_vec_unsafe(::alloc::intrinsics::write_box_via_move(::alloc::boxed::Box::new_uninit(),
                 [1, 2, 3]));
@@ -4261,15 +5646,24 @@ fn main() {
 - Video: `097-prosedurel-makrolar`
 - Örnek yolu: `deneyler/mufredat-ornekleri/097-prosedurel-makrolar/`
 - Kaynaklar: `Cargo.toml`, `hatali-kullanim/Cargo.toml`, `hatali-kullanim/src/main.rs`, `kullanici/Cargo.toml`, `kullanici/src/main.rs`, `tanit-turet/Cargo.toml`, `tanit-turet/src/lib.rs`
-- Toolchain: stable 1.100.0
+- Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
 - Bağımlılıklar (Cargo.lock'ta çözülen): `proc-macro2 1.0.107`, `quote 1.0.47`, `syn 3.0.10`, `unicode-ident 1.0.27`
-- Son çalıştırma (UTC): 2026-11-20T16:05:09Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: derleme dizinindeki özet (hash) klasör adları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q -p kullanici
+# Prosedürel makro, derleyicinin yüklediği bir paylaşılan kütüphane (.so) olarak derlenir
+ks 'file $(find target/debug -name "libtanit_turet-*.so") | sed -E "s#/[0-9a-f]{16}/#/…/#; s#-[0-9a-f]{16}\.so#.so#; s#, BuildID[^,]*##"'
+# türetme makrosunun ürettiği kod (genişletilmiş hâl, yalnızca nightly)
+ks 'cargo +nightly rustc -q -p kullanici --target-dir target/nightly -- -Zunpretty=expanded 2>&1 | sed -n "/^impl Siparis/,/^}/p"'
 k cargo build -q -p hatali-kullanim
 ks 'cargo tree -p tanit-turet -e normal --depth 1'
+# Derleme anında makronun .so dosyasını açan süreç (strace -Y süreç adını gösterir: <rustc>); özetler … ile kısaltıldı
+ks 'touch kullanici/src/main.rs && strace -f -Y -e trace=openat cargo build -q -p kullanici 2>&1 | grep -E "libtanit_turet-[0-9a-f]+\.so\", O_RDONLY" | head -n 1 | sed -E "s#^\[pid +[0-9]+(<[^>]+>)\] #\1 #; s#/[0-9a-f]{16}/#/…/#; s#-[0-9a-f]{16}\.so#-….so#; s#= [0-9]+\$#= (fd)#"'
+# Kendin dene: adsız alanlı struct için de hata üretmek (makronun bir kopyasında); hata Nokta satırını gösterir
+ks 'rm -rf /tmp/tanit-kopya && mkdir /tmp/tanit-kopya && cp -r Cargo.toml Cargo.lock tanit-turet kullanici hatali-kullanim /tmp/tanit-kopya/ && cd /tmp/tanit-kopya && sed -i "s/            _ => Vec::new(),/            _ => return syn::Error::new_spanned(ad, \"Tanit adlı alanları olan struct ister\").to_compile_error().into(),/" tanit-turet/src/lib.rs && printf "\n#[derive(Tanit)]\nstruct Nokta(i32, i32);\n" >> kullanici/src/main.rs && cargo build -q -p kullanici 2>&1 | grep -A4 "^error: Tanit adlı"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -4277,6 +5671,15 @@ ks 'cargo tree -p tanit-turet -e normal --depth 1'
 ```text
 $ cargo run -q -p kullanici
 Siparis alanları: ["numara", "musteri", "tutar_kurus"]
+$ file $(find target/debug -name "libtanit_turet-*.so") | sed -E "s#/[0-9a-f]{16}/#/…/#; s#-[0-9a-f]{16}\.so#.so#; s#, BuildID[^,]*##"
+target/debug/build/tanit-turet/…/out/libtanit_turet.so: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, with debug_info, not stripped
+$ cargo +nightly rustc -q -p kullanici --target-dir target/nightly -- -Zunpretty=expanded 2>&1 | sed -n "/^impl Siparis/,/^}/p"
+impl Siparis {
+    pub fn tip_adi() -> &'static str { "Siparis" }
+    pub fn alan_adlari() -> &'static [&'static str] {
+        &["numara", "musteri", "tutar_kurus"]
+    }
+}
 $ cargo build -q -p hatali-kullanim
 error: Tanit yalnızca struct'lar için türetilebilir
  --> hatali-kullanim/src/main.rs:4:6
@@ -4291,27 +5694,59 @@ tanit-turet v0.1.0 (proc-macro) (/work/mufredat-ornekleri/097-prosedurel-makrola
 ├── proc-macro2 v1.0.107
 ├── quote v1.0.47
 └── syn v3.0.10
+$ touch kullanici/src/main.rs && strace -f -Y -e trace=openat cargo build -q -p kullanici 2>&1 | grep -E "libtanit_turet-[0-9a-f]+\.so\", O_RDONLY" | head -n 1 | sed -E "s#^\[pid +[0-9]+(<[^>]+>)\] #\1 #; s#/[0-9a-f]{16}/#/…/#; s#-[0-9a-f]{16}\.so#-….so#; s#= [0-9]+\$#= (fd)#"
+<rustc> openat(AT_FDCWD, "/work/mufredat-ornekleri/097-prosedurel-makrolar/target/debug/build/tanit-turet/…/out/libtanit_turet-….so", O_RDONLY|O_CLOEXEC) = (fd)
+$ rm -rf /tmp/tanit-kopya && mkdir /tmp/tanit-kopya && cp -r Cargo.toml Cargo.lock tanit-turet kullanici hatali-kullanim /tmp/tanit-kopya/ && cd /tmp/tanit-kopya && sed -i "s/            _ => Vec::new(),/            _ => return syn::Error::new_spanned(ad, \"Tanit adlı alanları olan struct ister\").to_compile_error().into(),/" tanit-turet/src/lib.rs && printf "\n#[derive(Tanit)]\nstruct Nokta(i32, i32);\n" >> kullanici/src/main.rs && cargo build -q -p kullanici 2>&1 | grep -A4 "^error: Tanit adlı"
+error: Tanit adlı alanları olan struct ister
+  --> kullanici/src/main.rs:16:8
+   |
+16 | struct Nokta(i32, i32);
+   |        ^^^^^
 ```
 
 ## 098-lexer-ve-parser
 
 - Video: `098-lexer-ve-parser`
 - Örnek yolu: `deneyler/mufredat-ornekleri/098-lexer-ve-parser/`
-- Kaynaklar: `ifade.rs`
+- Kaynaklar: `belirtecler.rs`, `birlesme.rs`, `ifade.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:05:09Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-# Ayrıştırıcının ürettiği soyut sözdizimi ağacı (AST): öncelik ağacın biçiminde
+# Sözcüksel çözümleme: kaynak metin belirteçlere (token) bölünür; parantezli grup tek bir belirteç ağacıdır
+ks 'rustc --edition 2024 -o /tmp/belirtecler belirtecler.rs && /tmp/belirtecler'
+# Ayrıştırıcının ürettiği soyut söz dizimi ağacı (AST): öncelik ağacın biçiminde
 ks 'rustc +nightly --edition 2024 -Zunpretty=ast-tree ifade.rs | grep -E "kind: (Binary|Lit)|Add|Mul|symbol" '
-# Sözdizimi hatası: ayrıştırıcı nerede takıldığını söyler
+# Kendin dene: birleşme özelliği. 10 - 4 - 3 soldan birleşir: (10 - 4) - 3
+ks 'rustc +nightly --edition 2024 -Zunpretty=ast-tree birlesme.rs | grep -E "kind: (Binary|Lit)|Sub|symbol" '
+# Söz dizimi hatası: ayrıştırıcı nerede takıldığını söyler
 ks 'echo "fn main() { let x = (1 + 2; }" > /tmp/bozuk.rs && rustc --edition 2024 /tmp/bozuk.rs'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ rustc --edition 2024 -o /tmp/belirtecler belirtecler.rs && /tmp/belirtecler
+let
+toplam_2
+=
+0x2A
++
+1_000u32
+*
+(3 - x)
+;
+a
+>>=
+b
+;
+"bir dize"
+---
+a
+>
+>=
+b
 $ rustc +nightly --edition 2024 -Zunpretty=ast-tree ifade.rs | grep -E "kind: (Binary|Lit)|Add|Mul|symbol" 
                                                     kind: Binary(
                                                             node: Add,
@@ -4323,6 +5758,17 @@ $ rustc +nightly --edition 2024 -Zunpretty=ast-tree ifade.rs | grep -E "kind: (B
                                                                             symbol: "2",
                                                                     kind: Lit(
                                                                             symbol: "3",
+$ rustc +nightly --edition 2024 -Zunpretty=ast-tree birlesme.rs | grep -E "kind: (Binary|Lit)|Sub|symbol" 
+                                                    kind: Binary(
+                                                            node: Sub,
+                                                            kind: Binary(
+                                                                    node: Sub,
+                                                                    kind: Lit(
+                                                                            symbol: "10",
+                                                                    kind: Lit(
+                                                                            symbol: "4",
+                                                            kind: Lit(
+                                                                    symbol: "3",
 $ echo "fn main() { let x = (1 + 2; }" > /tmp/bozuk.rs && rustc --edition 2024 /tmp/bozuk.rs
 error: mismatched closing delimiter: `}`
  --> /tmp/bozuk.rs:1:21
@@ -4342,15 +5788,17 @@ error: aborting due to 1 previous error
 
 - Video: `099-hir-ve-tip-denetimi`
 - Örnek yolu: `deneyler/mufredat-ornekleri/099-hir-ve-tip-denetimi/`
-- Kaynaklar: `seker.rs`
+- Kaynaklar: `seker.rs`, `tip_hatasi.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:05:09Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 # HIR: sözdizimsel şekerler (for, ?) açılmış hâli
 ks 'rustc +nightly --edition 2024 -Zunpretty=hir seker.rs | sed -n "/fn topla/,/^}/p"'
 ks 'rustc +nightly --edition 2024 -Zunpretty=hir seker.rs | sed -n "/fn oku/,/^}/p"'
+# Tip denetimi açılmış kod üzerinde: hata mesajları açılımdaki trait'leri (IntoIterator, FromResidual) anıyor
+ks 'rustc --edition 2024 --crate-type=lib -o /tmp/tip_hatasi.rlib tip_hatasi.rs 2>&1'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -4388,25 +5836,60 @@ fn oku(metin: &'_ str)
         };
     Ok(n + 1)
 }
+$ rustc --edition 2024 --crate-type=lib -o /tmp/tip_hatasi.rlib tip_hatasi.rs 2>&1
+error[E0277]: `{integer}` is not an iterator
+ --> tip_hatasi.rs:2:14
+  |
+2 |     for x in 5 {
+  |              ^ `{integer}` is not an iterator
+  |
+  = help: the trait `Iterator` is not implemented for `{integer}`
+  = note: if you want to iterate between `start` until a value `end`, use the exclusive range syntax `start..end` or the inclusive range syntax `start..=end`
+  = note: required for `{integer}` to implement `IntoIterator`
+
+error[E0277]: the `?` operator can only be used in a function that returns `Result` or `Option` (or another type that implements `FromResidual`)
+  --> tip_hatasi.rs:8:31
+   |
+ 7 | fn oku(metin: &str) {
+   | ------------------- this function should return `Result` or `Option` to accept `?`
+ 8 |     let n: i32 = metin.parse()?;
+   |                               ^ cannot use the `?` operator in a function that returns `()`
+   |
+help: consider adding return type
+   |
+ 7 ~ fn oku(metin: &str) -> Result<(), Box<dyn std::error::Error>> {
+ 8 |     let n: i32 = metin.parse()?;
+ 9 |     println!("{n}");
+10 +     Ok(())
+   |
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0277`.
+[çıkış kodu: 1]
 ```
 
 ## 100-mir-ve-odunc-denetimi
 
 - Video: `100-mir-ve-odunc-denetimi`
 - Örnek yolu: `deneyler/mufredat-ornekleri/100-mir-ve-odunc-denetimi/`
-- Kaynaklar: `mir.rs`
+- Kaynaklar: `mir.rs`, `odunc.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:09Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 mkdir -p target
-# MIR: temel bloklardan (bb0, bb1...) oluşan kontrol akış grafiği; ödünç denetimi burada yapılır
+# MIR: temel bloklardan (bb0, bb1...) oluşan kontrol akış grafı
 k rustc --edition 2024 --crate-type=lib -C opt-level=0 --emit=mir -o target/mir.mir mir.rs
 ks 'sed -n "/fn uzunluk/,/^}/p" target/mir.mir'
+# Ödünç denetimi akışa duyarlı: üç fonksiyondan yalnız sira_yanlis reddedilir
+ks 'rustc --edition 2024 --crate-type=lib --out-dir target odunc.rs 2>&1'
+# Görsel için: yola_gore'nin MIR'i. Reddedilen kodun MIR'i üretilmez; sira_yanlis çıkarılmış bir kopyadan
+ks 'sed "/^pub fn sira_yanlis/,/^}/d" odunc.rs > target/odunc_mir.rs && rustc --edition 2024 --crate-type=lib -C opt-level=0 --emit=mir -o target/odunc.mir target/odunc_mir.rs && sed -n "/fn yola_gore/,/^}/p" target/odunc.mir'
 ```
 
-- Gerçek çıktı (`cikti.txt`):
+- Gerçek çıktı (kısaltılmış; 112 satırın tamamı `cikti.txt` içinde):
 
 ```text
 $ rustc --edition 2024 --crate-type=lib -C opt-level=0 --emit=mir -o target/mir.mir mir.rs
@@ -4442,6 +5925,85 @@ fn uzunluk(_1: String) -> usize {
         resume;
     }
 }
+$ rustc --edition 2024 --crate-type=lib --out-dir target odunc.rs 2>&1
+error[E0502]: cannot borrow `*v` as mutable because it is also borrowed as immutable
+  --> odunc.rs:19:5
+   |
+18 |     let ilk = &v[0];
+   |                - immutable borrow occurs here
+19 |     v.push(4); // ilk hâlâ canlı: push için &mut gerekir
+   |     ^^^^^^^^^ mutable borrow occurs here
+20 |     println!("{ilk}");
+   |                --- immutable borrow later used here
+
+error: aborting due to 1 previous error
+… (1 satır atlandı)
+For more information about this error, try `rustc --explain E0502`.
+[çıkış kodu: 1]
+$ sed "/^pub fn sira_yanlis/,/^}/d" odunc.rs > target/odunc_mir.rs && rustc --edition 2024 --crate-type=lib -C opt-level=0 --emit=mir -o target/odunc.mir target/odunc_mir.rs && sed -n "/fn yola_gore/,/^}/p" target/odunc.mir
+fn yola_gore(_1: &mut Vec<i32>, _2: bool) -> () {
+    debug v => _1;
+    debug kosul => _2;
+    let mut _0: ();
+    let _3: &i32;
+    let _4: &i32;
+    let mut _5: &std::vec::Vec<i32>;
+    let _6: ();
+    let _7: ();
+    let mut _8: std::fmt::Arguments<'_>;
+    let mut _10: &&i32;
+    let mut _12: core::fmt::rt::Argument<'_>;
+    let mut _13: &[u8; 4];
+    let _14: &[core::fmt::rt::Argument<'_>; 1];
+    let mut _15: &&i32;
+    scope 1 {
+        debug ilk => _3;
+        let _9: (&&i32,);
+        scope 2 {
+            debug args => _9;
+            let _11: [core::fmt::rt::Argument<'_>; 1];
+            scope 3 {
+                debug args => _11;
+            }
+        }
+    }
+… (1 satır atlandı)
+    bb0: {
+        _5 = &(*_1);
+        _4 = <Vec<i32> as Index<usize>>::index(move _5, const 0_usize) -> [return: bb1, unwind continue];
+    }
+… (1 satır atlandı)
+    bb1: {
+        _3 = copy _4;
+        switchInt(copy _2) -> [0: bb3, otherwise: bb2];
+    }
+… (1 satır atlandı)
+    bb2: {
+        _6 = Vec::<i32>::push(copy _1, const 4_i32) -> [return: bb6, unwind continue];
+    }
+… (1 satır atlandı)
+    bb3: {
+        _10 = &_3;
+        _9 = (move _10,);
+        _15 = no_retag copy (_9.0: &&i32);
+        _12 = core::fmt::rt::Argument::<'_>::new_display::<&i32>(copy _15) -> [return: bb4, unwind continue];
+    }
+
+    bb4: {
+        _11 = [move _12];
+        _13 = const b"\xc0\x01\n\x00";
+        _14 = &_11;
+        _8 = Arguments::<'_>::new::<4, 1>(move _13, copy _14) -> [return: bb5, unwind continue];
+    }
+
+    bb5: {
+        _7 = std::io::_print(move _8) -> [return: bb6, unwind continue];
+    }
+
+    bb6: {
+        return;
+    }
+}
 ```
 
 ## 101-llvm-ve-optimizasyon
@@ -4450,7 +6012,7 @@ fn uzunluk(_1: String) -> usize {
 - Örnek yolu: `deneyler/mufredat-ornekleri/101-llvm-ve-optimizasyon/`
 - Kaynaklar: `dongu.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:10Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -4460,9 +6022,19 @@ k rustc --edition 2024 --crate-type=lib -C opt-level=3 --emit=llvm-ir -o target/
 ks 'echo "O0 satır: $(awk "/^define.*@kareler_toplami/,/^}/" target/O0.ll | wc -l)  O3 satır: $(awk "/^define.*@kareler_toplami/,/^}/" target/O3.ll | wc -l)"'
 # O3: döngü (br/phi) kalmadı mı? Hangi komutlar var?
 ks 'awk "/^define.*@kareler_toplami/,/^}/" target/O3.ll'
+# Hangi geçişler bu fonksiyonu değiştirdi? (LLVM'in kendi raporu: -print-changed)
+ks 'rustc --edition 2024 --crate-type=lib -C opt-level=3 --emit=llvm-ir -o target/O3b.ll -C llvm-args=-print-changed=quiet dongu.rs 2> target/gecisler.txt; grep -E "IR Dump After .*kareler_toplami" target/gecisler.txt | sed -E "s/^\*\*\* IR Dump After //; s/ \*\*\*$//"'
+# Döngü geçişlerinden önce (LoopRotate sonrası): iki phi düğümlü döngü
+ks 'awk "/IR Dump After LoopRotatePass/,/IR Dump After SimplifyCFGPass/" target/gecisler.txt | grep -v "IR Dump After SimplifyCFGPass"'
+# IndVarSimplify sonrası: döngü gövdesi boşaldı (br i1 false), sonuç kapalı biçimle çıkışta hesaplanıyor
+ks 'awk "/IR Dump After IndVarSimplifyPass/,/IR Dump After GVNPass/" target/gecisler.txt | grep -v "IR Dump After GVNPass"'
+# Kendin dene: kareler yerine küpler (i * i * i); döngü yine kalkıyor mu?
+ks 'sed "s/i \* i)/i * i * i)/" dongu.rs > target/kup.rs && rustc --edition 2024 --crate-type=lib -C opt-level=3 --emit=llvm-ir -o target/kup.ll target/kup.rs && awk "/^define.*@kareler_toplami/,/^}/" target/kup.ll | grep -E "^[a-z0-9.]+:|phi|ret"'
+# Küp sürümünde ara hesap genişlikleri: 65 ve 67 bitlik tam sayılar
+ks 'awk "/^define.*@kareler_toplami/,/^}/" target/kup.ll | grep -oE "i6[57]" | sort | uniq -c'
 ```
 
-- Gerçek çıktı (`cikti.txt`):
+- Gerçek çıktı (kısaltılmış; 108 satırın tamamı `cikti.txt` içinde):
 
 ```text
 $ rustc --edition 2024 --crate-type=lib -C opt-level=0 -C debug-assertions=off -C overflow-checks=off --emit=llvm-ir -o target/O0.ll dongu.rs
@@ -4499,6 +6071,80 @@ bb3:                                              ; preds = %bb2.preheader, %sta
   %s.sroa.0.0.lcssa = phi i64 [ 0, %start ], [ %16, %bb2.preheader ]
   ret i64 %s.sroa.0.0.lcssa
 }
+$ rustc --edition 2024 --crate-type=lib -C opt-level=3 --emit=llvm-ir -o target/O3b.ll -C llvm-args=-print-changed=quiet dongu.rs 2> target/gecisler.txt; grep -E "IR Dump After .*kareler_toplami" target/gecisler.txt | sed -E "s/^\*\*\* IR Dump After //; s/ \*\*\*$//"
+SROAPass on kareler_toplami
+LCSSAPass on kareler_toplami
+LoopRotatePass on loop %bb2 in function kareler_toplami
+SimplifyCFGPass on kareler_toplami
+InstCombinePass on kareler_toplami
+LoopSimplifyPass on kareler_toplami
+LCSSAPass on kareler_toplami
+IndVarSimplifyPass on loop %bb2 in function kareler_toplami
+GVNPass on kareler_toplami
+SCCPPass on kareler_toplami
+PostOrderFunctionAttrsPass on (kareler_toplami)
+$ awk "/IR Dump After LoopRotatePass/,/IR Dump After SimplifyCFGPass/" target/gecisler.txt | grep -v "IR Dump After SimplifyCFGPass"
+*** IR Dump After LoopRotatePass on loop %bb2 in function kareler_toplami ***
+… (1 satır atlandı)
+; Preheader:
+bb2.lr.ph:                                        ; preds = %start
+  br label %bb2
+… (1 satır atlandı)
+; Loop:
+bb2:                                              ; preds = %bb2.lr.ph, %bb2
+  %s.sroa.0.05 = phi i64 [ 0, %bb2.lr.ph ], [ %_4, %bb2 ]
+  %iter.sroa.0.04 = phi i64 [ 0, %bb2.lr.ph ], [ %0, %bb2 ]
+  %0 = add nuw i64 %iter.sroa.0.04, 1
+  %_5 = mul i64 %iter.sroa.0.04, %iter.sroa.0.04
+  %_4 = add i64 %s.sroa.0.05, %_5
+  %_6 = icmp ult i64 %0, %n
+  br i1 %_6, label %bb2, label %bb1.bb3_crit_edge
+… (1 satır atlandı)
+; Exit blocks
+bb1.bb3_crit_edge:                                ; preds = %bb2
+  %split = phi i64 [ %_4, %bb2 ]
+  br label %bb3
+$ awk "/IR Dump After IndVarSimplifyPass/,/IR Dump After GVNPass/" target/gecisler.txt | grep -v "IR Dump After GVNPass"
+*** IR Dump After IndVarSimplifyPass on loop %bb2 in function kareler_toplami ***
+… (1 satır atlandı)
+; Preheader:
+bb2.preheader:                                    ; preds = %start
+  br label %bb2
+… (1 satır atlandı)
+; Loop:
+bb2:                                              ; preds = %bb2.preheader, %bb2
+  br i1 false, label %bb2, label %bb3.loopexit
+… (1 satır atlandı)
+; Exit blocks
+bb3.loopexit:                                     ; preds = %bb2
+  %0 = add i64 %n, -1
+  %1 = zext i64 %0 to i65
+  %2 = add i64 %n, -2
+  %3 = zext i64 %2 to i65
+  %4 = mul i65 %1, %3
+  %5 = add i64 %n, -3
+  %6 = zext i64 %5 to i65
+  %7 = mul i65 %4, %6
+  %8 = lshr i65 %7, 1
+  %9 = trunc i65 %8 to i64
+  %10 = mul i64 %9, 6148914691236517206
+  %11 = add i64 %n, %10
+  %12 = mul i65 %1, %3
+  %13 = lshr i65 %12, 1
+  %14 = trunc i65 %13 to i64
+  %15 = mul i64 %14, 3
+  %16 = add i64 %11, %15
+  %17 = add i64 %16, -1
+  br label %bb3
+$ sed "s/i \* i)/i * i * i)/" dongu.rs > target/kup.rs && rustc --edition 2024 --crate-type=lib -C opt-level=3 --emit=llvm-ir -o target/kup.ll target/kup.rs && awk "/^define.*@kareler_toplami/,/^}/" target/kup.ll | grep -E "^[a-z0-9.]+:|phi|ret"
+start:
+bb2.preheader:                                    ; preds = %start
+bb3:                                              ; preds = %bb2.preheader, %start
+  %s.sroa.0.0.lcssa = phi i64 [ 0, %start ], [ %25, %bb2.preheader ]
+  ret i64 %s.sroa.0.0.lcssa
+$ awk "/^define.*@kareler_toplami/,/^}/" target/kup.ll | grep -oE "i6[57]" | sort | uniq -c
+      6 i65
+      9 i67
 ```
 
 ## 102-kod-uretimi-ve-artimli-derleme
@@ -4507,25 +6153,37 @@ bb3:                                              ; preds = %bb2.preheader, %sta
 - Örnek yolu: `deneyler/mufredat-ornekleri/102-kod-uretimi-ve-artimli-derleme/`
 - Kaynaklar: `uret.sh`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
-- Son çalıştırma (UTC): 2026-11-20T16:05:39Z
-- Değişken çıktı: derleme süreleri
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: derleme süreleri; artımlı önbellekteki .o dosyalarının adları
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 rm -rf calisma && mkdir -p calisma && cd calisma && bash ../uret.sh && cd buyuk
 k wc -l src/main.rs
 ks '/usr/bin/time -f "temiz derleme (debug): %e s" cargo build -q'
+# Artımlı önbellekte her kod üretim birimi (CGU) bir .o dosyası
+ks 'cd target/debug/incremental/buyuk-*/s-*/ && md5sum *.o > /tmp/buyuk-once.txt && echo "kod üretim birimi (.o): $(ls *.o | wc -l)" && ls -S *.o | head -n 1 | xargs stat -c "en büyüğü: %s bayt"'
+ks 'cd target/debug/incremental/buyuk-*/s-*/ && ls -l *.o | awk "{print \$5}" | sort -n | tr "\n" " " | sed "s/^/bütün birimler (bayt): /"; echo'
 ks '/usr/bin/time -f "değişiklik yok: %e s" cargo build -q'
 ks 'sed -i "s/(x ^ 15000)/(x ^ 15001)/" src/main.rs && /usr/bin/time -f "tek satır değişti (artımlı): %e s" cargo build -q'
+ks 'cd target/debug/incremental/buyuk-*/s-*/ && echo "yeniden üretilen .o: $(md5sum *.o | grep -vxFf /tmp/buyuk-once.txt | wc -l)" && md5sum *.o | grep -vxFf /tmp/buyuk-once.txt | awk "{print \$2}" | xargs stat -c "yeniden üretilenin boyutu: %s bayt"'
 ks 'CARGO_INCREMENTAL=0 /usr/bin/time -f "aynı değişiklik, artımlı kapalı: %e s" cargo build -q --target-dir target/artimsiz'
-ks 'sed -i "s/(x ^ 15001)/(x ^ 15002)/" src/main.rs && CARGO_INCREMENTAL=0 /usr/bin/time -f "tek satır değişti, artımlı kapalı: %e s" cargo build -q --target-dir target/artimsiz'
+# Aynı 20000 fonksiyon, 100 modüle bölünmüş
+cd ../moduler
+ks 'grep -c "^mod " src/main.rs'
+ks '/usr/bin/time -f "100 modül, temiz derleme (debug): %e s" cargo build -q'
+ks 'cd target/debug/incremental/moduler-*/s-*/ && md5sum *.o > /tmp/moduler-once.txt && echo "kod üretim birimi (.o): $(ls *.o | wc -l)" && ls -S *.o | head -n 1 | xargs stat -c "en büyüğü: %s bayt"'
+ks 'cd target/debug/incremental/moduler-*/s-*/ && ls -l *.o | awk "{print \$5}" | sort -n | awk "{a[NR]=\$1} END {printf \"en küçük 7 birim (bayt): \"; for (i = 1; i <= 7; i++) printf \"%d \", a[i]; printf \"\\nsonraki %d birim: %d – %d bayt\\nen büyük birim: %d bayt\\n\", NR - 8, a[8], a[NR - 1], a[NR]}"'
+ks 'sed -i "s/(x ^ 15000)/(x ^ 15001)/" src/main.rs && /usr/bin/time -f "100 modül, tek satır değişti (artımlı): %e s" cargo build -q'
+ks 'cd target/debug/incremental/moduler-*/s-*/ && echo "yeniden üretilen .o: $(md5sum *.o | grep -vxFf /tmp/moduler-once.txt | wc -l)" && md5sum *.o | grep -vxFf /tmp/moduler-once.txt | awk "{print \$2}" | xargs stat -c "yeniden üretilenin boyutu: %s bayt"'
+cd ../buyuk
 # Kod üretim birimleri (codegen-units): paralel kod üretimi ↔ optimizasyon fırsatı
 ks 'CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 /usr/bin/time -f "release, codegen-units=16: %e s" cargo build -q --release --target-dir target/cgu16'
 ks 'CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 /usr/bin/time -f "release, codegen-units=1 : %e s" cargo build -q --release --target-dir target/cgu1'
 ks './target/cgu16/release/buyuk; ./target/cgu1/release/buyuk'
 # Zaman nereye gidiyor? Artımlı yeniden derlemede derleyici aşamaları (nightly, -Ztime-passes), en uzun 8 aşama
 k cargo +nightly build -q --target-dir target/nightly
-ks 'sed -i "s/(x ^ 15002)/(x ^ 15003)/" src/main.rs && cargo +nightly rustc -q --target-dir target/nightly -- -Ztime-passes 2>&1 | grep -E "time: +[0-9.]+;" | sort -k2 -n -r | head -n 8'
+ks 'sed -i "s/(x ^ 15001)/(x ^ 15002)/" src/main.rs && cargo +nightly rustc -q --target-dir target/nightly -- -Ztime-passes 2>&1 | grep -E "time: +[0-9.]+;" | sort -k2 -n -r | head -n 8'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -4534,32 +6192,54 @@ ks 'sed -i "s/(x ^ 15002)/(x ^ 15003)/" src/main.rs && cargo +nightly rustc -q -
 $ wc -l src/main.rs
 40004 src/main.rs
 $ /usr/bin/time -f "temiz derleme (debug): %e s" cargo build -q
-temiz derleme (debug): 4.01 s
+temiz derleme (debug): 4.20 s
+$ cd target/debug/incremental/buyuk-*/s-*/ && md5sum *.o > /tmp/buyuk-once.txt && echo "kod üretim birimi (.o): $(ls *.o | wc -l)" && ls -S *.o | head -n 1 | xargs stat -c "en büyüğü: %s bayt"
+kod üretim birimi (.o): 8
+en büyüğü: 18065424 bayt
+$ cd target/debug/incremental/buyuk-*/s-*/ && ls -l *.o | awk "{print \$5}" | sort -n | tr "\n" " " | sed "s/^/bütün birimler (bayt): /"; echo
+bütün birimler (bayt): 3088 3288 3936 5728 5928 6272 7344 18065424 
 $ /usr/bin/time -f "değişiklik yok: %e s" cargo build -q
 değişiklik yok: 0.01 s
 $ sed -i "s/(x ^ 15000)/(x ^ 15001)/" src/main.rs && /usr/bin/time -f "tek satır değişti (artımlı): %e s" cargo build -q
-tek satır değişti (artımlı): 2.61 s
+tek satır değişti (artımlı): 2.69 s
+$ cd target/debug/incremental/buyuk-*/s-*/ && echo "yeniden üretilen .o: $(md5sum *.o | grep -vxFf /tmp/buyuk-once.txt | wc -l)" && md5sum *.o | grep -vxFf /tmp/buyuk-once.txt | awk "{print \$2}" | xargs stat -c "yeniden üretilenin boyutu: %s bayt"
+yeniden üretilen .o: 1
+yeniden üretilenin boyutu: 18065424 bayt
 $ CARGO_INCREMENTAL=0 /usr/bin/time -f "aynı değişiklik, artımlı kapalı: %e s" cargo build -q --target-dir target/artimsiz
-aynı değişiklik, artımlı kapalı: 3.28 s
-$ sed -i "s/(x ^ 15001)/(x ^ 15002)/" src/main.rs && CARGO_INCREMENTAL=0 /usr/bin/time -f "tek satır değişti, artımlı kapalı: %e s" cargo build -q --target-dir target/artimsiz
-tek satır değişti, artımlı kapalı: 3.51 s
+aynı değişiklik, artımlı kapalı: 3.57 s
+$ grep -c "^mod " src/main.rs
+100
+$ /usr/bin/time -f "100 modül, temiz derleme (debug): %e s" cargo build -q
+100 modül, temiz derleme (debug): 3.18 s
+$ cd target/debug/incremental/moduler-*/s-*/ && md5sum *.o > /tmp/moduler-once.txt && echo "kod üretim birimi (.o): $(ls *.o | wc -l)" && ls -S *.o | head -n 1 | xargs stat -c "en büyüğü: %s bayt"
+kod üretim birimi (.o): 108
+en büyüğü: 2273808 bayt
+$ cd target/debug/incremental/moduler-*/s-*/ && ls -l *.o | awk "{print \$5}" | sort -n | awk "{a[NR]=\$1} END {printf \"en küçük 7 birim (bayt): \"; for (i = 1; i <= 7; i++) printf \"%d \", a[i]; printf \"\\nsonraki %d birim: %d – %d bayt\\nen büyük birim: %d bayt\\n\", NR - 8, a[8], a[NR - 1], a[NR]}"
+en küçük 7 birim (bayt): 3096 3304 3944 5744 5944 6280 7368 
+sonraki 100 birim: 174264 – 177680 bayt
+en büyük birim: 2273808 bayt
+$ sed -i "s/(x ^ 15000)/(x ^ 15001)/" src/main.rs && /usr/bin/time -f "100 modül, tek satır değişti (artımlı): %e s" cargo build -q
+100 modül, tek satır değişti (artımlı): 1.10 s
+$ cd target/debug/incremental/moduler-*/s-*/ && echo "yeniden üretilen .o: $(md5sum *.o | grep -vxFf /tmp/moduler-once.txt | wc -l)" && md5sum *.o | grep -vxFf /tmp/moduler-once.txt | awk "{print \$2}" | xargs stat -c "yeniden üretilenin boyutu: %s bayt"
+yeniden üretilen .o: 1
+yeniden üretilenin boyutu: 177680 bayt
 $ CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 /usr/bin/time -f "release, codegen-units=16: %e s" cargo build -q --release --target-dir target/cgu16
-release, codegen-units=16: 4.04 s
+release, codegen-units=16: 4.26 s
 $ CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 /usr/bin/time -f "release, codegen-units=1 : %e s" cargo build -q --release --target-dir target/cgu1
-release, codegen-units=1 : 6.14 s
+release, codegen-units=1 : 6.11 s
 $ ./target/cgu16/release/buyuk; ./target/cgu1/release/buyuk
-9356063799146033477
-9356063799146033477
+6347231679757235248
+6347231679757235248
 $ cargo +nightly build -q --target-dir target/nightly
-$ sed -i "s/(x ^ 15002)/(x ^ 15003)/" src/main.rs && cargo +nightly rustc -q --target-dir target/nightly -- -Ztime-passes 2>&1 | grep -E "time: +[0-9.]+;" | sort -k2 -n -r | head -n 8
-time:   2.419; rss:   32MB ->  277MB ( +245MB)	total
-time:   1.021; rss:  566MB ->  527MB (  -39MB)	LLVM_passes
-time:   0.924; rss:  501MB ->  494MB (   -7MB)	finish_ongoing_codegen
-time:   0.325; rss:  455MB ->  577MB ( +122MB)	codegen_crate
-time:   0.247; rss:  487MB ->  577MB (  +90MB)	codegen_to_LLVM_IR
-time:   0.244; rss:  487MB ->  566MB (  +79MB)	compile_first_CGU_batch
-time:   0.141; rss:  387MB ->  455MB (  +67MB)	misc_checking_3
-time:   0.118; rss:   55MB ->  167MB ( +111MB)	parse_crate
+$ sed -i "s/(x ^ 15001)/(x ^ 15002)/" src/main.rs && cargo +nightly rustc -q --target-dir target/nightly -- -Ztime-passes 2>&1 | grep -E "time: +[0-9.]+;" | sort -k2 -n -r | head -n 8
+time:   2.493; rss:   26MB ->  288MB ( +262MB)	total
+time:   1.029; rss:  554MB ->  536MB (  -17MB)	LLVM_passes
+time:   0.933; rss:  484MB ->  516MB (  +32MB)	finish_ongoing_codegen
+time:   0.344; rss:  441MB ->  565MB ( +124MB)	codegen_crate
+time:   0.261; rss:  474MB ->  566MB (  +92MB)	codegen_to_LLVM_IR
+time:   0.257; rss:  474MB ->  554MB (  +80MB)	compile_first_CGU_batch
+time:   0.148; rss:  372MB ->  441MB (  +68MB)	misc_checking_3
+time:   0.125; rss:   36MB ->  151MB ( +115MB)	parse_crate
 ```
 
 ## 103-olcum-bilimi
@@ -4567,8 +6247,8 @@ time:   0.118; rss:   55MB ->  167MB ( +111MB)	parse_crate
 - Video: `103-olcum-bilimi`
 - Örnek yolu: `deneyler/mufredat-ornekleri/103-olcum-bilimi/`
 - Kaynaklar: `black-box/Cargo.toml`, `black-box/src/main.rs`, `tuzak/Cargo.toml`, `tuzak/src/main.rs`, `tuzak-n-gizli/Cargo.toml`, `tuzak-n-gizli/src/main.rs`
-- Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:38:19Z
+- Toolchain: stable 1.100.0, python3 (konteyner)
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -4577,35 +6257,51 @@ time:   0.118; rss:   55MB ->  167MB ( +111MB)	parse_crate
 cd tuzak && k cargo run -q --release; cd ..
 # Aynı kod, tek fark: matris boyutu n derleme anında bilinmiyor (black_box)
 cd tuzak-n-gizli && ks 'cargo run -q --release | grep matris'; cd ..
+# Neden? LLVM'in kendi raporu: n bilinince döngü yer değiştirme (LoopInterchange) geçişi kodu değiştirdi, gizlenince değiştirmedi
+cd tuzak && ks 'RUSTFLAGS="-C llvm-args=-print-changed=quiet" cargo build -q --release --target-dir target/gecisler 2>&1 | grep -c "IR Dump After LoopInterchangePass" | xargs echo "n bilinirken LoopInterchangePass değişikliği:"'; cd ..
+cd tuzak-n-gizli && ks 'RUSTFLAGS="-C llvm-args=-print-changed=quiet" cargo build -q --release --target-dir target/gecisler 2>&1 | grep -c "IR Dump After LoopInterchangePass" | xargs echo "n gizlenince LoopInterchangePass değişikliği:"'; cd ..
+# Kendin dene: n bilinirken geçişi kapatmak (LLVM seçeneği); sütun gezinme yine yavaşlar
+cd tuzak && ks 'RUSTFLAGS="-C llvm-args=-enable-loopinterchange=false" cargo run -q --release --target-dir target/donusumsuz | grep matris'; cd ..
 # Tuzak 2: sonucu kullanılmayan hesap ölçülemez
 cd black-box && k cargo run -q --release
 # İstatistik: tek ölçüm değil, dağılım (hyperfine: ısınma, ortalama ± σ, aralık)
 k cargo build -q --release
-k hyperfine -N --warmup 3 --runs 30 --style basic ./target/release/black_box
+k hyperfine -N --warmup 3 --runs 30 --style basic --export-json target/olcum.json ./target/release/black_box
+# Otuz ölçümün hepsi (ms, küçükten büyüğe): dağılımı kendimiz görelim
+ks 'python3 -c "import json; t=sorted(x*1000 for x in json.load(open(\"target/olcum.json\"))[\"results\"][0][\"times\"]); print(\" \".join(f\"{x:.1f}\" for x in t))"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
 $ cargo run -q --release
-matris satır-öncelikli gezinme         3.03 ms
-matris sütun-öncelikli gezinme         2.39 ms
-Vec<u64> toplamı                       1.27 ms
-LinkedList<u64> toplamı                6.97 ms
-AoS: Vec<Parcacik> içinden kütle       3.83 ms
-SoA: Vec<f32> kütle dizisi             2.79 ms
+matris satır-öncelikli gezinme         3.13 ms
+matris sütun-öncelikli gezinme         2.38 ms
+Vec<u64> toplamı                       1.98 ms
+LinkedList<u64> toplamı                7.38 ms
+AoS: Vec<Parcacik> içinden kütle       4.26 ms
+SoA: Vec<f32> kütle dizisi             2.72 ms
 $ cargo run -q --release | grep matris
-matris satır-öncelikli gezinme         2.69 ms
-matris sütun-öncelikli gezinme       117.23 ms
+matris satır-öncelikli gezinme         3.48 ms
+matris sütun-öncelikli gezinme        74.74 ms
+$ RUSTFLAGS="-C llvm-args=-print-changed=quiet" cargo build -q --release --target-dir target/gecisler 2>&1 | grep -c "IR Dump After LoopInterchangePass" | xargs echo "n bilinirken LoopInterchangePass değişikliği:"
+n bilinirken LoopInterchangePass değişikliği: 1
+$ RUSTFLAGS="-C llvm-args=-print-changed=quiet" cargo build -q --release --target-dir target/gecisler 2>&1 | grep -c "IR Dump After LoopInterchangePass" | xargs echo "n gizlenince LoopInterchangePass değişikliği:"
+n gizlenince LoopInterchangePass değişikliği: 0
+$ RUSTFLAGS="-C llvm-args=-enable-loopinterchange=false" cargo run -q --release --target-dir target/donusumsuz | grep matris
+matris satır-öncelikli gezinme         3.20 ms
+matris sütun-öncelikli gezinme        98.70 ms
 $ cargo run -q --release
 sonuç atılınca      :      0.000 ms
-black_box ile       :     31.996 ms
+black_box ile       :     32.332 ms
 $ cargo build -q --release
-$ hyperfine -N --warmup 3 --runs 30 --style basic ./target/release/black_box
+$ hyperfine -N --warmup 3 --runs 30 --style basic --export-json target/olcum.json ./target/release/black_box
 Benchmark 1: ./target/release/black_box
-  Time (mean ± σ):      32.8 ms ±   0.4 ms    [User: 32.0 ms, System: 0.5 ms]
-  Range (min … max):    32.1 ms …  33.6 ms    30 runs
+  Time (mean ± σ):      33.3 ms ±   1.0 ms    [User: 32.5 ms, System: 0.5 ms]
+  Range (min … max):    32.2 ms …  36.2 ms    30 runs
  
+$ python3 -c "import json; t=sorted(x*1000 for x in json.load(open(\"target/olcum.json\"))[\"results\"][0][\"times\"]); print(\" \".join(f\"{x:.1f}\" for x in t))"
+32.2 32.2 32.2 32.3 32.3 32.4 32.4 32.7 32.7 32.7 32.8 33.0 33.1 33.1 33.2 33.3 33.3 33.3 33.3 33.3 33.4 33.6 33.6 33.8 34.2 34.7 34.7 34.8 35.3 36.2
 ```
 
 ## 104-profil-cikarma
@@ -4614,7 +6310,8 @@ Benchmark 1: ./target/release/black_box
 - Örnek yolu: `deneyler/mufredat-ornekleri/104-profil-cikarma/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:41Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: valgrind süreç numarası (==NNNN==) ve toplam komut sayısındaki küçük oynama (birkaç yüz komut); yüzdeler aynı kalır
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -4624,6 +6321,8 @@ k ./target/release/profil
 ks 'valgrind --tool=callgrind --callgrind-out-file=/tmp/cg.out ./target/release/profil 2>&1 | grep -E "Collected|bulunan"'
 # main'in çağırdıkları ve kapsayıcı (inclusive) maliyetleri; dosya yolları kısaltıldı
 ks 'callgrind_annotate --inclusive=yes /tmp/cg.out 2>/dev/null | grep -E "PROGRAM TOTALS|=> .*profil::(yavas_arama|hizli_hazirlik|hizli_arama) " | sed -E "s#=> .*:(profil::[a-z_]+) #=> \1 #"'
+# Kendi maliyeti (dahil olmayan görünüm): satır içine alınan kod çağıranın kendi maliyetinde görünür, sıralama ise çağrılan fonksiyonlarda
+ks 'callgrind_annotate /tmp/cg.out 2>/dev/null | sed -n "/file:function/,+8p" | sed -E "s#/rustc/[0-9a-f]+/library/##; s#<u32, <u32 as core::cmp::PartialOrd>::lt>#<u32, …>#g; s# \[/work/[^]]*\]##"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -4634,12 +6333,22 @@ $ ./target/release/profil
 bulunan: 2000 / 2000
 $ valgrind --tool=callgrind --callgrind-out-file=/tmp/cg.out ./target/release/profil 2>&1 | grep -E "Collected|bulunan"
 bulunan: 2000 / 2000
-==20456== Collected : 24591969
+==30646== Collected : 24592551
 $ callgrind_annotate --inclusive=yes /tmp/cg.out 2>/dev/null | grep -E "PROGRAM TOTALS|=> .*profil::(yavas_arama|hizli_hazirlik|hizli_arama) " | sed -E "s#=> .*:(profil::[a-z_]+) #=> \1 #"
-24,591,969 (100.0%)  PROGRAM TOTALS
+24,592,551 (100.0%)  PROGRAM TOTALS
 21,276,515 (86.52%)  => profil::yavas_arama (1x)
 2,671,669 (10.86%)  => profil::hizli_hazirlik (1x)
 292,013 ( 1.19%)  => profil::hizli_arama (1x)
+$ callgrind_annotate /tmp/cg.out 2>/dev/null | sed -n "/file:function/,+8p" | sed -E "s#/rustc/[0-9a-f]+/library/##; s#<u32, <u32 as core::cmp::PartialOrd>::lt>#<u32, …>#g; s# \[/work/[^]]*\]##"
+Ir                   file:function
+--------------------------------------------------------------------------------
+12,505,000 (50.85%)  core/src/slice/cmp.rs:profil::yavas_arama
+ 5,012,013 (20.38%)  core/src/slice/iter/macros.rs:profil::yavas_arama
+ 3,755,500 (15.27%)  core/src/slice/mod.rs:profil::yavas_arama
+   619,513 ( 2.52%)  core/src/slice/sort/unstable/quicksort.rs:core::slice::sort::unstable::quicksort::quicksort::<u32, …>'2
+   559,442 ( 2.27%)  core/src/ptr/mod.rs:core::slice::sort::unstable::quicksort::quicksort::<u32, …>'2
+   423,948 ( 1.72%)  core/src/cmp.rs:core::slice::sort::unstable::quicksort::quicksort::<u32, …>'2
+   219,935 ( 0.89%)  core/src/hint.rs:core::slice::sort::unstable::quicksort::quicksort::<u32, …>'2
 ```
 
 ## 105-dallanma-tahmini
@@ -4648,7 +6357,7 @@ $ callgrind_annotate --inclusive=yes /tmp/cg.out 2>/dev/null | grep -E "PROGRAM 
 - Örnek yolu: `deneyler/mufredat-ornekleri/105-dallanma-tahmini/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:42Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -4657,8 +6366,8 @@ k cargo build -q --release
 k ./target/release/dallanma
 # Dallanan sürüm: döngünün içinde koşullu atlama (jns: işaret biti 0 ise atla → x < 128)
 ks 'objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dallanma::dallanan>:/,/^$/" | grep -E "\bj(ns|s)\b"'
-# Dalsız sürüm: vektör karşılaştırma (pcmpgtb) + maske (pand); döngüde veri bağımlı atlama yok
-ks 'objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dallanma::dalsiz>:/,/^$/" | grep -oE "\b(pcmpgtb|pand|paddq)\b" | sort | uniq -c'
+# Dallanmasız sürüm: vektör karşılaştırma (pcmpgtb) + maske (pand); döngüde veriye bağlı atlama yok
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dallanma::dallanmasiz>:/,/^$/" | grep -oE "\b(pcmpgtb|pand|paddq)\b" | sort | uniq -c'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -4666,13 +6375,13 @@ ks 'objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<d
 ```text
 $ cargo build -q --release
 $ ./target/release/dallanma
-dallanan, karışık veri          272.2 ms   (toplam 9577481740)
-dalsız,   karışık veri           29.1 ms   (toplam 9577481740)
-dallanan, sıralı veri            28.9 ms   (toplam 9577481740)
-dalsız,   sıralı veri            29.2 ms   (toplam 9577481740)
+dallanan,    karışık veri     282.4 ms   (toplam 9577481740)
+dallanmasız, karışık veri      30.7 ms   (toplam 9577481740)
+dallanan,    sıralı veri       34.2 ms   (toplam 9577481740)
+dallanmasız, sıralı veri       30.2 ms   (toplam 9577481740)
 $ objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dallanma::dallanan>:/,/^$/" | grep -E "\bj(ns|s)\b"
-   1829e:	jns    18290 <dallanma::dallanan+0x20>
-$ objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dallanma::dalsiz>:/,/^$/" | grep -oE "\b(pcmpgtb|pand|paddq)\b" | sort | uniq -c
+   182ae:	jns    182a0 <dallanma::dallanan+0x20>
+$ objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dallanma::dallanmasiz>:/,/^$/" | grep -oE "\b(pcmpgtb|pand|paddq)\b" | sort | uniq -c
       4 paddq
       2 pand
       2 pcmpgtb
@@ -4684,7 +6393,7 @@ $ objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dal
 - Örnek yolu: `deneyler/mufredat-ornekleri/106-simd-ve-vektorlestirme/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:43Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -4694,6 +6403,8 @@ k ./target/release/simd
 # Hangi toplama komutları? addss: tek (skaler) f32, addps: 4'lü paket (SSE)
 ks 'objdump -d -M intel --no-show-raw-insn -C target/release/simd | awk "/<simd::toplam_basit>:/,/^$/" | grep -oE "\b(addss|addps|vaddps)\b" | sort | uniq -c'
 ks 'objdump -d -M intel --no-show-raw-insn -C target/release/simd | awk "/<simd::toplam_8_serit>:/,/^$/" | grep -oE "\b(addss|addps|vaddps)\b" | sort | uniq -c'
+# f64 de skaler: addsd (tek f64); derleyici kayan nokta toplamının sırasını kendiliğinden değiştirmez
+ks 'objdump -d -M intel --no-show-raw-insn -C target/release/simd | awk "/<simd::toplam_basit_f64>:/,/^$/" | grep -oE "\b(addsd|addpd)\b" | sort | uniq -c'
 # Bu işlemciye özel derleme: AVX2 ile 8'li paketler (vaddps ymm)
 ks 'RUSTFLAGS="-C target-cpu=native" cargo build -q --release --target-dir target/native && ./target/native/release/simd'
 ks 'objdump -d -M intel --no-show-raw-insn -C target/native/release/simd | awk "/<simd::toplam_8_serit>:/,/^$/" | grep -E "vaddps +ymm" | head -n 2'
@@ -4704,21 +6415,27 @@ ks 'objdump -d -M intel --no-show-raw-insn -C target/native/release/simd | awk "
 ```text
 $ cargo build -q --release
 $ ./target/release/simd
-f32, basit toplam        11.02 ms  sonuç 21960720
-f32, 8 şeritli toplam     2.12 ms  sonuç 23999998
-i32, toplam               2.14 ms  sonuç 47999995
+f32, basit toplam        10.87 ms  sonuç 21960720
+f32, 8 şeritli toplam     2.06 ms  sonuç 23999998
+f64, basit toplam        11.05 ms  sonuç 23999997.5
+i32, toplam               1.98 ms  sonuç 47999995
+anlamlı bit: f32 24, f64 53; 23999997.5 sayısı f32'de 23999998 olur
 $ objdump -d -M intel --no-show-raw-insn -C target/release/simd | awk "/<simd::toplam_basit>:/,/^$/" | grep -oE "\b(addss|addps|vaddps)\b" | sort | uniq -c
       9 addss
 $ objdump -d -M intel --no-show-raw-insn -C target/release/simd | awk "/<simd::toplam_8_serit>:/,/^$/" | grep -oE "\b(addss|addps|vaddps)\b" | sort | uniq -c
      10 addps
       9 addss
+$ objdump -d -M intel --no-show-raw-insn -C target/release/simd | awk "/<simd::toplam_basit_f64>:/,/^$/" | grep -oE "\b(addsd|addpd)\b" | sort | uniq -c
+      9 addsd
 $ RUSTFLAGS="-C target-cpu=native" cargo build -q --release --target-dir target/native && ./target/native/release/simd
 f32, basit toplam        10.85 ms  sonuç 21960720
-f32, 8 şeritli toplam     1.81 ms  sonuç 23999998
-i32, toplam               1.94 ms  sonuç 47999995
+f32, 8 şeritli toplam     1.68 ms  sonuç 23999998
+f64, basit toplam        11.05 ms  sonuç 23999997.5
+i32, toplam               1.75 ms  sonuç 47999995
+anlamlı bit: f32 24, f64 53; 23999997.5 sayısı f32'de 23999998 olur
 $ objdump -d -M intel --no-show-raw-insn -C target/native/release/simd | awk "/<simd::toplam_8_serit>:/,/^$/" | grep -E "vaddps +ymm" | head -n 2
-   178d0:	vaddps ymm0,ymm0,YMMWORD PTR [rcx]
-   17920:	vaddps ymm0,ymm0,YMMWORD PTR [rcx+rdx*4]
+   17a80:	vaddps ymm0,ymm0,YMMWORD PTR [rcx]
+   17ad0:	vaddps ymm0,ymm0,YMMWORD PTR [rcx+rdx*4]
 ```
 
 ## 107-derleyici-ayarlari-lto-pgo
@@ -4728,7 +6445,7 @@ $ objdump -d -M intel --no-show-raw-insn -C target/native/release/simd | awk "/<
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `itoa 1.0.19`, `memchr 2.8.3`, `proc-macro2 1.0.107`, `quote 1.0.47`, `serde 1.0.229`, `serde_core 1.0.229`, `serde_derive 1.0.229`, `serde_json 1.0.154`, `syn 3.0.10`, `unicode-ident 1.0.27`, `zmij 1.0.23`
-- Son çalıştırma (UTC): 2026-11-20T16:05:54Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: süreler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -4736,8 +6453,9 @@ $ objdump -d -M intel --no-show-raw-insn -C target/native/release/simd | awk "/<
 k cargo build -q --release
 k cargo build -q --profile kucuk
 k cargo build -q --profile hizli
-ks 'stat -c "%8s bayt  %n" target/release/ayarlar target/kucuk/ayarlar target/hizli/ayarlar'
-k hyperfine -N --warmup 2 --runs 10 --style basic ./target/release/ayarlar ./target/kucuk/ayarlar ./target/hizli/ayarlar
+k cargo build -q --profile kucuk-semboller
+ks 'stat -c "%8s bayt  %n" target/release/ayarlar target/kucuk/ayarlar target/kucuk-semboller/ayarlar target/hizli/ayarlar'
+k hyperfine -N --warmup 3 --runs 30 --style basic ./target/release/ayarlar ./target/kucuk/ayarlar ./target/hizli/ayarlar
 # PGO (profil güdümlü optimizasyon) için llvm-profdata gerekir: bu imajda kurulu mu?
 ks 'rustup component list --installed | grep -c llvm-tools; command -v llvm-profdata || echo "llvm-profdata yok"'
 ```
@@ -4748,27 +6466,31 @@ ks 'rustup component list --installed | grep -c llvm-tools; command -v llvm-prof
 $ cargo build -q --release
 $ cargo build -q --profile kucuk
 $ cargo build -q --profile hizli
-$ stat -c "%8s bayt  %n" target/release/ayarlar target/kucuk/ayarlar target/hizli/ayarlar
+$ cargo build -q --profile kucuk-semboller
+$ stat -c "%8s bayt  %n" target/release/ayarlar target/kucuk/ayarlar target/kucuk-semboller/ayarlar target/hizli/ayarlar
   544360 bayt  target/release/ayarlar
   318808 bayt  target/kucuk/ayarlar
+  404624 bayt  target/kucuk-semboller/ayarlar
   440712 bayt  target/hizli/ayarlar
-$ hyperfine -N --warmup 2 --runs 10 --style basic ./target/release/ayarlar ./target/kucuk/ayarlar ./target/hizli/ayarlar
+$ hyperfine -N --warmup 3 --runs 30 --style basic ./target/release/ayarlar ./target/kucuk/ayarlar ./target/hizli/ayarlar
 Benchmark 1: ./target/release/ayarlar
-  Time (mean ± σ):      15.8 ms ±   1.6 ms    [User: 15.2 ms, System: 0.3 ms]
-  Range (min … max):    14.2 ms …  19.7 ms    10 runs
+  Time (mean ± σ):      15.0 ms ±   0.8 ms    [User: 14.3 ms, System: 0.5 ms]
+  Range (min … max):    14.2 ms …  18.8 ms    30 runs
+ 
+  Warning: Statistical outliers were detected. Consider re-running this benchmark on a quiet system without any interferences from other programs. It might help to use the '--warmup' or '--prepare' options.
  
 Benchmark 2: ./target/kucuk/ayarlar
-  Time (mean ± σ):      20.8 ms ±   0.3 ms    [User: 20.2 ms, System: 0.5 ms]
-  Range (min … max):    20.4 ms …  21.4 ms    10 runs
+  Time (mean ± σ):      19.9 ms ±   0.8 ms    [User: 19.0 ms, System: 0.7 ms]
+  Range (min … max):    19.0 ms …  23.0 ms    30 runs
  
 Benchmark 3: ./target/hizli/ayarlar
-  Time (mean ± σ):      12.8 ms ±   0.2 ms    [User: 12.4 ms, System: 0.3 ms]
-  Range (min … max):    12.5 ms …  13.0 ms    10 runs
+  Time (mean ± σ):      12.8 ms ±   0.4 ms    [User: 12.2 ms, System: 0.4 ms]
+  Range (min … max):    12.2 ms …  13.6 ms    30 runs
  
 Summary
   ./target/hizli/ayarlar ran
-    1.24 ± 0.13 times faster than ./target/release/ayarlar
-    1.63 ± 0.03 times faster than ./target/kucuk/ayarlar
+    1.17 ± 0.08 times faster than ./target/release/ayarlar
+    1.55 ± 0.08 times faster than ./target/kucuk/ayarlar
 $ rustup component list --installed | grep -c llvm-tools; command -v llvm-profdata || echo "llvm-profdata yok"
 0
 llvm-profdata yok
@@ -4780,7 +6502,7 @@ llvm-profdata yok
 - Örnek yolu: `deneyler/mufredat-ornekleri/108-tip-gudumlu-tasarim/`
 - Kaynaklar: `durum-tipleri/Cargo.toml`, `durum-tipleri/src/main.rs`, `yanlis-gecis/Cargo.toml`, `yanlis-gecis/src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:54Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -4796,6 +6518,7 @@ $ cargo run -q
 Some("boş sipariş onaylanamaz")
 ayse@ornek.com adresine: 2 kalem gönderildi
 geçersiz e-posta: "ayse.ornek.com"
+boyutlar: Taslak 24, Onayli 24, Gonderildi 24, Vec 24 bayt
 $ cargo build -q 2>&1 | head -n 16
 error[E0599]: no method named `gonder` found for struct `Siparis<Taslak>` in the current scope
   --> src/main.rs:57:47
@@ -4818,7 +6541,7 @@ error: could not compile `yanlis_gecis` (bin "yanlis_gecis") due to 1 previous e
 - Örnek yolu: `deneyler/mufredat-ornekleri/109-hata-sinirlari-ve-katmanlar/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:54Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -4830,7 +6553,7 @@ k cargo run -q
 ```text
 $ cargo run -q
 defter × 3: 200 sipariş alındı, kalan stok 9
-defter × 50: 400 defter: 50 istendi, stokta 12 var
+defter × 50: 409 defter: 50 istendi, stokta 12 var
 defter × 0: 400 adet en az 1 olmalı
 silgi × 1: 500 geçici bir sorun oluştu, lütfen tekrar deneyin
     [günlük] altyapı hatası: No such file or directory (os error 2)
@@ -4842,7 +6565,7 @@ silgi × 1: 500 geçici bir sorun oluştu, lütfen tekrar deneyin
 - Örnek yolu: `deneyler/mufredat-ornekleri/110-api-tasarimi/`
 - Kaynaklar: `Cargo.toml`, `istemci/Cargo.toml`, `istemci/src/bin/duzgun.rs`, `istemci/src/main.rs`, `kutuphane/Cargo.toml`, `kutuphane/src/lib.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:54Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -4904,7 +6627,7 @@ Can bulunamadı
 - Örnek yolu: `deneyler/mufredat-ornekleri/111-test-edilebilir-mimari/`
 - Kaynaklar: `Cargo.toml`, `src/lib.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:55Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: test süresi
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -4934,7 +6657,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `cfg-if 1.0.5`, `lazy_static 1.5.1`, `log 0.4.35`, `nu-ansi-term 0.50.3`, `once_cell 1.21.4`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `sharded-slab 0.1.7`, `smallvec 1.16.6`, `syn 2.0.119`, `thread_local 1.1.10`, `tracing 0.1.44`, `tracing-attributes 0.1.31`, `tracing-core 0.1.36`, `tracing-log 0.2.0`, `tracing-subscriber 0.3.23`, `unicode-ident 1.0.27`, `valuable 0.1.1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:05:57Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -4960,7 +6683,7 @@ ERROR siparis_isle{id=43 kalem_sayisi=7}:odeme_al{tutar=1750}: limit aşıldı t
 - Örnek yolu: `deneyler/mufredat-ornekleri/113-ajan-kodunu-okumak/`
 - Kaynaklar: `ajanin-yazdigi/Cargo.toml`, `ajanin-yazdigi/src/lib.rs`, `incelenmis/Cargo.toml`, `incelenmis/src/lib.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:58Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: iş parçacığı kimlikleri, test süreleri
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
@@ -4969,7 +6692,7 @@ ERROR siparis_isle{id=43 kalem_sayisi=7}:odeme_al{tutar=1750}: limit aşıldı t
 cd ajanin-yazdigi
 ks 'cargo test -q ajanin_testleri 2>&1 | grep "test result"'
 # İncelemede eklediğimiz sınır testleri:
-ks 'cargo test -q inceleme_testleri 2>&1 | grep -E "^---- |panicked|attempt|ParseIntError|test result"'
+ks 'cargo test -q inceleme_testleri -- --test-threads=1 2>&1 | grep -E "^---- |panicked|attempt|ParseIntError|test result"'
 cd ../incelenmis
 ks 'cargo test -q 2>&1 | grep "test result" | head -n 1'
 ```
@@ -4979,14 +6702,17 @@ ks 'cargo test -q 2>&1 | grep "test result" | head -n 1'
 ```text
 $ cargo test -q ajanin_testleri 2>&1 | grep "test result"
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
-$ cargo test -q inceleme_testleri 2>&1 | grep -E "^---- |panicked|attempt|ParseIntError|test result"
+$ cargo test -q inceleme_testleri -- --test-threads=1 2>&1 | grep -E "^---- |panicked|attempt|ParseIntError|test result"
 ---- inceleme_testleri::bozuk_girdi stdout ----
-thread 'inceleme_testleri::bozuk_girdi' (22120) panicked at src/lib.rs:4:54:
+thread 'inceleme_testleri::bozuk_girdi' (32528) panicked at src/lib.rs:4:54:
 called `Result::unwrap()` on an `Err` value: ParseIntError { kind: InvalidDigit }
+---- inceleme_testleri::buyuk_fiyat stdout ----
+thread 'inceleme_testleri::buyuk_fiyat' (32529) panicked at src/lib.rs:5:19:
+attempt to multiply with overflow
 ---- inceleme_testleri::yuzden_fazla stdout ----
-thread 'inceleme_testleri::yuzden_fazla' (22122) panicked at src/lib.rs:5:5:
+thread 'inceleme_testleri::yuzden_fazla' (32530) panicked at src/lib.rs:5:5:
 attempt to subtract with overflow
-test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
 $ cargo test -q 2>&1 | grep "test result" | head -n 1
 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
@@ -4997,15 +6723,22 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 - Örnek yolu: `deneyler/mufredat-ornekleri/114-inceleme-listesi/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:05:58Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 k cargo run -q
+# Ajanın testi geçiyor (testte yalnız kısa kayıtlar var)
+ks 'cargo test -q 2>&1 | grep "test result"'
 # Varsayılan clippy ne diyor? (lint adları uyarıların yardım bağlantısından)
 ks 'cargo clippy -q 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c'
 # İnceleme için sıkı mod: pedantic + unwrap_used
 ks 'cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c | sort -rn'
+# Kendin dene: deneysel (nursery) grup da açılınca liste değişiyor mu?
+ks 'cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used -W clippy::nursery 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c | sort -rn'
+ks 'cargo clippy -q -- -W clippy::nursery 2>&1 | grep -A3 "redundant clone"'
+# Bütün lint grupları açıkken (all = correctness+suspicious+style+complexity+perf, ayrıca pedantic, restriction, nursery, cargo): 7. ve 10. satırlar
+ks 'cargo clippy -q --message-format=short -- -W clippy::all -W clippy::pedantic -W clippy::restriction -W clippy::nursery -W clippy::cargo 2>&1 | grep -E "^src/main.rs:(7|10):" | sed -E "s/^src\/main.rs:([0-9]+):[0-9]+: warning: /satır \1: /" | sort | uniq'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -5013,6 +6746,8 @@ ks 'cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used 2>&1 | grep -o
 ```text
 $ cargo run -q
 2 kayıt, toplam 48 bayt, ilk: ELMA
+$ cargo test -q 2>&1 | grep "test result"
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo clippy -q 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c
       1 iter_next_slice
 $ cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c | sort -rn
@@ -5023,6 +6758,25 @@ $ cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used 2>&1 | grep -oE 
       1 implicit_hasher
       1 cast_possible_truncation
       1 cast_lossless
+$ cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used -W clippy::nursery 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c | sort -rn
+      2 unwrap_used
+      2 needless_pass_by_value
+      1 redundant_clone
+      1 missing_panics_doc
+      1 iter_next_slice
+      1 implicit_hasher
+      1 cast_possible_truncation
+      1 cast_lossless
+$ cargo clippy -q -- -W clippy::nursery 2>&1 | grep -A3 "redundant clone"
+warning: redundant clone
+  --> src/main.rs:10:42
+   |
+10 |         onbellek.lock().unwrap().insert(k.clone(), uzunluk as usize);
+$ cargo clippy -q --message-format=short -- -W clippy::all -W clippy::pedantic -W clippy::restriction -W clippy::nursery -W clippy::cargo 2>&1 | grep -E "^src/main.rs:(7|10):" | sed -E "s/^src\/main.rs:([0-9]+):[0-9]+: warning: /satır \1: /" | sort | uniq
+satır 10: redundant clone: help: remove this
+satır 10: used `unwrap()` on a `Result` value
+satır 10: using a potentially dangerous silent `as` conversion
+satır 7: this identifier consists of only a single character
 ```
 
 ## 115-araclarla-dogrulama
@@ -5032,17 +6786,25 @@ $ cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used 2>&1 | grep -oE 
 - Kaynaklar: `Cargo.toml`, `bariz/Cargo.toml`, `bariz/src/lib.rs`, `src/lib.rs`
 - Toolchain: stable 1.100.0, nightly (miri / -Z bayrakları)
 - Bağımlılıklar (Cargo.lock'ta çözülen): `autocfg 1.5.1`, `bit-set 0.11.1`, `bit-vec 0.10.2`, `bitflags 2.13.2`, `borsh 1.8.1`, `borsh-derive 1.8.1`, `bytes 1.12.2`, `cfg-if 1.0.5`, `cfg_aliases 0.2.2`, `chacha20 0.10.2`, `core_detect 1.0.0`, `cpufeatures 0.3.1`, `equivalent 1.0.3`, `errno 0.3.15`, `fastrand 2.5.0`, `fnv 1.0.7`, `getrandom 0.4.3`, `hashbrown 0.17.1`, `indexmap 2.14.2`, `libc 0.2.191`, `linux-raw-sys 0.12.1`, `memchr 2.8.3`, `num-traits 0.2.19`, `once_cell 1.21.4`, `proc-macro-crate 3.5.0`, `proc-macro2 1.0.107`, `proptest 1.12.0`, `quick-error 1.2.3`, `quote 1.0.47`, `r-efi 6.0.0`, `rand 0.10.4`, `rand_core 0.10.1`, `rand_xorshift 0.5.0`, `regex-syntax 0.8.12`, `rustix 1.1.6`, `rusty-fork 0.3.1`, `serde 1.0.229`, `serde_core 1.0.229`, `serde_derive 1.0.229`, `syn 3.0.10`, `tempfile 3.27.0`, `toml_datetime 1.1.3+spec-1.1.0`, `toml_edit 0.25.19+spec-1.1.0`, `toml_parser 1.1.5+spec-1.1.0`, `unarray 0.1.4`, `unicode-ident 1.0.27`, `wait-timeout 0.2.1`, `windows-link 0.2.1`, `windows-sys 0.61.2`, `winnow 1.0.5`
-- Son çalıştırma (UTC): 2026-11-20T16:06:05Z
-- Değişken çıktı: proptest'in bulduğu en küçük karşı örnek ve süreler değişebilir
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: Miri'nin etiket ve ayırma numaraları; süreler. proptest tohumu sabit (PROPTEST_RNG_SEED=1): karşı örnek herkeste aynı çıkar
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 rm -rf proptest-regressions
-# 0) Bariz hâli: derleyicinin varsayılan "deny" uyarısı yakalar
+export PROPTEST_DISABLE_FAILURE_PERSISTENCE=1
+# 0) Bariz hâli: derleyicinin varsayılan "deny" denetimi yakalar
 cd bariz && k cargo build -q; cd ..
 # 1) Dolaylı hâli derlenir; örnek testler geçer, farklılık (diferansiyel) testi patlar
-ks 'cargo test -q 2>&1 | grep -E -A4 "^---- |minimal failing input" | grep -vE "^(--|thread|note:|\s*$)"; cargo test -q 2>&1 | grep "test result"'
-# 2) miri: "geçen" sayaç testindeki tanımsız davranışı yakalar
+ks 'PROPTEST_RNG_SEED=1 cargo test -q 2>&1 | grep -E -A4 "minimal failing input" | grep -vE "^(--|thread|note:|\s*$)"'
+ks 'PROPTEST_RNG_SEED=1 cargo test -q 2>&1 | grep "test result"'
+# Kendin dene: başka bir tohumla küçültme başka (daha uzun) bir karşı örnekte durabilir
+ks 'PROPTEST_RNG_SEED=2 cargo test -q medyan_basvuruyla 2>&1 | grep -E -A5 "minimal failing input" | grep -vE "^(--|thread|note:|\s*$)"'
+# Küçültme adımları (PROPTEST_VERBOSE=2, aynı tohum): her denenen girdi ve sonucu, sırayla
+ks 'PROPTEST_RNG_SEED=1 PROPTEST_VERBOSE=2 cargo test -q medyan_basvuruyla 2>&1 | awk "/Next test input/ {g=\$0; sub(/.*v = /, \"\", g)} /Test case passed/ {print g \" → geçti\"} /Test case failed/ {print g \" → başarısız\"}"'
+# Kendin dene: medyan_hizli'yi düzeltmek (girdi &[i32], select_nth_unstable &mut ister: önce kopya); özellik testi geçer
+ks 'rm -rf /tmp/medyan-kopya && mkdir /tmp/medyan-kopya && cp -r Cargo.toml Cargo.lock src /tmp/medyan-kopya/ && cd /tmp/medyan-kopya && sed -i "s/    if v.is_empty() { None } else { Some(v\[v.len() \/ 2\]) }/    if v.is_empty() { None } else { let mut k = v.to_vec(); let orta = k.len() \/ 2; Some(*k.select_nth_unstable(orta).1) }/" src/lib.rs && grep -n "select_nth_unstable" src/lib.rs && PROPTEST_RNG_SEED=1 cargo test -q 2>&1 | grep "test result" | head -n 1'
+# 2) Miri: "geçen" sayaç testindeki tanımsız davranışı yakalar
 ks 'cargo +nightly miri test -q sayac_artiyor 2>&1 | grep -E "Undefined Behavior|-->|test result" | head -n 4'
 rm -rf proptest-regressions
 ```
@@ -5065,16 +6827,44 @@ error: assigning to `&T` is undefined behavior, consider using an `UnsafeCell`
 
 error: could not compile `bariz` (lib) due to 1 previous error
 [çıkış kodu: 101]
-$ cargo test -q 2>&1 | grep -E -A4 "^---- |minimal failing input" | grep -vE "^(--|thread|note:|\s*$)"; cargo test -q 2>&1 | grep "test result"
-proptest: Saving this and future failures in /work/mufredat-ornekleri/115-araclarla-dogrulama/proptest-regressions/lib.txt
-proptest: If this test was run on a CI system, you may wish to add the following line to your copy of the file. (You may need to create it.)
-cc c4d598a2571a78b814cf17328f8543392968da0c0ae210f9dca2e8b87aef731c
+$ PROPTEST_RNG_SEED=1 cargo test -q 2>&1 | grep -E -A4 "minimal failing input" | grep -vE "^(--|thread|note:|\s*$)"
+minimal failing input: v = [
+    53,
+    0,
+]
+	successes: 0
+$ PROPTEST_RNG_SEED=1 cargo test -q 2>&1 | grep "test result"
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ PROPTEST_RNG_SEED=2 cargo test -q medyan_basvuruyla 2>&1 | grep -E -A5 "minimal failing input" | grep -vE "^(--|thread|note:|\s*$)"
 minimal failing input: v = [
     0,
     0,
+    -1,
     0,
-    1,
-test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+]
+$ PROPTEST_RNG_SEED=1 PROPTEST_VERBOSE=2 cargo test -q medyan_basvuruyla 2>&1 | awk "/Next test input/ {g=\$0; sub(/.*v = /, \"\", g)} /Test case passed/ {print g \" → geçti\"} /Test case failed/ {print g \" → başarısız\"}"
+[20, 79, 40, 52] → başarısız
+[79, 40, 52] → başarısız
+[40, 52] → geçti
+[79, 40, 52] → başarısız
+[79, 52] → başarısız
+[79] → geçti
+[79, 52] → başarısız
+[39, 52] → geçti
+[59, 52] → başarısız
+[49, 52] → geçti
+[54, 52] → başarısız
+[52, 52] → geçti
+[53, 52] → başarısız
+[53, 26] → başarısız
+[53, 13] → başarısız
+[53, 6] → başarısız
+[53, 3] → başarısız
+[53, 1] → başarısız
+[53, 0] → başarısız
+$ rm -rf /tmp/medyan-kopya && mkdir /tmp/medyan-kopya && cp -r Cargo.toml Cargo.lock src /tmp/medyan-kopya/ && cd /tmp/medyan-kopya && sed -i "s/    if v.is_empty() { None } else { Some(v\[v.len() \/ 2\]) }/    if v.is_empty() { None } else { let mut k = v.to_vec(); let orta = k.len() \/ 2; Some(*k.select_nth_unstable(orta).1) }/" src/lib.rs && grep -n "select_nth_unstable" src/lib.rs && PROPTEST_RNG_SEED=1 cargo test -q 2>&1 | grep "test result" | head -n 1
+14:    if v.is_empty() { None } else { let mut k = v.to_vec(); let orta = k.len() / 2; Some(*k.select_nth_unstable(orta).1) }
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 $ cargo +nightly miri test -q sayac_artiyor 2>&1 | grep -E "Undefined Behavior|-->|test result" | head -n 4
 error: Undefined Behavior: attempting a write access using <130405> at alloc41025[0x0], but that tag only grants SharedReadOnly permission for this location
  --> src/lib.rs:3:14
@@ -5087,15 +6877,17 @@ error: Undefined Behavior: attempting a write access using <130405> at alloc4102
 - Örnek yolu: `deneyler/mufredat-ornekleri/116-dogru-soruyu-sormak/`
 - Kaynaklar: `1-sozlesme/Cargo.toml`, `1-sozlesme/src/lib.rs`, `2-uygulama/Cargo.toml`, `2-uygulama/src/lib.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:06:05Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Değişken çıktı: iş parçacığı kimlikleri, test süreleri
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
 # Önce sözleşme: imza + belge + testler; gövde todo!()
 cd 1-sozlesme && ks 'cargo test -q 2>&1 | grep -E "not yet implemented|test result" | sort | uniq -c'; cd ..
-# Sonra uygulama (ajan ya da insan): aynı testler
+# Sonra gerçekleştirim (ajan ya da insan): aynı testler
 cd 2-uygulama && ks 'cargo test -q 2>&1 | grep "test result" | head -n 1'; cd ..
+# Kendin dene: sözleşmeye altıncı madde (genişlik 0 ise boş liste); bugünkü gerçekleştirim bu testi geçemez
+ks 'rm -rf /tmp/sarmala-kopya && mkdir /tmp/sarmala-kopya && cp -r 2-uygulama/Cargo.toml 2-uygulama/Cargo.lock 2-uygulama/src /tmp/sarmala-kopya/ && cd /tmp/sarmala-kopya && sed -i "\$ d" src/lib.rs && printf "    #[test]\n    fn genislik_sifir_bos_liste() {\n        assert_eq!(sarmala(\"bir iki\", 0), Vec::<String>::new());\n    }\n}\n" >> src/lib.rs && cargo test -q 2>&1 | grep -E "^test result|left:|right:"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
@@ -5106,191 +6898,323 @@ $ cargo test -q 2>&1 | grep -E "not yet implemented|test result" | sort | uniq -
       1 test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo test -q 2>&1 | grep "test result" | head -n 1
 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ rm -rf /tmp/sarmala-kopya && mkdir /tmp/sarmala-kopya && cp -r 2-uygulama/Cargo.toml 2-uygulama/Cargo.lock 2-uygulama/src /tmp/sarmala-kopya/ && cd /tmp/sarmala-kopya && sed -i "\$ d" src/lib.rs && printf "    #[test]\n    fn genislik_sifir_bos_liste() {\n        assert_eq!(sarmala(\"bir iki\", 0), Vec::<String>::new());\n    }\n}\n" >> src/lib.rs && cargo test -q 2>&1 | grep -E "^test result|left:|right:"
+  left: ["bir", "iki"]
+ right: []
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 ## 117-ambar-tasarim
 
 - Video: `117-ambar-tasarim`
 - Örnek yolu: `deneyler/mufredat-ornekleri/117-ambar-tasarim/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/ambar/` — kaynaklar: `Cargo.toml`, `src/bin/ambar.rs`, `src/crc.rs`, `src/gunluk.rs`, `src/lib.rs`, `src/motor.rs`, `src/protokol.rs`, `src/sunucu.rs`
+- Kaynaklar: `ambar/Cargo.toml`, `ambar/src/bin/ambar.rs`, `ambar/src/gunluk.rs`, `ambar/src/lib.rs`, `ambar/src/motor.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:06:06Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: panik satırındaki iş parçacığı kimliği (parantez içindeki sayı) her çalıştırmada değişir
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/ambar
+# Kontrol noktası: bu videonun sonundaki kod ambar/ dizininde.
+cd ambar
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep "^test "'
 k cargo build -q --release
-rm -rf calisma && mkdir -p calisma
-k ./target/release/ambar demo calisma/veri
-# Süreç bitti, bellek gitti. Yeni bir süreç günlüğü baştan okuyarak durumu yeniden kurar:
-k ./target/release/ambar kurtar calisma/veri
-# Günlük dosyasının baytları: 5 kayıt (SET, SET, üzerine yazma, silme, SET)
-k od -A d -c calisma/veri/gunluk.ambar
+rm -rf calisma
+# Her komut ayrı bir süreç: açılışta günlüğü baştan okuyup dizini yeniden kurar.
+k ./target/release/ambar yaz calisma dil rust
+k ./target/release/ambar yaz calisma yil 2015
+k ./target/release/ambar yaz calisma dil Rust
+k ./target/release/ambar sil calisma yil
+k ./target/release/ambar yaz calisma şehir İzmir
+k ./target/release/ambar listele calisma
+k ./target/release/ambar oku calisma yil
+# Günlüğün baytları (onaltılık; sağda ASCII)
+k od -A d -t x1z -v calisma/gunluk.ambar
+# Aynı beş komut bir kez daha: canlı durum aynı kalır, günlük büyür
+echo "# aynı beş komut bir kez daha çalıştırıldı"
+for satir in "yaz dil rust" "yaz yil 2015" "yaz dil Rust" "sil yil" "yaz şehir İzmir"; do
+  set -- $satir
+  ./target/release/ambar "$1" calisma "${@:2}"
+done
+k ./target/release/ambar listele calisma
+# Bu adımın okuyucusu günlüğün sağlam olduğunu varsayar: son kaydın 3 baytı eksik olursa?
+k truncate -s -3 calisma/gunluk.ambar
+k ./target/release/ambar listele calisma
 rm -rf calisma
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ cargo test --lib -- --test-threads=1 2>&1 | grep "^test "
+test gunluk::testler::silme_kaydi_uzunluk_alaninda_isaretlenir ... ok
+test gunluk::testler::uzunluk_bayt_sayar_karakter_degil ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
-$ ./target/release/ambar demo calisma/veri
-bellekteki durum: [("dil", "Rust"), ("maskot", "Ferris")]
-$ ./target/release/ambar kurtar calisma/veri
-geçerli kayıt: 5, geçerli bayt: 96, atılan bayt: 0
-anahtar sayısı: 2
+$ ./target/release/ambar yaz calisma dil rust
+$ ./target/release/ambar yaz calisma yil 2015
+$ ./target/release/ambar yaz calisma dil Rust
+$ ./target/release/ambar sil calisma yil
+$ ./target/release/ambar yaz calisma şehir İzmir
+$ ./target/release/ambar listele calisma
+günlük: 5 kayıt, 76 bayt; canlı anahtar: 2
   dil = Rust
-  maskot = Ferris
-$ od -A d -c calisma/veri/gunluk.ambar
-0000000 210 353 301 272 003  \0  \0  \0 004  \0  \0  \0   d   i   l   r
-0000016   u   s   t 021   ] 031 222 003  \0  \0  \0 004  \0  \0  \0   y
-0000032   i   l   2   0   1   5 266   D 363 032 003  \0  \0  \0 004  \0
-0000048  \0  \0   d   i   l   R   u   s   t   .   Y 355   ; 003  \0  \0
-0000064  \0 377 377 377 377   y   i   l   b 031 307   N 006  \0  \0  \0
-0000080 006  \0  \0  \0   m   a   s   k   o   t   F   e   r   r   i   s
-0000096
+  şehir = İzmir
+$ ./target/release/ambar oku calisma yil
+yok
+[çıkış kodu: 1]
+$ od -A d -t x1z -v calisma/gunluk.ambar
+0000000 03 00 00 00 04 00 00 00 64 69 6c 72 75 73 74 03  >........dilrust.<
+0000016 00 00 00 04 00 00 00 79 69 6c 32 30 31 35 03 00  >.......yil2015..<
+0000032 00 00 04 00 00 00 64 69 6c 52 75 73 74 03 00 00  >......dilRust...<
+0000048 00 ff ff ff ff 79 69 6c 06 00 00 00 06 00 00 00  >.....yil........<
+0000064 c5 9f 65 68 69 72 c4 b0 7a 6d 69 72              >..ehir..zmir<
+0000076
+# aynı beş komut bir kez daha çalıştırıldı
+$ ./target/release/ambar listele calisma
+günlük: 10 kayıt, 152 bayt; canlı anahtar: 2
+  dil = Rust
+  şehir = İzmir
+$ truncate -s -3 calisma/gunluk.ambar
+$ ./target/release/ambar listele calisma
+
+thread 'main' (35149) panicked at src/gunluk.rs:53:29:
+range end index 152 out of range for slice of length 149
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]
 ```
 
 ## 118-ambar-depolama-motoru
 
 - Video: `118-ambar-depolama-motoru`
 - Örnek yolu: `deneyler/mufredat-ornekleri/118-ambar-depolama-motoru/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/ambar/` — kaynaklar: `Cargo.toml`, `src/bin/ambar.rs`, `src/crc.rs`, `src/gunluk.rs`, `src/lib.rs`, `src/motor.rs`, `src/protokol.rs`, `src/sunucu.rs`
+- Kaynaklar: `ambar/Cargo.toml`, `ambar/src/bin/ambar.rs`, `ambar/src/crc.rs`, `ambar/src/gunluk.rs`, `ambar/src/lib.rs`, `ambar/src/motor.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:06:06Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/ambar
-ks 'cargo test -q --lib 2>&1 | grep "test result"'
+# Kontrol noktası: bu videonun sonundaki kod ambar/ dizininde (117'ye göre farkı: diff -ru).
+cd ambar
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep "^test "'
 k cargo build -q --release
-rm -rf calisma && mkdir -p calisma
-k ./target/release/ambar doldur calisma/veri 1000
-ks 'stat -c "%s bayt" calisma/veri/gunluk.ambar'
-# 1) Yarım yazma: son kaydın son 5 baytı diske hiç ulaşmamış gibi
-k truncate -s -5 calisma/veri/gunluk.ambar
-k ./target/release/ambar kurtar calisma/veri
-# 2) Sessiz bozulma, kaydın verisinde: tek bir bayt değişsin
-rm -rf calisma/veri && ./target/release/ambar doldur calisma/veri 1000 > /dev/null
-ks 'printf "X" | dd of=calisma/veri/gunluk.ambar bs=1 seek=16910 conv=notrunc status=none'
-k ./target/release/ambar kurtar calisma/veri
-# 3) Sessiz bozulma, kaydın başlığında (uzunluk alanı): kayıt sınırı kaybolur
-rm -rf calisma/veri && ./target/release/ambar doldur calisma/veri 1000 > /dev/null
-ks 'printf "X" | dd of=calisma/veri/gunluk.ambar bs=1 seek=16900 conv=notrunc status=none'
-k ./target/release/ambar kurtar calisma/veri
+# CRC-32'nin yayımlanmış denetim değeri ve bağımsız bir araçla (GNU cksum) karşılaştırma
+k ./target/release/ambar crc 123456789
+ks 'printf 123456789 | cksum -a crc32b'
+k ./target/release/ambar crc 123456788
+rm -rf calisma
+k ./target/release/ambar doldur calisma 1000
+ks 'stat -c "%s bayt" calisma/gunluk.ambar'
+# 501. kaydın başlığı (18 890. bayttan 16 bayt): başlık CRC'si, anahtar uzunluğu (12), değer uzunluğu (10), veri CRC'si
+k od -A d -t x1 -j 18890 -N 16 calisma/gunluk.ambar
+# 1) Yarım yazma (torn write): son kaydın son 5 baytı diske hiç ulaşmamış gibi
+k truncate -s -5 calisma/gunluk.ambar
+k ./target/release/ambar durum calisma
+ks 'stat -c "%s bayt" calisma/gunluk.ambar'
+# 2) Sessiz bozulma: 501. kaydın anahtarında tek bir bayt değişsin
+ks 'rm -rf calisma && ./target/release/ambar doldur calisma 1000'
+ks 'printf "X" | dd of=calisma/gunluk.ambar bs=1 seek=18914 conv=notrunc status=none'
+k ./target/release/ambar durum calisma
+ks 'stat -c "%s bayt" calisma/gunluk.ambar'
+# 3) Aynı bozulma 501. kaydın değer uzunluğu alanında: önce ikinci, sonra üçüncü baytı
+ks 'rm -rf calisma && ./target/release/ambar doldur calisma 1000'
+ks 'printf "X" | dd of=calisma/gunluk.ambar bs=1 seek=18899 conv=notrunc status=none'
+k od -A d -t x1 -j 18890 -N 16 calisma/gunluk.ambar
+k ./target/release/ambar durum calisma
+ks 'rm -rf calisma && ./target/release/ambar doldur calisma 1000'
+ks 'printf "X" | dd of=calisma/gunluk.ambar bs=1 seek=18900 conv=notrunc status=none'
+k ./target/release/ambar durum calisma
+ks 'stat -c "%s bayt" calisma/gunluk.ambar'
+# Bozuk kayıttan itibaren her şeyi atmak operatörün açık kararı olmalı:
+k ./target/release/ambar kirp calisma
+k ./target/release/ambar durum calisma
 rm -rf calisma
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo test -q --lib 2>&1 | grep "test result"
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ cargo test --lib -- --test-threads=1 2>&1 | grep "^test "
+test crc::testler::her_tek_bit_degisimi_crcyi_degistirir ... ok
+test crc::testler::yayimlanmis_denetim_degeri ... ok
+test gunluk::testler::kuyruktaki_yarim_kayit_kirpilabilir ... ok
+test gunluk::testler::ortadaki_kaydin_hicbir_tek_bit_bozulmasi_kirpilmaz ... ok
+test gunluk::testler::ortadaki_veri_bozulmasi_kuyruk_sayilmaz ... ok
+test gunluk::testler::uzunluk_bozulmasi_baslik_crcsine_takilir ... ok
+test motor::testler::ortadaki_bozulmada_acilmaz_ve_dosyaya_dokunmaz ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 $ cargo build -q --release
-$ ./target/release/ambar doldur calisma/veri 1000
+$ ./target/release/ambar crc 123456789
+cbf43926 (3421780262)
+$ printf 123456789 | cksum -a crc32b
+3421780262 9
+$ ./target/release/ambar crc 123456788
+bcf309b0 (3170044336)
+$ ./target/release/ambar doldur calisma 1000
 1000 kayıt yazıldı
-$ stat -c "%s bayt" calisma/veri/gunluk.ambar
-33890 bayt
-$ truncate -s -5 calisma/veri/gunluk.ambar
-$ ./target/release/ambar kurtar calisma/veri
-geçerli kayıt: 999, geçerli bayt: 33856, atılan bayt: 29
-kurtarma notu: 33856. baytta yarım kayıt (29/34 bayt)
-anahtar sayısı: 999
-  anahtar00000 = değer-0
-  anahtar00001 = değer-1
-  anahtar00002 = değer-2
-$ printf "X" | dd of=calisma/veri/gunluk.ambar bs=1 seek=16910 conv=notrunc status=none
-$ ./target/release/ambar kurtar calisma/veri
-geçerli kayıt: 500, geçerli bayt: 16890, atılan bayt: 17000
-kurtarma notu: 16890. baytta CRC uyuşmazlığı (bozuk kayıt)
-anahtar sayısı: 500
-  anahtar00000 = değer-0
-  anahtar00001 = değer-1
-  anahtar00002 = değer-2
-$ printf "X" | dd of=calisma/veri/gunluk.ambar bs=1 seek=16900 conv=notrunc status=none
-$ ./target/release/ambar kurtar calisma/veri
-geçerli kayıt: 500, geçerli bayt: 16890, atılan bayt: 17000
-kurtarma notu: 16890. baytta yarım kayıt (17000/5767202 bayt)
-anahtar sayısı: 500
-  anahtar00000 = değer-0
-  anahtar00001 = değer-1
-  anahtar00002 = değer-2
+$ stat -c "%s bayt" calisma/gunluk.ambar
+37890 bayt
+$ od -A d -t x1 -j 18890 -N 16 calisma/gunluk.ambar
+0018890 42 2a 30 5d 0c 00 00 00 0a 00 00 00 1f 97 81 31
+0018906
+$ truncate -s -5 calisma/gunluk.ambar
+$ ./target/release/ambar durum calisma
+geçerli kayıt: 999 (37852 bayt); kırpılan kuyruk: 33 bayt
+kurtarma notu: 37852. baytta yarım kayıt (33/38 bayt; başlık sağlam)
+canlı anahtar: 999
+$ stat -c "%s bayt" calisma/gunluk.ambar
+37852 bayt
+$ rm -rf calisma && ./target/release/ambar doldur calisma 1000
+1000 kayıt yazıldı
+$ printf "X" | dd of=calisma/gunluk.ambar bs=1 seek=18914 conv=notrunc status=none
+$ ./target/release/ambar durum calisma
+hata: günlük bozuk: 18890. baytta veri CRC'si tutmuyor; arkasında 18962 bayt daha var; dosyaya dokunulmadı
+[çıkış kodu: 1]
+$ stat -c "%s bayt" calisma/gunluk.ambar
+37890 bayt
+$ rm -rf calisma && ./target/release/ambar doldur calisma 1000
+1000 kayıt yazıldı
+$ printf "X" | dd of=calisma/gunluk.ambar bs=1 seek=18899 conv=notrunc status=none
+$ od -A d -t x1 -j 18890 -N 16 calisma/gunluk.ambar
+0018890 42 2a 30 5d 0c 00 00 00 0a 58 00 00 1f 97 81 31
+0018906
+$ ./target/release/ambar durum calisma
+hata: günlük bozuk: 18890. baytta başlık CRC'si tutmuyor (uzunluk alanları bozuk); dosyada kalan 19000 bayt; dosyaya dokunulmadı
+[çıkış kodu: 1]
+$ rm -rf calisma && ./target/release/ambar doldur calisma 1000
+1000 kayıt yazıldı
+$ printf "X" | dd of=calisma/gunluk.ambar bs=1 seek=18900 conv=notrunc status=none
+$ ./target/release/ambar durum calisma
+hata: günlük bozuk: 18890. baytta başlık CRC'si tutmuyor (uzunluk alanları bozuk); dosyada kalan 19000 bayt; dosyaya dokunulmadı
+[çıkış kodu: 1]
+$ stat -c "%s bayt" calisma/gunluk.ambar
+37890 bayt
+$ ./target/release/ambar kirp calisma
+19000 bayt atıldı; kalan kayıt: 500
+$ ./target/release/ambar durum calisma
+geçerli kayıt: 500 (18890 bayt); kırpılan kuyruk: 0 bayt
+canlı anahtar: 500
 ```
 
 ## 119-ambar-ag-protokolu
 
 - Video: `119-ambar-ag-protokolu`
 - Örnek yolu: `deneyler/mufredat-ornekleri/119-ambar-ag-protokolu/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/ambar/` — kaynaklar: `Cargo.toml`, `src/bin/ambar.rs`, `src/crc.rs`, `src/gunluk.rs`, `src/lib.rs`, `src/motor.rs`, `src/protokol.rs`, `src/sunucu.rs`
+- Kaynaklar: `ambar/Cargo.toml`, `ambar/src/bin/ambar.rs`, `ambar/src/crc.rs`, `ambar/src/gunluk.rs`, `ambar/src/lib.rs`, `ambar/src/motor.rs`, `ambar/src/protokol.rs`, `ambar/src/sunucu.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:06:06Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/ambar
+# Kontrol noktası: bu videonun sonundaki kod ambar/ dizininde (118'e göre farkı: diff -ru).
+cd ambar
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "'
+# Dokümantasyon testi: motoru kilitsiz paylaşan kod derlenmemeli (compile_fail); derleyicinin sözü:
+ks 'cargo test --doc -- --nocapture 2>&1 | grep -E "^error|^ *--> |^ *= help|^test "'
 k cargo build -q --release
-rm -rf calisma && mkdir -p calisma
-./target/release/ambar sunucu 127.0.0.1:7001 calisma/veri her 2> calisma/sunucu.log &
+rm -rf calisma
+./target/release/ambar sunucu calisma 127.0.0.1:7001 2> sunucu.log &
 SP=$!
 sleep 0.5
-k ./target/release/ambar istemci 127.0.0.1:7001 "SET dil rust" "GET dil" "SET selam merhaba dünya" "GET selam" "DEL dil" "GET dil" "SAY" "UCUR hepsini"
-# Protokol düz metin: istemci olmadan, ham TCP ile de konuşulabilir
-ks 'exec 3<>/dev/tcp/127.0.0.1/7001; printf "GET selam\nSAY\n" >&3; head -n 2 <&3'
+k ./target/release/ambar istemci 127.0.0.1:7001 "yaz dil rust" "oku dil" "yaz selam merhaba dünya" "oku selam" "sil dil" "oku dil" "say" "uçur hepsini"
+# Protokol düz metin: özel bir istemci olmadan, bash'in /dev/tcp yönlendirmesiyle de konuşulur
+ks 'exec 3<>/dev/tcp/127.0.0.1/7001; printf "oku selam\nsay\n" >&3; head -n 2 <&3'
+# Çerçeveyi satır sonu belirler: değerin içindeki "\n" isteği ikiye böler
+ks 'exec 3<>/dev/tcp/127.0.0.1/7001; printf "yaz not birinci satır\nikinci satır\n" >&3; head -n 2 <&3'
+# Satır sınırı: hiç "\n" göndermeden tam 1 049 616 bayt (anahtar 1 KiB + değer 1 MiB + 16)
+ks 'exec 3<>/dev/tcp/127.0.0.1/7001; head -c 1049616 /dev/zero | tr "\0" a >&3; head -n 1 <&3'
 kill $SP
-k cat calisma/sunucu.log
-rm -rf calisma
+k cat sunucu.log
+# Sunucu durdu; veri günlükte. Yeni bir süreç aynı durumu kurar:
+k ./target/release/ambar listele calisma
+rm -rf calisma sunucu.log
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test crc::testler::her_tek_bit_degisimi_crcyi_degistirir ... ok
+test crc::testler::yayimlanmis_denetim_degeri ... ok
+test gunluk::testler::kuyruktaki_yarim_kayit_kirpilabilir ... ok
+test gunluk::testler::ortadaki_kaydin_hicbir_tek_bit_bozulmasi_kirpilmaz ... ok
+test gunluk::testler::ortadaki_veri_bozulmasi_kuyruk_sayilmaz ... ok
+test gunluk::testler::uzunluk_bozulmasi_baslik_crcsine_takilir ... ok
+test motor::testler::ortadaki_bozulmada_acilmaz_ve_dosyaya_dokunmaz ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test protokol::testler::degerde_bosluk_olabilir ... ok
+test protokol::testler::eksik_arguman_ve_bilinmeyen_komut ... ok
+test protokol::testler::komut_adi_ascii_harf_duyarsiz ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+$ cargo test --doc -- --nocapture 2>&1 | grep -E "^error|^ *--> |^ *= help|^test "
+error[E0596]: cannot borrow data in an `Arc` as mutable
+  --> src/sunucu.rs:11:28
+   = help: trait `DerefMut` is required to modify through a dereference, but it is not implemented for `Arc<Motor>`
+error: aborting due to 1 previous error
+test src/sunucu.rs - sunucu (line 5) - compile fail ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
 $ cargo build -q --release
-$ ./target/release/ambar istemci 127.0.0.1:7001 "SET dil rust" "GET dil" "SET selam merhaba dünya" "GET selam" "DEL dil" "GET dil" SAY "UCUR hepsini"
-> SET dil rust
-< OK
-> GET dil
-< DEGER rust
-> SET selam merhaba dünya
-< OK
-> GET selam
-< DEGER merhaba dünya
-> DEL dil
-< OK
-> GET dil
-< YOK
-> SAY
-< SAYI 1
-> UCUR hepsini
-< HATA bilinmeyen komut: "UCUR hepsini"
-$ exec 3<>/dev/tcp/127.0.0.1/7001; printf "GET selam\nSAY\n" >&3; head -n 2 <&3
-DEGER merhaba dünya
-SAYI 1
-$ cat calisma/sunucu.log
-kurtarıldı: 0 kayıt
+$ ./target/release/ambar istemci 127.0.0.1:7001 "yaz dil rust" "oku dil" "yaz selam merhaba dünya" "oku selam" "sil dil" "oku dil" say "uçur hepsini"
+> yaz dil rust
+< tamam
+> oku dil
+< değer rust
+> yaz selam merhaba dünya
+< tamam
+> oku selam
+< değer merhaba dünya
+> sil dil
+< tamam
+> oku dil
+< yok
+> say
+< sayı 1
+> uçur hepsini
+< hata: bilinmeyen komut: "uçur hepsini"
+$ exec 3<>/dev/tcp/127.0.0.1/7001; printf "oku selam\nsay\n" >&3; head -n 2 <&3
+değer merhaba dünya
+sayı 1
+$ exec 3<>/dev/tcp/127.0.0.1/7001; printf "yaz not birinci satır\nikinci satır\n" >&3; head -n 2 <&3
+tamam
+hata: bilinmeyen komut: "ikinci satır"
+$ exec 3<>/dev/tcp/127.0.0.1/7001; head -c 1049616 /dev/zero | tr "\0" a >&3; head -n 1 <&3
+hata: satır çok uzun
+$ cat sunucu.log
+günlükten 0 kayıt okundu
 ambar dinliyor: 127.0.0.1:7001
+$ ./target/release/ambar listele calisma
+günlük: 4 kayıt; canlı anahtar: 2
+  not = birinci satır
+  selam = merhaba dünya
 ```
 
 ## 120-ambar-eszamanlilik-ve-dayaniklilik
 
 - Video: `120-ambar-eszamanlilik-ve-dayaniklilik`
 - Örnek yolu: `deneyler/mufredat-ornekleri/120-ambar-eszamanlilik-ve-dayaniklilik/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/ambar/` — kaynaklar: `Cargo.toml`, `src/bin/ambar.rs`, `src/crc.rs`, `src/gunluk.rs`, `src/lib.rs`, `src/motor.rs`, `src/protokol.rs`, `src/sunucu.rs`
+- Kaynaklar: `ambar/Cargo.toml`, `ambar/src/bin/ambar.rs`, `ambar/src/crc.rs`, `ambar/src/gunluk.rs`, `ambar/src/lib.rs`, `ambar/src/motor.rs`, `ambar/src/protokol.rs`, `ambar/src/sunucu.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:29:49Z
-- Değişken çıktı: süre, onaylanan yazma sayısı (sunucunun öldürüldüğü ana bağlı)
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süre ve yazma/s; onaylanan ve kurtarılan kayıt sayıları (sunucunun öldürüldüğü ana bağlı)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/ambar
+# Kontrol noktası: bu videonun sonundaki kod ambar/ dizininde (119'a göre farkı: diff -ru).
+cd ambar
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "'
 k cargo build -q --release
 rm -rf calisma && mkdir -p calisma
 # 1) 8 istemci aynı anda yazıyor: tek bir yazma bile kayboluyor mu?
-./target/release/ambar sunucu 127.0.0.1:7002 calisma/eszamanli yok 2>/dev/null &
+./target/release/ambar sunucu calisma/eszamanli 127.0.0.1:7002 yok 2>/dev/null &
 SP=$!
 sleep 0.5
 k ./target/release/ambar yuk 127.0.0.1:7002 8 2000
 kill $SP
-# 2) Çökme deneyi: sunucu "her yazmada fsync" ile çalışırken kill -9
-./target/release/ambar sunucu 127.0.0.1:7003 calisma/cokme her 2>/dev/null &
+k ./target/release/ambar durum calisma/eszamanli
+# 2) Çökme deneyi: sunucu "her yazmada fsync" ile çalışırken SIGKILL (kill -9)
+./target/release/ambar sunucu calisma/cokme 127.0.0.1:7003 her 2>/dev/null &
 SP=$!
 sleep 0.5
 ./target/release/ambar yazici 127.0.0.1:7003 100000000 > calisma/yazici.txt &
@@ -5299,9 +7223,9 @@ sleep 2
 { kill -9 $SP; wait $SP; } 2>/dev/null
 wait $YP
 k cat calisma/yazici.txt
-k ./target/release/ambar kurtar calisma/cokme
-# 3) Aynı deney fsync olmadan: süreç ölse de çekirdeğin sayfa önbelleği yaşıyor
-./target/release/ambar sunucu 127.0.0.1:7004 calisma/cokme_yok yok 2>/dev/null &
+k ./target/release/ambar durum calisma/cokme
+# 3) Aynı deney fsync olmadan: süreç ölür, çekirdeğin sayfa önbelleği yaşar
+./target/release/ambar sunucu calisma/cokme_yok 127.0.0.1:7004 yok 2>/dev/null &
 SP=$!
 sleep 0.5
 ./target/release/ambar yazici 127.0.0.1:7004 100000000 > calisma/yazici_yok.txt &
@@ -5310,56 +7234,75 @@ sleep 2
 { kill -9 $SP; wait $SP; } 2>/dev/null
 wait $YP
 k cat calisma/yazici_yok.txt
-ks './target/release/ambar kurtar calisma/cokme_yok | grep "geçerli kayıt"'
+k ./target/release/ambar durum calisma/cokme_yok
 rm -rf calisma
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test crc::testler::her_tek_bit_degisimi_crcyi_degistirir ... ok
+test crc::testler::yayimlanmis_denetim_degeri ... ok
+test gunluk::testler::kuyruktaki_yarim_kayit_kirpilabilir ... ok
+test gunluk::testler::ortadaki_kaydin_hicbir_tek_bit_bozulmasi_kirpilmaz ... ok
+test gunluk::testler::ortadaki_veri_bozulmasi_kuyruk_sayilmaz ... ok
+test gunluk::testler::uzunluk_bozulmasi_baslik_crcsine_takilir ... ok
+test motor::testler::gunluk_sirasi_indeks_sirasiyla_ayni ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test protokol::testler::degerde_bosluk_olabilir ... ok
+test protokol::testler::eksik_arguman_ve_bilinmeyen_komut ... ok
+test protokol::testler::komut_adi_ascii_harf_duyarsiz ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
 $ cargo build -q --release
 $ ./target/release/ambar yuk 127.0.0.1:7002 8 2000
-8 istemci × 2000 SET = 16000 yazma, 0.19 s, 85384 yazma/s, sunucu: SAYI 16000
+8 istemci × 2000 yazma = 16000 yazma, 0.16 s, 100020 yazma/s; sunucu: sayı 16000
+$ ./target/release/ambar durum calisma/eszamanli
+geçerli kayıt: 16000 (455120 bayt); kırpılan kuyruk: 0 bayt
+canlı anahtar: 16000
 $ cat calisma/yazici.txt
-onaylanan yazma: 2047
-$ ./target/release/ambar kurtar calisma/cokme
-geçerli kayıt: 2048, geçerli bayt: 50090, atılan bayt: 0
-anahtar sayısı: 2048
-  k0000000 = v0
-  k0000001 = v1
-  k0000002 = v2
+onaylanan yazma: 1895
+$ ./target/release/ambar durum calisma/cokme
+geçerli kayıt: 1896 (53874 bayt); kırpılan kuyruk: 0 bayt
+canlı anahtar: 1896
 $ cat calisma/yazici_yok.txt
-onaylanan yazma: 108976
-$ ./target/release/ambar kurtar calisma/cokme_yok | grep "geçerli kayıt"
-geçerli kayıt: 108976, geçerli bayt: 2831242, atılan bayt: 0
+onaylanan yazma: 96465
+$ ./target/release/ambar durum calisma/cokme_yok
+geçerli kayıt: 96465 (2882840 bayt); kırpılan kuyruk: 0 bayt
+canlı anahtar: 96465
 ```
 
 ## 121-ambar-performans
 
 - Video: `121-ambar-performans`
 - Örnek yolu: `deneyler/mufredat-ornekleri/121-ambar-performans/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/ambar/` — kaynaklar: `Cargo.toml`, `src/bin/ambar.rs`, `src/crc.rs`, `src/gunluk.rs`, `src/lib.rs`, `src/motor.rs`, `src/protokol.rs`, `src/sunucu.rs`
+- Kaynaklar: `ambar/Cargo.toml`, `ambar/src/bin/ambar.rs`, `ambar/src/crc.rs`, `ambar/src/gunluk.rs`, `ambar/src/lib.rs`, `ambar/src/motor.rs`, `ambar/src/protokol.rs`, `ambar/src/sunucu.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:06:17Z
-- Değişken çıktı: yazma/s değerleri diske ve yüke bağlı
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: yazma/s, gecikme ve fsync sayıları diske, yüke ve zamanlamaya bağlı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/ambar
+# Kontrol noktası: bu videonun sonundaki kod (Ambar'ın bitmiş hâli) ambar/ dizininde (120'ye göre farkı: diff -ru).
+cd ambar
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "'
 k cargo build -q --release
 rm -rf calisma && mkdir -p calisma
+# Veri nerede? /work ana makinenin diskine bağlı (btrfs)
+ks 'grep " /work " /proc/mounts | cut -d" " -f1-3'
 port=7010
 for kip in her toplu yok; do
   port=$((port + 1))
-  ./target/release/ambar sunucu 127.0.0.1:$port calisma/p_$kip $kip 2>/dev/null &
+  ./target/release/ambar sunucu calisma/p_$kip 127.0.0.1:$port $kip 2>/dev/null &
   SP=$!
   sleep 0.5
-  echo "# fsync kipi: $kip (veri: ana makinenin diski, btrfs)"
+  echo "# fsync kipi: $kip (veri: /work, ana makinenin diski)"
   k ./target/release/ambar yuk 127.0.0.1:$port 16 300
   kill $SP
 done
-# Tuzak: aynı "her" kipi konteynerin kendi /tmp'sinde (overlay, fsync=volatile)
-./target/release/ambar sunucu 127.0.0.1:7019 /tmp/ambar_her her 2>/dev/null &
+# Tuzak: aynı "her" kipi konteynerin kendi kök dosya sisteminde (/tmp). Kök nasıl bağlı?
+ks 'grep " / " /proc/mounts | grep -oE "^overlay|fsync=[a-z]+"'
+./target/release/ambar sunucu /tmp/ambar_her 127.0.0.1:7019 her 2>/dev/null &
 SP=$!
 sleep 0.5
 echo "# fsync kipi: her (veri: konteynerin /tmp'si)"
@@ -5371,111 +7314,209 @@ rm -rf calisma /tmp/ambar_her
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test crc::testler::her_tek_bit_degisimi_crcyi_degistirir ... ok
+test crc::testler::yayimlanmis_denetim_degeri ... ok
+test gunluk::testler::kuyruktaki_yarim_kayit_kirpilabilir ... ok
+test gunluk::testler::ortadaki_kaydin_hicbir_tek_bit_bozulmasi_kirpilmaz ... ok
+test gunluk::testler::ortadaki_veri_bozulmasi_kuyruk_sayilmaz ... ok
+test gunluk::testler::uzunluk_bozulmasi_baslik_crcsine_takilir ... ok
+test motor::testler::gunluk_sirasi_indeks_sirasiyla_ayni ... ok
+test motor::testler::toplu_kipte_onay_kalicilikten_sonra_gelir ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test protokol::testler::degerde_bosluk_olabilir ... ok
+test protokol::testler::eksik_arguman_ve_bilinmeyen_komut ... ok
+test protokol::testler::komut_adi_ascii_harf_duyarsiz ... ok
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
 $ cargo build -q --release
-# fsync kipi: her (veri: ana makinenin diski, btrfs)
+$ grep " /work " /proc/mounts | cut -d" " -f1-3
+/dev/mapper/root /work btrfs
+# fsync kipi: her (veri: /work, ana makinenin diski)
 $ ./target/release/ambar yuk 127.0.0.1:7011 16 300
-16 istemci × 300 SET = 4800 yazma, 4.89 s, 981 yazma/s, sunucu: SAYI 4800
-# fsync kipi: toplu (veri: ana makinenin diski, btrfs)
+16 istemci × 300 yazma = 4800 yazma, 4.82 s, 996 yazma/s
+  gecikme: ortalama 16.03 ms, ortanca 16.03 ms, %99 21.69 ms; sunucu: sayı 4800, yazma 4800 fsync 4800
+# fsync kipi: toplu (veri: /work, ana makinenin diski)
 $ ./target/release/ambar yuk 127.0.0.1:7012 16 300
-16 istemci × 300 SET = 4800 yazma, 0.95 s, 5065 yazma/s, sunucu: SAYI 4800
-# fsync kipi: yok (veri: ana makinenin diski, btrfs)
+16 istemci × 300 yazma = 4800 yazma, 0.95 s, 5050 yazma/s
+  gecikme: ortalama 3.17 ms, ortanca 3.12 ms, %99 4.14 ms; sunucu: sayı 4800, yazma 4800 fsync 300
+# fsync kipi: yok (veri: /work, ana makinenin diski)
 $ ./target/release/ambar yuk 127.0.0.1:7013 16 300
-16 istemci × 300 SET = 4800 yazma, 0.04 s, 114916 yazma/s, sunucu: SAYI 4800
+16 istemci × 300 yazma = 4800 yazma, 0.05 s, 92635 yazma/s
+  gecikme: ortalama 0.17 ms, ortanca 0.15 ms, %99 0.75 ms; sunucu: sayı 4800, yazma 4800 fsync 0
+$ grep " / " /proc/mounts | grep -oE "^overlay|fsync=[a-z]+"
+overlay
+fsync=volatile
 # fsync kipi: her (veri: konteynerin /tmp'si)
 $ ./target/release/ambar yuk 127.0.0.1:7019 16 300
-16 istemci × 300 SET = 4800 yazma, 0.04 s, 135009 yazma/s, sunucu: SAYI 4800
+16 istemci × 300 yazma = 4800 yazma, 0.04 s, 119279 yazma/s
+  gecikme: ortalama 0.13 ms, ortanca 0.12 ms, %99 0.58 ms; sunucu: sayı 4800, yazma 4800 fsync 4800
 ```
 
 ## 122-http-ayristirici
 
 - Video: `122-http-ayristirici`
 - Örnek yolu: `deneyler/mufredat-ornekleri/122-http-ayristirici/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/kapi/` — kaynaklar: `Cargo.toml`, `src/ayristirici.rs`, `src/bin/kapi.rs`, `src/dosya.rs`, `src/havuz.rs`, `src/lib.rs`, `src/zaman_uyumsuz.rs`
+- Kaynaklar: `kapi/Cargo.toml`, `kapi/src/ayristirici.rs`, `kapi/src/bin/kapi.rs`, `kapi/src/lib.rs`
 - Toolchain: stable 1.100.0
-- Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `bytes 1.12.2`, `cfg-if 1.0.5`, `errno 0.3.15`, `libc 0.2.191`, `lock_api 0.4.14`, `mio 1.2.5`, `parking_lot 0.12.5`, `parking_lot_core 0.9.12`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `redox_syscall 0.5.18`, `scopeguard 1.2.0`, `signal-hook-registry 1.4.8`, `smallvec 1.16.6`, `socket2 0.6.5`, `syn 3.0.10`, `tokio 1.54.1`, `tokio-macros 2.7.2`, `unicode-ident 1.0.27`, `wasi 0.11.1+wasi-snapshot-preview1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:06:28Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: tarama ölçümündeki süreler ve oran
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/kapi
-ks 'cargo test -q --lib -- --list 2>/dev/null | grep ": test$"'
-ks 'cargo test -q --lib 2>&1 | grep "test result"'
+# Kontrol noktası: bu videonun sonundaki kod kapi/ dizininde.
+cd kapi
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "'
 k cargo build -q --release
-# Durum makinesi parça parça beslenirken
-k ./target/release/kapi parca-parca
+# Bir istek dört parça hâlinde geliyor; boş satır ("\r\n\r\n") son iki parçaya bölünmüş
+k ./target/release/kapi parca-parca 'GET /belgeler/not' '.txt HTTP/1.1\r\nHo' 'st: kapi\r\n\r' '\n'
+# Gövdeli istek: başlıklar bitince durum Govde'ye geçer, Content-Length kadar bayt beklenir
+k ./target/release/kapi parca-parca 'POST /kayit HTTP/1.1\r\nContent-Length: 5\r\n\r\nmer' 'ha'
+# Bozuk istek satırı
+k ./target/release/kapi parca-parca 'MERHABA\r\n\r\n'
+# Taramanın maliyeti: 8 KiB'a yakın bir başlık bayt bayt geliyor
+k ./target/release/kapi tarama-olc
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cargo test -q --lib -- --list 2>/dev/null | grep ": test$"
-ayristirici::testler::bayt_bayt_beslemek_ayni_sonucu_verir: test
-ayristirici::testler::bozuk_istek_satiri: test
-ayristirici::testler::sonsuz_baslik_reddedilir: test
-ayristirici::testler::tek_parcada_iki_istek: test
-$ cargo test -q --lib 2>&1 | grep "test result"
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test ayristirici::testler::ad_ile_iki_nokta_arasinda_bosluk_reddedilir ... ok
+test ayristirici::testler::bayt_bayt_beslemek_ayni_sonucu_verir ... ok
+test ayristirici::testler::bozuk_istek_satiri ... ok
+test ayristirici::testler::content_length_yalniz_rakam ... ok
+test ayristirici::testler::sinirsiz_baslik_reddedilir ... ok
+test ayristirici::testler::tek_parcada_iki_istek ... ok
+test ayristirici::testler::transfer_encoding_desteklenmiyor ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
-$ ./target/release/kapi parca-parca
-besle("GET /belgeler/not") → Ok(None)
-besle(".txt HTTP/1.1\r\nHo") → Ok(None)
-besle("st: kapi\r\n") → Ok(None)
-besle("\r\n") → Ok(Some(("GET", "/belgeler/not.txt", [("Host", "kapi")])))
+$ ./target/release/kapi parca-parca "GET /belgeler/not" ".txt HTTP/1.1\r\nHo" "st: kapi\r\n\r" "\n"
+besle("GET /belgeler/not") → eksik; tamponda 17 bayt, durum: Basliklar
+besle(".txt HTTP/1.1\r\nHo") → eksik; tamponda 34 bayt, durum: Basliklar
+besle("st: kapi\r\n\r") → eksik; tamponda 45 bayt, durum: Basliklar
+besle("\n") → istek: GET /belgeler/not.txt HTTP/1.1, başlıklar: [("Host", "kapi")], gövde: 0 bayt
+$ ./target/release/kapi parca-parca "POST /kayit HTTP/1.1\r\nContent-Length: 5\r\n\r\nmer" ha
+besle("POST /kayit HTTP/1.1\r\nContent-Length: 5\r\n\r\nmer") → eksik; tamponda 3 bayt, durum: Govde { uzunluk: 5 }
+besle("ha") → istek: POST /kayit HTTP/1.1, başlıklar: [("Content-Length", "5")], gövde: 5 bayt
+$ ./target/release/kapi parca-parca "MERHABA\r\n\r\n"
+besle("MERHABA\r\n\r\n") → hata: BozukIstekSatiri("MERHABA")
+[çıkış kodu: 1]
+$ ./target/release/kapi tarama-olc
+8019 baytlık başlık bayt bayt: kaldığı yerden arama 0.144 ms, her baytta baştan arama 7.699 ms (54 kat)
 ```
 
 ## 123-http-sunucu
 
 - Video: `123-http-sunucu`
 - Örnek yolu: `deneyler/mufredat-ornekleri/123-http-sunucu/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/kapi/` — kaynaklar: `Cargo.toml`, `src/ayristirici.rs`, `src/bin/kapi.rs`, `src/dosya.rs`, `src/havuz.rs`, `src/lib.rs`, `src/zaman_uyumsuz.rs`
+- Kaynaklar: `kapi/Cargo.toml`, `kapi/src/ayristirici.rs`, `kapi/src/bin/kapi.rs`, `kapi/src/dosya.rs`, `kapi/src/havuz.rs`, `kapi/src/lib.rs`
 - Toolchain: stable 1.100.0
-- Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `bytes 1.12.2`, `cfg-if 1.0.5`, `errno 0.3.15`, `libc 0.2.191`, `lock_api 0.4.14`, `mio 1.2.5`, `parking_lot 0.12.5`, `parking_lot_core 0.9.12`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `redox_syscall 0.5.18`, `scopeguard 1.2.0`, `signal-hook-registry 1.4.8`, `smallvec 1.16.6`, `socket2 0.6.5`, `syn 3.0.10`, `tokio 1.54.1`, `tokio-macros 2.7.2`, `unicode-ident 1.0.27`, `wasi 0.11.1+wasi-snapshot-preview1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:06:29Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/kapi
+# Kontrol noktası: bu videonun sonundaki kod kapi/ dizininde (122'ye göre farkı: diff -ru).
+cd kapi
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "'
 k cargo build -q --release
-./target/release/kapi havuz 127.0.0.1:8101 kok 8 2> /tmp/kapi.log &
+./target/release/kapi havuz 127.0.0.1:8101 kok 8 2> sunucu.log &
 SP=$!
 sleep 0.5
 ks 'curl -s -i http://127.0.0.1:8101/'
-ks 'curl -s http://127.0.0.1:8101/belgeler/not.txt'
+# HEAD: aynı başlıklar, gövde yok
+ks 'curl -s -I http://127.0.0.1:8101/belgeler/not.txt'
 ks 'curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8101/yok.html'
-# Dizin geçişi saldırısı: curl yolu "düzeltmesin" diye --path-as-is
+# Dizin geçişi denemesi: curl yolu "düzeltmesin" diye --path-as-is
 ks 'curl -s --path-as-is -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8101/../../etc/passwd"'
-ks 'curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:8101/'
-# Bozuk istek: ham TCP
+# Yüzde kodlu ".." (%2e%2e): curl yolu kendisi düzeltip gönderir; --path-as-is ile olduğu gibi gider
+ks 'curl -s -v -o /dev/null "http://127.0.0.1:8101/%2e%2e/%2e%2e/etc/passwd" 2>&1 | grep "^> GET"'
+ks 'curl -s -v --path-as-is -o /dev/null "http://127.0.0.1:8101/%2e%2e/%2e%2e/etc/passwd" 2>&1 | grep "^> GET"'
+ks 'curl -s --path-as-is -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8101/%2e%2e/%2e%2e/etc/passwd"'
+# Bileşen denetiminin sınırı: kökün içindeki bir sembolik bağ dışarıyı gösterirse
+k ln -s /etc kok/disari
+ks 'curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8101/disari/os-release'
+ks 'curl -s http://127.0.0.1:8101/disari/os-release | head -n 1'
+k rm kok/disari
+ks 'curl -s -i -X POST http://127.0.0.1:8101/'
+# Kalıcı bağlantı: aynı TCP bağlantısında art arda iki istek, iki yanıt
+ks 'exec 3<>/dev/tcp/127.0.0.1/8101; printf "GET /belgeler/not.txt HTTP/1.1\r\nHost: kapi\r\n\r\nGET /belgeler/not.txt HTTP/1.1\r\nHost: kapi\r\nConnection: close\r\n\r\n" >&3; cat <&3'
+# Bozuk istek satırı
 ks 'exec 3<>/dev/tcp/127.0.0.1/8101; printf "MERHABA\r\n\r\n" >&3; cat <&3'
 kill $SP
-k cat /tmp/kapi.log
+k cat sunucu.log
+rm -f sunucu.log kok/disari
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test ayristirici::testler::ad_ile_iki_nokta_arasinda_bosluk_reddedilir ... ok
+test ayristirici::testler::bayt_bayt_beslemek_ayni_sonucu_verir ... ok
+test ayristirici::testler::bozuk_istek_satiri ... ok
+test ayristirici::testler::content_length_yalniz_rakam ... ok
+test ayristirici::testler::sinirsiz_baslik_reddedilir ... ok
+test ayristirici::testler::tek_parcada_iki_istek ... ok
+test ayristirici::testler::transfer_encoding_desteklenmiyor ... ok
+test dosya::testler::content_length_bayt_sayar ... ok
+test dosya::testler::kokun_disina_cikan_yollar_reddedilir ... ok
+test dosya::testler::kokun_icindeki_yollar ... ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
 $ curl -s -i http://127.0.0.1:8101/
 HTTP/1.1 200 OK
 Content-Length: 23
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/html; charset=utf-8
 
 <h1>Merhaba Kapı</h1>
-$ curl -s http://127.0.0.1:8101/belgeler/not.txt
-gizli olmayan not
+$ curl -s -I http://127.0.0.1:8101/belgeler/not.txt
+HTTP/1.1 200 OK
+Content-Length: 18
+Content-Type: text/plain; charset=utf-8
+
 $ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8101/yok.html
 404
 $ curl -s --path-as-is -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8101/../../etc/passwd"
 403
-$ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:8101/
-405
+$ curl -s -v -o /dev/null "http://127.0.0.1:8101/%2e%2e/%2e%2e/etc/passwd" 2>&1 | grep "^> GET"
+> GET /etc/passwd HTTP/1.1
+$ curl -s -v --path-as-is -o /dev/null "http://127.0.0.1:8101/%2e%2e/%2e%2e/etc/passwd" 2>&1 | grep "^> GET"
+> GET /%2e%2e/%2e%2e/etc/passwd HTTP/1.1
+$ curl -s --path-as-is -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8101/%2e%2e/%2e%2e/etc/passwd"
+404
+$ ln -s /etc kok/disari
+$ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8101/disari/os-release
+200
+$ curl -s http://127.0.0.1:8101/disari/os-release | head -n 1
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+$ rm kok/disari
+$ curl -s -i -X POST http://127.0.0.1:8101/
+HTTP/1.1 405 Method Not Allowed
+Content-Length: 21
+Content-Type: text/plain; charset=utf-8
+Allow: GET, HEAD
+
+yalnizca GET ve HEAD
+$ exec 3<>/dev/tcp/127.0.0.1/8101; printf "GET /belgeler/not.txt HTTP/1.1\r\nHost: kapi\r\n\r\nGET /belgeler/not.txt HTTP/1.1\r\nHost: kapi\r\nConnection: close\r\n\r\n" >&3; cat <&3
+HTTP/1.1 200 OK
+Content-Length: 18
+Content-Type: text/plain; charset=utf-8
+
+gizli olmayan not
+HTTP/1.1 200 OK
+Content-Length: 18
+Content-Type: text/plain; charset=utf-8
+Connection: close
+
+gizli olmayan not
 $ exec 3<>/dev/tcp/127.0.0.1/8101; printf "MERHABA\r\n\r\n" >&3; cat <&3
 HTTP/1.1 400 Bad Request
 Content-Length: 28
 Content-Type: text/plain; charset=utf-8
+Connection: close
 
 BozukIstekSatiri("MERHABA")
-$ cat /tmp/kapi.log
+$ cat sunucu.log
 havuz sunucusu 8 işçiyle dinliyor: 127.0.0.1:8101
 ```
 
@@ -5483,15 +7524,17 @@ havuz sunucusu 8 işçiyle dinliyor: 127.0.0.1:8101
 
 - Video: `124-http-eszamanlilik-ve-yuk`
 - Örnek yolu: `deneyler/mufredat-ornekleri/124-http-eszamanlilik-ve-yuk/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/kapi/` — kaynaklar: `Cargo.toml`, `src/ayristirici.rs`, `src/bin/kapi.rs`, `src/dosya.rs`, `src/havuz.rs`, `src/lib.rs`, `src/zaman_uyumsuz.rs`
+- Kaynaklar: `kapi/Cargo.toml`, `kapi/src/ayristirici.rs`, `kapi/src/bin/kapi.rs`, `kapi/src/dosya.rs`, `kapi/src/havuz.rs`, `kapi/src/lib.rs`, `kapi/src/zaman_uyumsuz.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `bytes 1.12.2`, `cfg-if 1.0.5`, `errno 0.3.15`, `libc 0.2.191`, `lock_api 0.4.14`, `mio 1.2.5`, `parking_lot 0.12.5`, `parking_lot_core 0.9.12`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `redox_syscall 0.5.18`, `scopeguard 1.2.0`, `signal-hook-registry 1.4.8`, `smallvec 1.16.6`, `socket2 0.6.5`, `syn 3.0.10`, `tokio 1.54.1`, `tokio-macros 2.7.2`, `unicode-ident 1.0.27`, `wasi 0.11.1+wasi-snapshot-preview1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:06:33Z
-- Değişken çıktı: istek/s ve süreler
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: istek/s, bağlantı süreleri ve yanıt süreleri (makineye ve zamanlamaya bağlı)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/kapi
+# Kontrol noktası: bu videonun sonundaki kod (Kapı'nın bitmiş hâli) kapi/ dizininde (123'e göre farkı: diff -ru).
+cd kapi
+ks 'cargo test --lib 2>&1 | grep -E "^test result"'
 k cargo build -q --release
 ./target/release/kapi havuz 127.0.0.1:8101 kok 8 2>/dev/null &
 P1=$!
@@ -5500,51 +7543,82 @@ P2=$!
 sleep 0.5
 echo "# 8 işçili havuz:"
 k ./target/release/kapi yuk 127.0.0.1:8101 100 200
-echo "# tokio (görev başına bağlantı):"
+echo "# tokio (her bağlantıya bir görev):"
 k ./target/release/kapi yuk 127.0.0.1:8102 100 200
-echo "# 8 yavaş istemci (başlığı bitirmiyor) varken:"
+echo "# 8 yavaş istemci (başlığı bitirmeyen) varken; sunucularda son süre yok:"
 k ./target/release/kapi yavas 127.0.0.1:8101 8
 k ./target/release/kapi yavas 127.0.0.1:8102 8
+kill $P1 $P2
+echo "# aynı deneme, sunucularda 1000 ms istek son süresiyle:"
+./target/release/kapi havuz 127.0.0.1:8103 kok 8 1000 2>/dev/null &
+P1=$!
+./target/release/kapi async 127.0.0.1:8104 kok 1000 2>/dev/null &
+P2=$!
+sleep 0.5
+k ./target/release/kapi yavas 127.0.0.1:8103 8
+k ./target/release/kapi yavas 127.0.0.1:8104 8
 kill $P1 $P2
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ cargo test --lib 2>&1 | grep -E "^test result"
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
 # 8 işçili havuz:
 $ ./target/release/kapi yuk 127.0.0.1:8101 100 200
-100 bağlantı × 200 istek: 249533 istek/s; bağlantı süresi en kısa 6 ms, ortanca 46 ms, en uzun 77 ms
-# tokio (görev başına bağlantı):
+100 bağlantı × 200 istek: 244608 istek/s; bağlantının bitme süresi en kısa 6 ms, ortanca 45 ms, en uzun 77 ms
+# tokio (her bağlantıya bir görev):
 $ ./target/release/kapi yuk 127.0.0.1:8102 100 200
-100 bağlantı × 200 istek: 300508 istek/s; bağlantı süresi en kısa 45 ms, ortanca 61 ms, en uzun 64 ms
-# 8 yavaş istemci (başlığı bitirmiyor) varken:
+100 bağlantı × 200 istek: 304796 istek/s; bağlantının bitme süresi en kısa 32 ms, ortanca 57 ms, en uzun 62 ms
+# 8 yavaş istemci (başlığı bitirmeyen) varken; sunucularda son süre yok:
 $ ./target/release/kapi yavas 127.0.0.1:8101 8
-8 yavaş bağlantı açıkken normal bir istek: 3061 ms → yanıt yok (Resource temporarily unavailable (os error 11))
+8 yavaş bağlantı açıkken normal bir istek: 3006 ms → yanıt yok (Resource temporarily unavailable (os error 11))
+  yavaş bağlantılardan 0/8 tanesi sunucu tarafından 408 ile kapatıldı
 $ ./target/release/kapi yavas 127.0.0.1:8102 8
 8 yavaş bağlantı açıkken normal bir istek: 0 ms → HTTP/1.1 200 OK
+  yavaş bağlantılardan 0/8 tanesi sunucu tarafından 408 ile kapatıldı
+# aynı deneme, sunucularda 1000 ms istek son süresiyle:
+$ ./target/release/kapi yavas 127.0.0.1:8103 8
+8 yavaş bağlantı açıkken normal bir istek: 717 ms → HTTP/1.1 200 OK
+  yavaş bağlantılardan 8/8 tanesi sunucu tarafından 408 ile kapatıldı
+$ ./target/release/kapi yavas 127.0.0.1:8104 8
+8 yavaş bağlantı açıkken normal bir istek: 0 ms → HTTP/1.1 200 OK
+  yavaş bağlantılardan 8/8 tanesi sunucu tarafından 408 ile kapatıldı
 ```
 
 ## 125-yorumlayici-lexer
 
 - Video: `125-yorumlayici-lexer`
 - Örnek yolu: `deneyler/mufredat-ornekleri/125-yorumlayici-lexer/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/minik/` — kaynaklar: `Cargo.toml`, `src/ast.rs`, `src/bin/minik.rs`, `src/derleyici.rs`, `src/lexer.rs`, `src/lib.rs`, `src/parser.rs`, `src/vm.rs`, `src/yorumlayici.rs`
+- Kaynaklar: `minik/Cargo.toml`, `minik/src/bin/minik.rs`, `minik/src/lexer.rs`, `minik/src/lib.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:06:34Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/minik
+# Kontrol noktası: bu videonun sonundaki kod minik/ dizininde.
+cd minik
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "'
 k cargo build -q --release
 k cat ornekler/ifade.mk
 k ./target/release/minik token ornekler/ifade.mk
+# En uzun eşleşme, Türkçe harfli ad, yorum ve karakter sayan sütunlar
+k cat ornekler/esitlik.mk
+k ./target/release/minik token ornekler/esitlik.mk
 k ./target/release/minik token ornekler/garip_karakter.mk
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test lexer::testler::anahtar_sozcuk_once_ad_gibi_okunur ... ok
+test lexer::testler::en_uzun_eslesme ... ok
+test lexer::testler::sutun_karakter_sayar_bayt_degil ... ok
+test lexer::testler::yorum_atlanir_ve_hata_konumu_bildirilir ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
 $ cat ornekler/ifade.mk
 let x = 2 + 3 * (4 - 1);
@@ -5569,6 +7643,25 @@ $ ./target/release/minik token ornekler/ifade.mk
  2:8  SagParantez
  2:9  NoktaliVirgul
  3:1  Son
+$ cat ornekler/esitlik.mk
+let sayı = 10; // yorumlar atlanır
+print(sayı >= 10 == true);
+$ ./target/release/minik token ornekler/esitlik.mk
+ 1:1  Let
+ 1:5  Ad("sayı")
+ 1:10 Esit
+ 1:12 Sayi(10)
+ 1:14 NoktaliVirgul
+ 2:1  Print
+ 2:6  SolParantez
+ 2:7  Ad("sayı")
+ 2:12 BuyukEsit
+ 2:15 Sayi(10)
+ 2:18 EsitEsit
+ 2:21 True
+ 2:25 SagParantez
+ 2:26 NoktaliVirgul
+ 3:1  Son
 $ ./target/release/minik token ornekler/garip_karakter.mk
 hata: satır 1, sütun 11: beklenmeyen karakter '@'
 [çıkış kodu: 1]
@@ -5578,16 +7671,21 @@ hata: satır 1, sütun 11: beklenmeyen karakter '@'
 
 - Video: `126-yorumlayici-parser`
 - Örnek yolu: `deneyler/mufredat-ornekleri/126-yorumlayici-parser/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/minik/` — kaynaklar: `Cargo.toml`, `src/ast.rs`, `src/bin/minik.rs`, `src/derleyici.rs`, `src/lexer.rs`, `src/lib.rs`, `src/parser.rs`, `src/vm.rs`, `src/yorumlayici.rs`
+- Kaynaklar: `minik/Cargo.toml`, `minik/src/ast.rs`, `minik/src/bin/minik.rs`, `minik/src/lexer.rs`, `minik/src/lib.rs`, `minik/src/parser.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:06:34Z
+- Son çalıştırma (UTC): çalıştırılmadı
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/minik
+# Kontrol noktası: bu videonun sonundaki kod minik/ dizininde (125'e göre farkı: diff -ru).
+cd minik
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "'
 k cargo build -q --release
 # Öncelik ağacın biçiminde: 2 + (3 * (4 - 1))
 k ./target/release/minik ast ornekler/ifade.mk
+# Pratt ayrıştırmanın adımları: her girinti bir ifade(en_az) çağrısı
+k cat ornekler/oncelik.mk
+k ./target/release/minik iz ornekler/oncelik.mk
 k cat ornekler/fib.mk
 k ./target/release/minik ast ornekler/fib.mk
 k ./target/release/minik ast ornekler/hatali.mk
@@ -5596,10 +7694,39 @@ k ./target/release/minik ast ornekler/hatali.mk
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test lexer::testler::anahtar_sozcuk_once_ad_gibi_okunur ... ok
+test lexer::testler::en_uzun_eslesme ... ok
+test lexer::testler::sutun_karakter_sayar_bayt_degil ... ok
+test lexer::testler::yorum_atlanir_ve_hata_konumu_bildirilir ... ok
+test parser::testler::hata_konumu_bildirilir ... ok
+test parser::testler::oncelik_ve_sola_birlesme ... ok
+test parser::testler::parantez_onceligi_degistirir ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
 $ ./target/release/minik ast ornekler/ifade.mk
 (let x (+ 2 (* 3 (- 4 1))))
 (print x)
+$ cat ornekler/oncelik.mk
+print(1 + 2 * 3 - 4);
+$ ./target/release/minik iz ornekler/oncelik.mk
+ifade(en_az = 0)
+  önek: 1
+  '+' gücü 5 > 0: sağ işleneni oku
+  ifade(en_az = 5)
+    önek: 2
+    '*' gücü 6 > 5: sağ işleneni oku
+    ifade(en_az = 6)
+      önek: 3
+      '-' gücü 5 ≤ 6: dur
+    kuruldu: (* 2 3)
+    '-' gücü 5 ≤ 5: dur
+  kuruldu: (+ 1 (* 2 3))
+  '-' gücü 5 > 0: sağ işleneni oku
+  ifade(en_az = 5)
+    önek: 4
+  kuruldu: (- (+ 1 (* 2 3)) 4)
+(print (- (+ 1 (* 2 3)) 4))
 $ cat ornekler/fib.mk
 // Özyinelemeli Fibonacci
 fn fib(n) {
@@ -5635,23 +7762,53 @@ hata: satır 1, sütun 13: bir ifade bekleniyordu, Yildiz bulundu
 
 - Video: `127-yorumlayici-degerlendirici`
 - Örnek yolu: `deneyler/mufredat-ornekleri/127-yorumlayici-degerlendirici/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/minik/` — kaynaklar: `Cargo.toml`, `src/ast.rs`, `src/bin/minik.rs`, `src/derleyici.rs`, `src/lexer.rs`, `src/lib.rs`, `src/parser.rs`, `src/vm.rs`, `src/yorumlayici.rs`
+- Kaynaklar: `koruma_sayfasi.rs`, `minik/Cargo.toml`, `minik/src/ast.rs`, `minik/src/bin/minik.rs`, `minik/src/lexer.rs`, `minik/src/lib.rs`, `minik/src/parser.rs`, `minik/src/yorumlayici.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:06:34Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: yığın taşması satırlarındaki iş parçacığı kimlikleri (parantez içindeki sayılar); koruma sayfası satırlarındaki adresler
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/minik
+# Kontrol noktası: bu videonun sonundaki kod minik/ dizininde (126'ya göre farkı: diff -ru).
+cd minik
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "'
 k cargo build -q --release
 k ./target/release/minik calistir ornekler/fib.mk
 k cat ornekler/sifira_bolme.mk
 k ./target/release/minik calistir ornekler/sifira_bolme.mk
+# Kısa devre: && ve || sonuç belliyse sağ tarafı hiç değerlendirmez
+k cat ornekler/kisa_devre.mk
+k ./target/release/minik calistir ornekler/kisa_devre.mk
+# Sonsuz özyineleme: dilin kendi derinlik sınırı (2000) Rust'ın yığını dolmadan durdurur
+k cat ornekler/sonsuz.mk
 k ./target/release/minik calistir ornekler/sonsuz.mk
+# Sınır yükseltilirse: 64 MiB'lık yorumlayıcı yığını 60 000 çağrıya yetiyor, 80 000'e ve 1 000 000'a yetmiyor
+k ./target/release/minik calistir --derinlik 60000 ornekler/sonsuz.mk
+k ./target/release/minik calistir --derinlik 80000 ornekler/sonsuz.mk
+k ./target/release/minik calistir --derinlik 1000000 ornekler/sonsuz.mk
+cd ..
+# Koruma sayfası: bir iş parçacığı yığınının hemen altındaki eşleme (/proc/self/maps)
+k rustc -O koruma_sayfasi.rs -o koruma_sayfasi
+k ./koruma_sayfasi
+rm -f koruma_sayfasi
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test lexer::testler::anahtar_sozcuk_once_ad_gibi_okunur ... ok
+test lexer::testler::en_uzun_eslesme ... ok
+test lexer::testler::sutun_karakter_sayar_bayt_degil ... ok
+test lexer::testler::yorum_atlanir_ve_hata_konumu_bildirilir ... ok
+test parser::testler::hata_konumu_bildirilir ... ok
+test parser::testler::oncelik_ve_sola_birlesme ... ok
+test parser::testler::parantez_onceligi_degistirir ... ok
+test yorumlayici::testler::derinlik_siniri ... ok
+test yorumlayici::testler::kapsam_ve_ozyineleme ... ok
+test yorumlayici::testler::kisa_devre_sag_tarafi_degerlendirmez ... ok
+test yorumlayici::testler::tasma_sessizce_sarmaz ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 $ cargo build -q --release
 $ ./target/release/minik calistir ornekler/fib.mk
 0
@@ -5676,36 +7833,99 @@ $ ./target/release/minik calistir ornekler/sifira_bolme.mk
 5
 hata: çalışma hatası: sıfıra bölme
 [çıkış kodu: 1]
+$ cat ornekler/kisa_devre.mk
+fn bol(a, b) {
+    return a / b;
+}
+// && sağ tarafı yalnız sol taraf true ise değerlendirir
+print(false && bol(1, 0) == 0);
+print(true || bol(1, 0) == 0);
+print(true && bol(1, 0) == 0);
+$ ./target/release/minik calistir ornekler/kisa_devre.mk
+false
+true
+hata: çalışma hatası: sıfıra bölme
+[çıkış kodu: 1]
+$ cat ornekler/sonsuz.mk
+fn sonsuz(n) {
+    return sonsuz(n + 1);
+}
+print(sonsuz(0));
 $ ./target/release/minik calistir ornekler/sonsuz.mk
 hata: çalışma hatası: çağrı derinliği sınırı aşıldı (2000)
 [çıkış kodu: 1]
+$ ./target/release/minik calistir --derinlik 60000 ornekler/sonsuz.mk
+hata: çalışma hatası: çağrı derinliği sınırı aşıldı (60000)
+[çıkış kodu: 1]
+$ ./target/release/minik calistir --derinlik 80000 ornekler/sonsuz.mk
+
+thread 'yorumlayici' (161) has overflowed its stack
+fatal runtime error: stack overflow, aborting
+[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
+$ ./target/release/minik calistir --derinlik 1000000 ornekler/sonsuz.mk
+
+thread 'yorumlayici' (164) has overflowed its stack
+fatal runtime error: stack overflow, aborting
+[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
+$ rustc -O koruma_sayfasi.rs -o koruma_sayfasi
+$ ./koruma_sayfasi
+yığının altındaki eşleme: 7fda8d0d9000-7fda8d0da000 ---p 00000000 00:00 0
+iş parçacığının yığını:   7fda8d0da000-7fda8d1da000 rw-p 00000000 00:00 0
 ```
 
 ## 128-yorumlayici-bytecode-vm
 
 - Video: `128-yorumlayici-bytecode-vm`
 - Örnek yolu: `deneyler/mufredat-ornekleri/128-yorumlayici-bytecode-vm/`
-- Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/minik/` — kaynaklar: `Cargo.toml`, `src/ast.rs`, `src/bin/minik.rs`, `src/derleyici.rs`, `src/lexer.rs`, `src/lib.rs`, `src/parser.rs`, `src/vm.rs`, `src/yorumlayici.rs`
+- Kaynaklar: `minik/Cargo.toml`, `minik/src/ast.rs`, `minik/src/bin/minik.rs`, `minik/src/derleyici.rs`, `minik/src/lexer.rs`, `minik/src/lib.rs`, `minik/src/parser.rs`, `minik/src/vm.rs`, `minik/src/yorumlayici.rs`
 - Toolchain: stable 1.100.0
-- Son çalıştırma (UTC): 2026-11-20T16:06:34Z
-- Değişken çıktı: süreler ve hızlanma oranı
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: süreler ve hızlanma oranı; callgrind satırlarındaki süreç kimliği (==N==); komut sayıları küçük oranda değişebilir
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler/minik
+# Kontrol noktası: bu videonun sonundaki kod (Minik'in bitmiş hâli) minik/ dizininde (127'ye göre farkı: diff -ru).
+cd minik
+ks 'cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "'
 k cargo build -q --release
 k cat ornekler/kare.mk
 k ./target/release/minik listele ornekler/kare.mk
 k ./target/release/minik vm ornekler/kare.mk
-# İki motor aynı programda aynı çıktıyı veriyor mu?
+# Fark testi: iki motor aynı programda aynı çıktıyı veriyor mu?
 ks 'diff <(./target/release/minik calistir ornekler/fib.mk) <(./target/release/minik vm ornekler/fib.mk) && echo "fib.mk: iki motorun çıktısı aynı"'
+# Gerçek bir fark: tanımsız ad ağaç dolaşanda çalışırken, derleyicide derlerken yakalanır
+k cat ornekler/tanimsiz.mk
+k ./target/release/minik calistir ornekler/tanimsiz.mk
+k ./target/release/minik vm ornekler/tanimsiz.mk
 k cat ornekler/kiyas.mk
 k ./target/release/minik kiyasla ornekler/kiyas.mk
+# Fark nereden geliyor? valgrind'in callgrind aracıyla yürütülen makine komutu sayısı, fib(20)
+ks 'valgrind --tool=callgrind --callgrind-out-file=cg.agac ./target/release/minik calistir ornekler/fib20.mk 2>&1 | grep -E "^[0-9]+$|Collected"'
+ks 'valgrind --tool=callgrind --callgrind-out-file=cg.vm ./target/release/minik vm ornekler/fib20.mk 2>&1 | grep -E "^[0-9]+$|Collected"'
+# Ağaç dolaşanda komutların gittiği yerler: özet sayısı (hash), bellek ayırma, aritmetik
+ks 'callgrind_annotate --inclusive=no cg.agac | grep -E "PROGRAM TOTALS|::ifade.2|hash_one|Sip13Rounds|malloc.c:(malloc|free) |::ikili " | sed -E "s/ \[.*//; s/[?]{3}://"'
+ks 'callgrind_annotate --inclusive=no cg.vm | grep -E "PROGRAM TOTALS|::calistir |::ikili " | sed -E "s/ \[.*//; s/[?]{3}://"'
+rm -f cg.agac cg.vm
 ```
 
-- Gerçek çıktı (`cikti.txt`):
+- Gerçek çıktı (kısaltılmış; 105 satırın tamamı `cikti.txt` içinde):
 
 ```text
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test fark_testi::ornek_programlarda_iki_motor_ayni ... ok
+test fark_testi::tanimsiz_ad_iki_motorda_farkli_anda_yakalanir ... ok
+test lexer::testler::anahtar_sozcuk_once_ad_gibi_okunur ... ok
+test lexer::testler::en_uzun_eslesme ... ok
+test lexer::testler::sutun_karakter_sayar_bayt_degil ... ok
+test lexer::testler::yorum_atlanir_ve_hata_konumu_bildirilir ... ok
+test parser::testler::hata_konumu_bildirilir ... ok
+test parser::testler::oncelik_ve_sola_birlesme ... ok
+test parser::testler::parantez_onceligi_degistirir ... ok
+test yorumlayici::testler::derinlik_siniri ... ok
+test yorumlayici::testler::kapsam_ve_ozyineleme ... ok
+test yorumlayici::testler::kisa_devre_sag_tarafi_degerlendirmez ... ok
+test yorumlayici::testler::tasma_sessizce_sarmaz ... ok
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
 $ cargo build -q --release
 $ cat ornekler/kare.mk
 fn kare(x) {
@@ -5736,37 +7956,41 @@ kare (1 parametre, 1 yerel yuva):
   0007  VeAtla(11)
   0008  YereliOku(0)
   0009  Sabit(100)
-  0010  Ikili(Kucuk)
-  0011  YanlissaAtla(22)
-  0012  YereliOku(0)
-  0013  YereliOku(1)
-  0014  Cagir(0, 1)
-  0015  Ikili(Topla)
-  0016  YereleYaz(0)
-  0017  YereliOku(1)
-  0018  Sabit(1)
-  0019  Ikili(Topla)
-  0020  YereleYaz(1)
-  0021  Atla(4)
-  0022  YereliOku(0)
-  0023  Yazdir
-  0024  DonBos
-$ ./target/release/minik vm ornekler/kare.mk
+… (16 satır atlandı)
 14
 $ diff <(./target/release/minik calistir ornekler/fib.mk) <(./target/release/minik vm ornekler/fib.mk) && echo "fib.mk: iki motorun çıktısı aynı"
 fib.mk: iki motorun çıktısı aynı
-$ cat ornekler/kiyas.mk
-fn fib(n) {
-    if n < 2 { return n; }
-    return fib(n - 1) + fib(n - 2);
-}
-print(fib(27));
-$ ./target/release/minik kiyasla ornekler/kiyas.mk
-196418
-196418
-ağaç yürüten yorumlayıcı:    163.9 ms (5084966 ifade düğümü değerlendirildi)
-bayt kod + yığın makinesi:     36.1 ms (6356210 komut yürütüldü)
-hızlanma: 4.54×
+$ cat ornekler/tanimsiz.mk
+… (2 satır atlandı)
+$ ./target/release/minik calistir ornekler/tanimsiz.mk
+1
+hata: çalışma hatası: tanımsız değişken: y
+… (1 satır atlandı)
+$ ./target/release/minik vm ornekler/tanimsiz.mk
+hata: tanımsız değişken: y
+… (10 satır atlandı)
+ağaç dolaşan yorumlayıcı:    161.4 ms; 5084966 ifade düğümü, 1906863 HashMap ad araması, 1271242 yeni kapsam
+bayt kod + yığın makinesi:    34.1 ms; 6356210 komut; ad araması yok (yuva numaraları derleme anında)
+hızlanma: 4.73×
+$ valgrind --tool=callgrind --callgrind-out-file=cg.agac ./target/release/minik calistir ornekler/fib20.mk 2>&1 | grep -E "^[0-9]+$|Collected"
+6765
+==39392== Collected : 68448669
+$ valgrind --tool=callgrind --callgrind-out-file=cg.vm ./target/release/minik vm ornekler/fib20.mk 2>&1 | grep -E "^[0-9]+$|Collected"
+6765
+==39396== Collected : 14273044
+$ callgrind_annotate --inclusive=no cg.agac | grep -E "PROGRAM TOTALS|::ifade.2|hash_one|Sip13Rounds|malloc.c:(malloc|free) |::ikili " | sed -E "s/ \[.*//; s/[?]{3}://"
+68,448,669 (100.0%)  PROGRAM TOTALS
+16,253,695 (23.75%)  <minik::yorumlayici::Yorumlayici>::ifade'2
+ 7,125,474 (10.41%)  <std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&alloc::string::String>
+ 6,633,012 ( 9.69%)  <core::hash::sip::Hasher<core::hash::sip::Sip13Rounds> as core::hash::Hasher>::write
+ 4,014,891 ( 5.87%)  ./malloc/./malloc/malloc.c:free
+ 2,650,342 ( 3.87%)  ./malloc/./malloc/malloc.c:malloc
+ 1,970,190 ( 2.88%)  <std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&str>
+ 1,882,582 ( 2.75%)  minik::yorumlayici::ikili
+$ callgrind_annotate --inclusive=no cg.vm | grep -E "PROGRAM TOTALS|::calistir |::ikili " | sed -E "s/ \[.*//; s/[?]{3}://"
+14,273,044 (100.0%)  PROGRAM TOTALS
+11,985,396 (83.97%)  minik::vm::calistir
+ 1,882,582 (13.19%)  minik::yorumlayici::ikili
 ```
 
 ## 129-yolun-sonu
@@ -5778,32 +8002,91 @@ hızlanma: 4.54×
 - Ortak proje: `deneyler/mufredat-ornekleri/ortak-projeler/minik/` — kaynaklar: `Cargo.toml`, `src/ast.rs`, `src/bin/minik.rs`, `src/derleyici.rs`, `src/lexer.rs`, `src/lib.rs`, `src/parser.rs`, `src/vm.rs`, `src/yorumlayici.rs`
 - Toolchain: stable 1.100.0
 - Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `bytes 1.12.2`, `cfg-if 1.0.5`, `errno 0.3.15`, `libc 0.2.191`, `lock_api 0.4.14`, `mio 1.2.5`, `parking_lot 0.12.5`, `parking_lot_core 0.9.12`, `pin-project-lite 0.2.18`, `proc-macro2 1.0.107`, `quote 1.0.47`, `redox_syscall 0.5.18`, `scopeguard 1.2.0`, `signal-hook-registry 1.4.8`, `smallvec 1.16.6`, `socket2 0.6.5`, `syn 3.0.10`, `tokio 1.54.1`, `tokio-macros 2.7.2`, `unicode-ident 1.0.27`, `wasi 0.11.1+wasi-snapshot-preview1`, `windows-link 0.2.1`, `windows-sys 0.61.2`
-- Son çalıştırma (UTC): 2026-11-20T16:06:36Z
+- Son çalıştırma (UTC): çalıştırılmadı
+- Değişken çıktı: strace satırlarının başındaki iş parçacığı kimlikleri, dosya tanımlayıcı numaraları, istemci portu (sin_port) ve "accept4 resumed" satırındaki adres
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
-cd ../ortak-projeler
-for p in ambar kapi minik; do
-  ks "cd $p && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/$p: /'"
-done
-# Üç bitirme projesinin Rust satır sayısı
-ks 'wc -l ambar/src/*.rs ambar/src/bin/*.rs kapi/src/*.rs kapi/src/bin/*.rs minik/src/*.rs minik/src/bin/*.rs | tail -n 1'
-# Bu müfredat için konteynerde çalıştırılan deney sayısı
-ks 'ls -d ../[0-9][0-9][0-9]-*/ | wc -l'
+# 1) Bitirme projelerinin on iki kontrol noktasında testler
+ks 'for c in ../11[7-9]-*/ambar/Cargo.toml ../12[01]-*/ambar/Cargo.toml ../12[2-4]-*/kapi/Cargo.toml ../12[5-8]-*/minik/Cargo.toml; do d=${c%/Cargo.toml}; printf "%-42s %s\n" "${d#../}" "$(cd $d && cargo test -q --lib 2>&1 | grep -o "[0-9]* passed; [0-9]* failed")"; done'
+# ortak-projeler/ altındaki bitmiş projeler, son kontrol noktalarının aynısı mı?
+ks 'diff -r -x target ../121-ambar-performans/ambar ../ortak-projeler/ambar && diff -r -x target ../124-http-eszamanlilik-ve-yuk/kapi ../ortak-projeler/kapi && diff -r -x target ../128-yorumlayici-bytecode-vm/minik ../ortak-projeler/minik && echo "ortak-projeler: son kontrol noktalarıyla aynı"'
+# 2) Bir isteğin çekirdeğe dokunan adımları: Ambar'a tek bir "yaz" ve sistem çağrıları
+cd ../ortak-projeler/ambar
+cargo build -q --release
+rm -rf calisma
+echo "# her yazmada fsync kipi"
+strace -f -o strace.txt -e trace=accept4,recvfrom,write,sendto,fdatasync ./target/release/ambar sunucu calisma 127.0.0.1:7029 her 2>/dev/null &
+SP=$!
+sleep 1
+ks 'exec 3<>/dev/tcp/127.0.0.1/7029; printf "yaz dil Rust\n" >&3; head -n 1 <&3'
+sleep 0.2
+kill $(pgrep -P $SP)   # izlenen sunucuyu durdur; strace onunla birlikte çıkar
+wait $SP 2>/dev/null
+ks 'grep -v "write(2," strace.txt | grep -E "accept4|recvfrom|write|sendto|fdatasync"'
+k od -A d -t x1z -v calisma/gunluk.ambar
+rm -rf calisma strace.txt
+echo "# toplu kesinleştirme kipi"
+strace -f -o strace.txt -e trace=accept4,recvfrom,write,sendto,fdatasync ./target/release/ambar sunucu calisma 127.0.0.1:7030 toplu 2>/dev/null &
+SP=$!
+sleep 1
+ks 'exec 3<>/dev/tcp/127.0.0.1/7030; printf "yaz dil Rust\n" >&3; head -n 1 <&3'
+sleep 0.2
+kill $(pgrep -P $SP)
+wait $SP 2>/dev/null
+ks 'grep -v "write(2," strace.txt | grep -E "recvfrom\([0-9]+, \"yaz|write\(|sendto|fdatasync"'
+rm -rf calisma strace.txt
+cd ../../129-yolun-sonu
+# 3) Üç bitmiş projenin Rust satır sayısı ve bu müfredatın deney dizinleri
+ks 'wc -l ../ortak-projeler/*/src/*.rs ../ortak-projeler/*/src/bin/*.rs | tail -n 1'
+ks 'printf "deney dizini: %s\n" "$(ls -d ../[0-9][0-9][0-9]-*/ | wc -l)"'
 ```
 
 - Gerçek çıktı (`cikti.txt`):
 
 ```text
-$ cd ambar && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/ambar: /'
-ambar: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-$ cd kapi && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/kapi: /'
-kapi: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-$ cd minik && cargo test -q 2>&1 | grep 'test result' | head -n 1 | sed 's/^/minik: /'
-minik: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-$ wc -l ambar/src/*.rs ambar/src/bin/*.rs kapi/src/*.rs kapi/src/bin/*.rs minik/src/*.rs minik/src/bin/*.rs | tail -n 1
- 1711 total
-$ ls -d ../[0-9][0-9][0-9]-*/ | wc -l
-129
+$ for c in ../11[7-9]-*/ambar/Cargo.toml ../12[01]-*/ambar/Cargo.toml ../12[2-4]-*/kapi/Cargo.toml ../12[5-8]-*/minik/Cargo.toml; do d=${c%/Cargo.toml}; printf "%-42s %s\n" "${d#../}" "$(cd $d && cargo test -q --lib 2>&1 | grep -o "[0-9]* passed; [0-9]* failed")"; done
+117-ambar-tasarim/ambar                    3 passed; 0 failed
+118-ambar-depolama-motoru/ambar            8 passed; 0 failed
+119-ambar-ag-protokolu/ambar               11 passed; 0 failed
+120-ambar-eszamanlilik-ve-dayaniklilik/ambar 11 passed; 0 failed
+121-ambar-performans/ambar                 12 passed; 0 failed
+122-http-ayristirici/kapi                  7 passed; 0 failed
+123-http-sunucu/kapi                       10 passed; 0 failed
+124-http-eszamanlilik-ve-yuk/kapi          10 passed; 0 failed
+125-yorumlayici-lexer/minik                4 passed; 0 failed
+126-yorumlayici-parser/minik               7 passed; 0 failed
+127-yorumlayici-degerlendirici/minik       11 passed; 0 failed
+128-yorumlayici-bytecode-vm/minik          13 passed; 0 failed
+$ diff -r -x target ../121-ambar-performans/ambar ../ortak-projeler/ambar && diff -r -x target ../124-http-eszamanlilik-ve-yuk/kapi ../ortak-projeler/kapi && diff -r -x target ../128-yorumlayici-bytecode-vm/minik ../ortak-projeler/minik && echo "ortak-projeler: son kontrol noktalarıyla aynı"
+ortak-projeler: son kontrol noktalarıyla aynı
+# her yazmada fsync kipi
+$ exec 3<>/dev/tcp/127.0.0.1/7029; printf "yaz dil Rust\n" >&3; head -n 1 <&3
+tamam
+$ grep -v "write(2," strace.txt | grep -E "accept4|recvfrom|write|sendto|fdatasync"
+42112 accept4(4, {sa_family=AF_INET, sin_port=htons(58874), sin_addr=inet_addr("127.0.0.1")}, [128 => 16], SOCK_CLOEXEC) = 5
+42112 accept4(4,  <unfinished ...>
+42115 recvfrom(7, "yaz dil Rust\n", 8192, 0, NULL, NULL) = 13
+42115 write(3, "\335O\317d\3\0\0\0\4\0\0\0\324\201\350\361dilRust", 23) = 23
+42115 fdatasync(3)                      = 0
+42115 sendto(5, "tamam\n", 6, MSG_NOSIGNAL, NULL, 0) = 6
+42115 recvfrom(7, "", 8192, 0, NULL, NULL) = 0
+42112 <... accept4 resumed>0x7ffdc03ccf18, [128], SOCK_CLOEXEC) = ? ERESTARTSYS (To be restarted if SA_RESTART is set)
+$ od -A d -t x1z -v calisma/gunluk.ambar
+0000000 dd 4f cf 64 03 00 00 00 04 00 00 00 d4 81 e8 f1  >.O.d............<
+0000016 64 69 6c 52 75 73 74                             >dilRust<
+0000023
+# toplu kesinleştirme kipi
+$ exec 3<>/dev/tcp/127.0.0.1/7030; printf "yaz dil Rust\n" >&3; head -n 1 <&3
+tamam
+$ grep -v "write(2," strace.txt | grep -E "recvfrom\([0-9]+, \"yaz|write\(|sendto|fdatasync"
+42131 recvfrom(8, "yaz dil Rust\n", 8192, 0, NULL, NULL) = 13
+42131 write(3, "\335O\317d\3\0\0\0\4\0\0\0\324\201\350\361dilRust", 23) = 23
+42128 fdatasync(4)                      = 0
+42131 sendto(6, "tamam\n", 6, MSG_NOSIGNAL, NULL, 0) = 6
+$ wc -l ../ortak-projeler/*/src/*.rs ../ortak-projeler/*/src/bin/*.rs | tail -n 1
+  2798 total
+$ printf "deney dizini: %s\n" "$(ls -d ../[0-9][0-9][0-9]-*/ | wc -l)"
+deney dizini: 129
 ```
 

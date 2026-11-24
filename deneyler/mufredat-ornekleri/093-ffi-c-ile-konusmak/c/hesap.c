@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-/* Rust tarafında tanımlı, C'den çağrılacak fonksiyon */
+/* Rust tarafında tanımlı, C'den çağrılacak fonksiyon: C tarafının beyanı */
 extern int rust_kare(int x);
 
 int topla(int a, int b) { return a + b; }

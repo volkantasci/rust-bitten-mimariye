@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-// "Bağlantı noktaları" (ports): iş mantığı dış dünyayı yalnızca bu trait'lerle görür
+// Portlar (ports): iş mantığı dış dünyayı yalnızca bu trait'lerle görür
 pub trait Saat {
     fn bugun(&self) -> u32; // gün numarası
 }
@@ -15,7 +15,7 @@ pub enum Durum {
     Bilinmiyor,
 }
 
-// İş mantığı: saf, deterministik, jenerik (statik dağıtım)
+// İş mantığı: saf, deterministik, jenerik (statik yönlendirme)
 pub fn uyelik_durumu(saat: &impl Saat, depo: &impl UyeDeposu, uye: &str) -> Durum {
     match depo.bitis_gunu(uye) {
         None => Durum::Bilinmiyor,
@@ -24,7 +24,7 @@ pub fn uyelik_durumu(saat: &impl Saat, depo: &impl UyeDeposu, uye: &str) -> Duru
     }
 }
 
-// Gerçek bağdaştırıcılar (adapters) uygulamada; testlerde sahteleri
+// Adaptörler (adapters): gerçekleri uygulamada; testlerde test dublörleri (fake: basit ama çalışan)
 pub struct SabitSaat(pub u32);
 impl Saat for SabitSaat {
     fn bugun(&self) -> u32 { self.0 }

@@ -1,3 +1,16 @@
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test lexer::testler::anahtar_sozcuk_once_ad_gibi_okunur ... ok
+test lexer::testler::en_uzun_eslesme ... ok
+test lexer::testler::sutun_karakter_sayar_bayt_degil ... ok
+test lexer::testler::yorum_atlanir_ve_hata_konumu_bildirilir ... ok
+test parser::testler::hata_konumu_bildirilir ... ok
+test parser::testler::oncelik_ve_sola_birlesme ... ok
+test parser::testler::parantez_onceligi_degistirir ... ok
+test yorumlayici::testler::derinlik_siniri ... ok
+test yorumlayici::testler::kapsam_ve_ozyineleme ... ok
+test yorumlayici::testler::kisa_devre_sag_tarafi_degerlendirmez ... ok
+test yorumlayici::testler::tasma_sessizce_sarmaz ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 $ cargo build -q --release
 $ ./target/release/minik calistir ornekler/fib.mk
 0
@@ -22,6 +35,41 @@ $ ./target/release/minik calistir ornekler/sifira_bolme.mk
 5
 hata: çalışma hatası: sıfıra bölme
 [çıkış kodu: 1]
+$ cat ornekler/kisa_devre.mk
+fn bol(a, b) {
+    return a / b;
+}
+// && sağ tarafı yalnız sol taraf true ise değerlendirir
+print(false && bol(1, 0) == 0);
+print(true || bol(1, 0) == 0);
+print(true && bol(1, 0) == 0);
+$ ./target/release/minik calistir ornekler/kisa_devre.mk
+false
+true
+hata: çalışma hatası: sıfıra bölme
+[çıkış kodu: 1]
+$ cat ornekler/sonsuz.mk
+fn sonsuz(n) {
+    return sonsuz(n + 1);
+}
+print(sonsuz(0));
 $ ./target/release/minik calistir ornekler/sonsuz.mk
 hata: çalışma hatası: çağrı derinliği sınırı aşıldı (2000)
 [çıkış kodu: 1]
+$ ./target/release/minik calistir --derinlik 60000 ornekler/sonsuz.mk
+hata: çalışma hatası: çağrı derinliği sınırı aşıldı (60000)
+[çıkış kodu: 1]
+$ ./target/release/minik calistir --derinlik 80000 ornekler/sonsuz.mk
+
+thread 'yorumlayici' (161) has overflowed its stack
+fatal runtime error: stack overflow, aborting
+[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
+$ ./target/release/minik calistir --derinlik 1000000 ornekler/sonsuz.mk
+
+thread 'yorumlayici' (164) has overflowed its stack
+fatal runtime error: stack overflow, aborting
+[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
+$ rustc -O koruma_sayfasi.rs -o koruma_sayfasi
+$ ./koruma_sayfasi
+yığının altındaki eşleme: 7fda8d0d9000-7fda8d0da000 ---p 00000000 00:00 0
+iş parçacığının yığını:   7fda8d0da000-7fda8d1da000 rw-p 00000000 00:00 0

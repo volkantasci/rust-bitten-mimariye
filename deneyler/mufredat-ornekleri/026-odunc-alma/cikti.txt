@@ -1,14 +1,45 @@
 $ cargo run -q
-kapasite 3, veri @ 0x56273aab7d60
-kapasite 6, veri @ 0x56273aab7d60
-kapasite 12, veri @ 0x56273aab7da0
+kapasite 3, veri @ 0x55f85c7dad60
+kapasite 6, veri @ 0x55f85c7dad60
+kapasite 12, veri @ 0x55f85c7dada0
+$ cargo run -q
+önce : kapasite 3, veri @ 0x55d82391ad60
+sonra: kapasite 6, veri @ 0x55d82391ad60
+ilk = 1
+$ cargo +nightly miri run -q
+önce : kapasite 3, veri @ 0x21330
+sonra: kapasite 6, veri @ 0x29e08
+error: Undefined Behavior: memory access failed: alloc311 has been freed, so this pointer is dangling
+ --> src/main.rs:8:26
+  |
+8 |     let deger = unsafe { *ilk }; // blok taşındıysa iade edilmiş belleği okur: tanımsız davranış
+  |                          ^^^^ Undefined Behavior occurred here
+  |
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc311 was allocated here:
+ --> src/main.rs:3:17
+  |
+3 |     let mut v = vec![1, 2, 3];
+  |                 ^^^^^^^^^^^^^
+help: alloc311 was deallocated here:
+ --> src/main.rs:6:5
+  |
+6 |     v.push(4); // kapasite doldu: ayırıcı bloğu büyütür ya da taşır
+  |     ^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
 $ cargo build -q
 error[E0502]: cannot borrow `v` as mutable because it is also borrowed as immutable
  --> src/main.rs:4:5
   |
 3 |     let ilk = &v[0]; // paylaşılan ödünç
   |                - immutable borrow occurs here
-4 |     v.push(4); // değiştirmek için özel (mut) ödünç gerekir
+4 |     v.push(4); // değiştirmek için değiştirilebilir (&mut) ödünç gerekir
   |     ^^^^^^^^^ mutable borrow occurs here
 5 |     println!("ilk = {ilk}");
   |                      --- immutable borrow later used here

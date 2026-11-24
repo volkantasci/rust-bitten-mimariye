@@ -1,8 +1,16 @@
-$ cargo run -q --release
-eşlendi: 0x7f8bb182e000, ilk 7 bayt: "MERHABA"
-16384 sayfaya dokunuldu → 492 küçük sayfa hatası (toplam = 77)
-$ strace -e trace=openat,mmap,munmap ./target/release/mmap 2>&1 | grep -E "esleme.bin|67108864"
-openat(AT_FDCWD, "/tmp/esleme.bin", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
-openat(AT_FDCWD, "/tmp/esleme.bin", O_RDONLY|O_CLOEXEC) = 3
-mmap(NULL, 67108864, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f749b51d000
-munmap(0x7f749b51d000, 67108864)        = 0
+$ cargo build -q --release
+$ ./target/release/mmap
+varsayılan    16384 sayfaya dokunuldu:   485 hafif, 1 ağır sayfa hatası (ilk 7 bayt "MERHABA", toplam 77)
+              smaps: Rss 65536 kB, FilePmdMapped 0 kB; diskten okunan: 0 bayt
+MADV_RANDOM   16384 sayfaya dokunuldu:     1 hafif, 16383 ağır sayfa hatası (ilk 7 bayt "MERHABA", toplam 77)
+              smaps: Rss 65536 kB, FilePmdMapped 0 kB; diskten okunan: 0 bayt
+MAP_POPULATE  16384 sayfaya dokunuldu:     0 hafif, 0 ağır sayfa hatası (ilk 7 bayt "MERHABA", toplam 77)
+              smaps: Rss 65536 kB, FilePmdMapped 0 kB; diskten okunan: 0 bayt
+$ strace -e trace=mmap,madvise,munmap ./target/release/mmap 2>&1 | grep -E "67108864"
+mmap(NULL, 67108864, PROT_READ, MAP_PRIVATE, 4, 0) = 0x7f8d25b53000
+munmap(0x7f8d25b53000, 67108864)        = 0
+mmap(NULL, 67108864, PROT_READ, MAP_PRIVATE, 4, 0) = 0x7f8d25b53000
+madvise(0x7f8d25b53000, 67108864, MADV_RANDOM) = 0
+munmap(0x7f8d25b53000, 67108864)        = 0
+mmap(NULL, 67108864, PROT_READ, MAP_PRIVATE|MAP_POPULATE, 4, 0) = 0x7f8d25b53000
+munmap(0x7f8d25b53000, 67108864)        = 0

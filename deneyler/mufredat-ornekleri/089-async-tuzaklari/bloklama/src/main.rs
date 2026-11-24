@@ -22,6 +22,13 @@ async fn main() {
     let _ = tokio::join!(a, b);
     println!("tokio::time::sleep ile iki görev : {:>4} ms", t.elapsed().as_millis());
 
+    // Bloklayan işi ayrı bir iş parçacığı havuzuna göndermek: spawn_blocking
+    let t = Instant::now();
+    let a = tokio::task::spawn_blocking(|| std::thread::sleep(Duration::from_millis(500)));
+    let b = tokio::task::spawn_blocking(|| std::thread::sleep(Duration::from_millis(500)));
+    let _ = tokio::join!(a, b);
+    println!("spawn_blocking ile iki görev     : {:>4} ms", t.elapsed().as_millis());
+
     // 2) İptal: select! kaybeden dalı düşürür; yarım kalan iş geri alınmaz
     tokio::select! {
         _ = async {

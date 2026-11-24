@@ -1,3 +1,9 @@
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test lexer::testler::anahtar_sozcuk_once_ad_gibi_okunur ... ok
+test lexer::testler::en_uzun_eslesme ... ok
+test lexer::testler::sutun_karakter_sayar_bayt_degil ... ok
+test lexer::testler::yorum_atlanir_ve_hata_konumu_bildirilir ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
 $ cat ornekler/ifade.mk
 let x = 2 + 3 * (4 - 1);
@@ -21,6 +27,25 @@ $ ./target/release/minik token ornekler/ifade.mk
  2:7  Ad("x")
  2:8  SagParantez
  2:9  NoktaliVirgul
+ 3:1  Son
+$ cat ornekler/esitlik.mk
+let sayı = 10; // yorumlar atlanır
+print(sayı >= 10 == true);
+$ ./target/release/minik token ornekler/esitlik.mk
+ 1:1  Let
+ 1:5  Ad("sayı")
+ 1:10 Esit
+ 1:12 Sayi(10)
+ 1:14 NoktaliVirgul
+ 2:1  Print
+ 2:6  SolParantez
+ 2:7  Ad("sayı")
+ 2:12 BuyukEsit
+ 2:15 Sayi(10)
+ 2:18 EsitEsit
+ 2:21 True
+ 2:25 SagParantez
+ 2:26 NoktaliVirgul
  3:1  Son
 $ ./target/release/minik token ornekler/garip_karakter.mk
 hata: satır 1, sütun 11: beklenmeyen karakter '@'

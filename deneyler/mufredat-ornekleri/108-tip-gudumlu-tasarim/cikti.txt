@@ -3,6 +3,7 @@ $ cargo run -q
 Some("boş sipariş onaylanamaz")
 ayse@ornek.com adresine: 2 kalem gönderildi
 geçersiz e-posta: "ayse.ornek.com"
+boyutlar: Taslak 24, Onayli 24, Gonderildi 24, Vec 24 bayt
 $ cargo build -q 2>&1 | head -n 16
 error[E0599]: no method named `gonder` found for struct `Siparis<Taslak>` in the current scope
   --> src/main.rs:57:47

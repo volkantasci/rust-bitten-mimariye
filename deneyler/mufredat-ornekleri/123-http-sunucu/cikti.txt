@@ -1,23 +1,68 @@
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test ayristirici::testler::ad_ile_iki_nokta_arasinda_bosluk_reddedilir ... ok
+test ayristirici::testler::bayt_bayt_beslemek_ayni_sonucu_verir ... ok
+test ayristirici::testler::bozuk_istek_satiri ... ok
+test ayristirici::testler::content_length_yalniz_rakam ... ok
+test ayristirici::testler::sinirsiz_baslik_reddedilir ... ok
+test ayristirici::testler::tek_parcada_iki_istek ... ok
+test ayristirici::testler::transfer_encoding_desteklenmiyor ... ok
+test dosya::testler::content_length_bayt_sayar ... ok
+test dosya::testler::kokun_disina_cikan_yollar_reddedilir ... ok
+test dosya::testler::kokun_icindeki_yollar ... ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
 $ curl -s -i http://127.0.0.1:8101/
 HTTP/1.1 200 OK
 Content-Length: 23
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/html; charset=utf-8
 
 <h1>Merhaba Kapı</h1>
-$ curl -s http://127.0.0.1:8101/belgeler/not.txt
-gizli olmayan not
+$ curl -s -I http://127.0.0.1:8101/belgeler/not.txt
+HTTP/1.1 200 OK
+Content-Length: 18
+Content-Type: text/plain; charset=utf-8
+
 $ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8101/yok.html
 404
 $ curl -s --path-as-is -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8101/../../etc/passwd"
 403
-$ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:8101/
-405
+$ curl -s -v -o /dev/null "http://127.0.0.1:8101/%2e%2e/%2e%2e/etc/passwd" 2>&1 | grep "^> GET"
+> GET /etc/passwd HTTP/1.1
+$ curl -s -v --path-as-is -o /dev/null "http://127.0.0.1:8101/%2e%2e/%2e%2e/etc/passwd" 2>&1 | grep "^> GET"
+> GET /%2e%2e/%2e%2e/etc/passwd HTTP/1.1
+$ curl -s --path-as-is -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8101/%2e%2e/%2e%2e/etc/passwd"
+404
+$ ln -s /etc kok/disari
+$ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8101/disari/os-release
+200
+$ curl -s http://127.0.0.1:8101/disari/os-release | head -n 1
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+$ rm kok/disari
+$ curl -s -i -X POST http://127.0.0.1:8101/
+HTTP/1.1 405 Method Not Allowed
+Content-Length: 21
+Content-Type: text/plain; charset=utf-8
+Allow: GET, HEAD
+
+yalnizca GET ve HEAD
+$ exec 3<>/dev/tcp/127.0.0.1/8101; printf "GET /belgeler/not.txt HTTP/1.1\r\nHost: kapi\r\n\r\nGET /belgeler/not.txt HTTP/1.1\r\nHost: kapi\r\nConnection: close\r\n\r\n" >&3; cat <&3
+HTTP/1.1 200 OK
+Content-Length: 18
+Content-Type: text/plain; charset=utf-8
+
+gizli olmayan not
+HTTP/1.1 200 OK
+Content-Length: 18
+Content-Type: text/plain; charset=utf-8
+Connection: close
+
+gizli olmayan not
 $ exec 3<>/dev/tcp/127.0.0.1/8101; printf "MERHABA\r\n\r\n" >&3; cat <&3
 HTTP/1.1 400 Bad Request
 Content-Length: 28
 Content-Type: text/plain; charset=utf-8
+Connection: close
 
 BozukIstekSatiri("MERHABA")
-$ cat /tmp/kapi.log
+$ cat sunucu.log
 havuz sunucusu 8 işçiyle dinliyor: 127.0.0.1:8101

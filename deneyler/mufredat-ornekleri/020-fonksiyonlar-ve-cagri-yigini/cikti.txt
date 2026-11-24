@@ -1,12 +1,20 @@
 $ cargo run -q
-seviye 0: yerel @ 0x7ffecd10f4d4
-seviye 1: yerel @ 0x7ffecd10f3c4  (272 bayt aşağıda)
-seviye 2: yerel @ 0x7ffecd10f2b4  (272 bayt aşağıda)
-seviye 3: yerel @ 0x7ffecd10f1a4  (272 bayt aşağıda)
-seviye 4: yerel @ 0x7ffecd10f094  (272 bayt aşağıda)
+seviye 0: yerel @ 0x7ffc3639c9c4
+seviye 1: yerel @ 0x7ffc3639c8b4  (272 bayt aşağıda)
+seviye 2: yerel @ 0x7ffc3639c7a4  (272 bayt aşağıda)
+seviye 3: yerel @ 0x7ffc3639c694  (272 bayt aşağıda)
+seviye 4: yerel @ 0x7ffc3639c584  (272 bayt aşağıda)
 $ cargo run -q --release
-seviye 0: yerel @ 0x7fff8d79717c
-seviye 1: yerel @ 0x7fff8d79711c  (96 bayt aşağıda)
-seviye 2: yerel @ 0x7fff8d7970bc  (96 bayt aşağıda)
-seviye 3: yerel @ 0x7fff8d79705c  (96 bayt aşağıda)
-seviye 4: yerel @ 0x7fff8d796ffc  (96 bayt aşağıda)
+seviye 0: yerel @ 0x7ffcbd34438c
+seviye 1: yerel @ 0x7ffcbd34432c  (96 bayt aşağıda)
+seviye 2: yerel @ 0x7ffcbd3442cc  (96 bayt aşağıda)
+seviye 3: yerel @ 0x7ffcbd34426c  (96 bayt aşağıda)
+seviye 4: yerel @ 0x7ffcbd34420c  (96 bayt aşağıda)
+$ gdb -q -batch -ex "break cagri_yigini::asagi if seviye == 3" -ex run -ex bt -ex "info frame" ./target/debug/cagri_yigini 2>&1 | grep -E "^#|saved rip|called by"
+#0  cagri_yigini::asagi (seviye=3, onceki=140737488348484) at src/main.rs:3
+#1  0x000055555556917d in cagri_yigini::asagi (seviye=2, onceki=140737488348756) at src/main.rs:11
+#2  0x000055555556917d in cagri_yigini::asagi (seviye=1, onceki=140737488349028) at src/main.rs:11
+#3  0x000055555556917d in cagri_yigini::asagi (seviye=0, onceki=0) at src/main.rs:11
+#4  0x0000555555568f7c in cagri_yigini::main () at src/main.rs:16
+ rip = 0x555555568f98 in cagri_yigini::asagi (src/main.rs:3); saved rip = 0x55555556917d
+ called by frame at 0x7fffffffe630

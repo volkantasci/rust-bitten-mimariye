@@ -3,9 +3,23 @@ $ timeout 3 ./target/debug/kilitlenme
 1. iş parçacığı A'yı aldı, B'yi bekliyor
 2. iş parçacığı ilk kilidi aldı, ikincisini bekliyor
 [çıkış kodu: 124]
+$ ./target/debug/kilitlenme > /dev/null & P=$!; sleep 1; for t in /proc/$P/task/*; do echo "bekliyor: $(cat $t/wchan)  durum, utime, stime: $(cut -d" " -f3,14,15 $t/stat)"; done; kill $P
+bekliyor: __futex_wait  durum, utime, stime: S 0 0
+bekliyor: __futex_wait  durum, utime, stime: S 0 0
+bekliyor: __futex_wait  durum, utime, stime: S 0 0
 $ timeout 3 ./target/debug/kilitlenme sirali
 1. iş parçacığı A'yı aldı, B'yi bekliyor
-1. iş parçacığı transferi yaptı (100 / 100)
+1. iş parçacığı transferi yaptı (A = 99, B = 101)
 2. iş parçacığı ilk kilidi aldı, ikincisini bekliyor
-2. iş parçacığı transferi yaptı (100 / 100)
-bitti
+2. iş parçacığı transferi yaptı
+bitti: A = 100, B = 100
+$ for n in 100 300 1000; do echo "$n transfer:"; for i in $(seq 20); do timeout 2 ./target/debug/kilitlenme dongu $n > /dev/null; echo "  çıkış kodu $?"; done | sort | uniq -c; done
+100 transfer:
+     20   çıkış kodu 0
+300 transfer:
+     11   çıkış kodu 0
+      9   çıkış kodu 124
+1000 transfer:
+     20   çıkış kodu 124
+$ for i in $(seq 20); do timeout 2 ./target/debug/kilitlenme dongu-sirali 1000 > /dev/null; echo "  sıralı, çıkış kodu $?"; done | sort | uniq -c
+     20   sıralı, çıkış kodu 0

@@ -1,15 +1,29 @@
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test crc::testler::her_tek_bit_degisimi_crcyi_degistirir ... ok
+test crc::testler::yayimlanmis_denetim_degeri ... ok
+test gunluk::testler::kuyruktaki_yarim_kayit_kirpilabilir ... ok
+test gunluk::testler::ortadaki_kaydin_hicbir_tek_bit_bozulmasi_kirpilmaz ... ok
+test gunluk::testler::ortadaki_veri_bozulmasi_kuyruk_sayilmaz ... ok
+test gunluk::testler::uzunluk_bozulmasi_baslik_crcsine_takilir ... ok
+test motor::testler::gunluk_sirasi_indeks_sirasiyla_ayni ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test protokol::testler::degerde_bosluk_olabilir ... ok
+test protokol::testler::eksik_arguman_ve_bilinmeyen_komut ... ok
+test protokol::testler::komut_adi_ascii_harf_duyarsiz ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
 $ cargo build -q --release
 $ ./target/release/ambar yuk 127.0.0.1:7002 8 2000
-8 istemci × 2000 SET = 16000 yazma, 0.19 s, 85384 yazma/s, sunucu: SAYI 16000
+8 istemci × 2000 yazma = 16000 yazma, 0.16 s, 100020 yazma/s; sunucu: sayı 16000
+$ ./target/release/ambar durum calisma/eszamanli
+geçerli kayıt: 16000 (455120 bayt); kırpılan kuyruk: 0 bayt
+canlı anahtar: 16000
 $ cat calisma/yazici.txt
-onaylanan yazma: 2047
-$ ./target/release/ambar kurtar calisma/cokme
-geçerli kayıt: 2048, geçerli bayt: 50090, atılan bayt: 0
-anahtar sayısı: 2048
-  k0000000 = v0
-  k0000001 = v1
-  k0000002 = v2
+onaylanan yazma: 1895
+$ ./target/release/ambar durum calisma/cokme
+geçerli kayıt: 1896 (53874 bayt); kırpılan kuyruk: 0 bayt
+canlı anahtar: 1896
 $ cat calisma/yazici_yok.txt
-onaylanan yazma: 108976
-$ ./target/release/ambar kurtar calisma/cokme_yok | grep "geçerli kayıt"
-geçerli kayıt: 108976, geçerli bayt: 2831242, atılan bayt: 0
+onaylanan yazma: 96465
+$ ./target/release/ambar durum calisma/cokme_yok
+geçerli kayıt: 96465 (2882840 bayt); kırpılan kuyruk: 0 bayt
+canlı anahtar: 96465

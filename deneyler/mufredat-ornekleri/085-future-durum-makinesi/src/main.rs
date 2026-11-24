@@ -20,6 +20,23 @@ async fn tampon_await_oncesi() -> usize {
     n
 }
 
+// Kendin dene: iki await noktası ve küçük (64 baytlık) tampon
+async fn tampon_iki_await() -> usize {
+    let n = {
+        let tampon = [0u8; 4096];
+        tampon.len()
+    };
+    bos().await;
+    bos().await;
+    n
+}
+
+async fn kucuk_tampon_await_boyunca() -> usize {
+    let tampon = [0u8; 64];
+    bos().await;
+    tampon.len()
+}
+
 // Elle yazılmış bir future: n kez "henüz değil" der
 struct GeriSayim(u32);
 impl Future for GeriSayim {
@@ -36,6 +53,11 @@ impl Future for GeriSayim {
 }
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("kendin-dene") {
+        println!("size_of_val(tampon_iki_await())          = {} bayt", size_of_val(&tampon_iki_await()));
+        println!("size_of_val(kucuk_tampon_await_boyunca()) = {} bayt", size_of_val(&kucuk_tampon_await_boyunca()));
+        return;
+    }
     println!("size_of_val(bos())                  = {} bayt", size_of_val(&bos()));
     println!("size_of_val(tampon_await_boyunca()) = {} bayt", size_of_val(&tampon_await_boyunca()));
     println!("size_of_val(tampon_await_oncesi())  = {} bayt", size_of_val(&tampon_await_oncesi()));

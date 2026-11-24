@@ -1,3 +1,18 @@
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test fark_testi::ornek_programlarda_iki_motor_ayni ... ok
+test fark_testi::tanimsiz_ad_iki_motorda_farkli_anda_yakalanir ... ok
+test lexer::testler::anahtar_sozcuk_once_ad_gibi_okunur ... ok
+test lexer::testler::en_uzun_eslesme ... ok
+test lexer::testler::sutun_karakter_sayar_bayt_degil ... ok
+test lexer::testler::yorum_atlanir_ve_hata_konumu_bildirilir ... ok
+test parser::testler::hata_konumu_bildirilir ... ok
+test parser::testler::oncelik_ve_sola_birlesme ... ok
+test parser::testler::parantez_onceligi_degistirir ... ok
+test yorumlayici::testler::derinlik_siniri ... ok
+test yorumlayici::testler::kapsam_ve_ozyineleme ... ok
+test yorumlayici::testler::kisa_devre_sag_tarafi_degerlendirmez ... ok
+test yorumlayici::testler::tasma_sessizce_sarmaz ... ok
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
 $ cargo build -q --release
 $ cat ornekler/kare.mk
 fn kare(x) {
@@ -47,6 +62,16 @@ $ ./target/release/minik vm ornekler/kare.mk
 14
 $ diff <(./target/release/minik calistir ornekler/fib.mk) <(./target/release/minik vm ornekler/fib.mk) && echo "fib.mk: iki motorun çıktısı aynı"
 fib.mk: iki motorun çıktısı aynı
+$ cat ornekler/tanimsiz.mk
+print(1);
+print(y);
+$ ./target/release/minik calistir ornekler/tanimsiz.mk
+1
+hata: çalışma hatası: tanımsız değişken: y
+[çıkış kodu: 1]
+$ ./target/release/minik vm ornekler/tanimsiz.mk
+hata: tanımsız değişken: y
+[çıkış kodu: 1]
 $ cat ornekler/kiyas.mk
 fn fib(n) {
     if n < 2 { return n; }
@@ -56,6 +81,25 @@ print(fib(27));
 $ ./target/release/minik kiyasla ornekler/kiyas.mk
 196418
 196418
-ağaç yürüten yorumlayıcı:    163.9 ms (5084966 ifade düğümü değerlendirildi)
-bayt kod + yığın makinesi:     36.1 ms (6356210 komut yürütüldü)
-hızlanma: 4.54×
+ağaç dolaşan yorumlayıcı:    161.4 ms; 5084966 ifade düğümü, 1906863 HashMap ad araması, 1271242 yeni kapsam
+bayt kod + yığın makinesi:    34.1 ms; 6356210 komut; ad araması yok (yuva numaraları derleme anında)
+hızlanma: 4.73×
+$ valgrind --tool=callgrind --callgrind-out-file=cg.agac ./target/release/minik calistir ornekler/fib20.mk 2>&1 | grep -E "^[0-9]+$|Collected"
+6765
+==39392== Collected : 68448669
+$ valgrind --tool=callgrind --callgrind-out-file=cg.vm ./target/release/minik vm ornekler/fib20.mk 2>&1 | grep -E "^[0-9]+$|Collected"
+6765
+==39396== Collected : 14273044
+$ callgrind_annotate --inclusive=no cg.agac | grep -E "PROGRAM TOTALS|::ifade.2|hash_one|Sip13Rounds|malloc.c:(malloc|free) |::ikili " | sed -E "s/ \[.*//; s/[?]{3}://"
+68,448,669 (100.0%)  PROGRAM TOTALS
+16,253,695 (23.75%)  <minik::yorumlayici::Yorumlayici>::ifade'2
+ 7,125,474 (10.41%)  <std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&alloc::string::String>
+ 6,633,012 ( 9.69%)  <core::hash::sip::Hasher<core::hash::sip::Sip13Rounds> as core::hash::Hasher>::write
+ 4,014,891 ( 5.87%)  ./malloc/./malloc/malloc.c:free
+ 2,650,342 ( 3.87%)  ./malloc/./malloc/malloc.c:malloc
+ 1,970,190 ( 2.88%)  <std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&str>
+ 1,882,582 ( 2.75%)  minik::yorumlayici::ikili
+$ callgrind_annotate --inclusive=no cg.vm | grep -E "PROGRAM TOTALS|::calistir |::ikili " | sed -E "s/ \[.*//; s/[?]{3}://"
+14,273,044 (100.0%)  PROGRAM TOTALS
+11,985,396 (83.97%)  minik::vm::calistir
+ 1,882,582 (13.19%)  minik::yorumlayici::ikili

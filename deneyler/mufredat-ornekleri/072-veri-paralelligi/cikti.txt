@@ -1,6 +1,15 @@
-$ cargo run -q --release
+$ cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size
+64
+$ cargo build -q --release
+$ ./target/release/parallel
 rayon iş parçacığı: 12
-sıralı  :   112.0 ms
-paralel :    15.4 ms  (hızlanma 7.28×, sonuç aynı: true)
-yanlış paylaşım (aynı satır):   982.0 ms
-ayrı önbellek satırları     :    87.8 ms
+iş parçacığı başına işlenen öğe: [452079, 454844, 500544, 231035, 449272, 452214, 445881, 451753, 445568, 448855, 217285, 450670] (toplam 5000000)
+sıralı  :   109.9 ms
+paralel :    15.5 ms  (hızlanma 7.10×, sonuç aynı: true)
+bitişik sayaçlar: a @ 0x7fff409b1b90 (satır 0x1fffd026c6e), b @ 0x7fff409b1b98 (satır 0x1fffd026c6e)
+hizalı sayaçlar : a @ 0x7fff409b1a40 (satır 0x1fffd026c69), b @ 0x7fff409b1ac0 (satır 0x1fffd026c6b)
+yanlış paylaşım (aynı satır):   942.2 ms
+ayrı önbellek satırları     :    83.7 ms
+$ ./target/release/parallel dolgu
+dolgu 48 bayt: a @ 0x7ffc5bb07540 (satır 0x1fff16ec1d5), b @ 0x7ffc5bb07578 (satır 0x1fff16ec1d5) →  920.5 ms
+dolgu 56 bayt: a @ 0x7ffc5bb075c0 (satır 0x1fff16ec1d7), b @ 0x7ffc5bb07600 (satır 0x1fff16ec1d8) →   86.0 ms

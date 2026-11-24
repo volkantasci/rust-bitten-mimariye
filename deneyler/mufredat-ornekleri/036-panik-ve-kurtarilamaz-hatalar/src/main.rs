@@ -6,6 +6,7 @@ fn bol(a: i32, b: i32) -> i32 {
 }
 
 fn main() {
+    println!("süreç kimliği (PID): {}", std::process::id());
     let b: i32 = std::env::args().nth(1).map_or(0, |s| s.parse().unwrap());
     println!("10 / {b} = {}", bol(10, b));
 }

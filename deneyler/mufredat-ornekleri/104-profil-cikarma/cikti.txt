@@ -3,9 +3,19 @@ $ ./target/release/profil
 bulunan: 2000 / 2000
 $ valgrind --tool=callgrind --callgrind-out-file=/tmp/cg.out ./target/release/profil 2>&1 | grep -E "Collected|bulunan"
 bulunan: 2000 / 2000
-==20456== Collected : 24591969
+==30646== Collected : 24592551
 $ callgrind_annotate --inclusive=yes /tmp/cg.out 2>/dev/null | grep -E "PROGRAM TOTALS|=> .*profil::(yavas_arama|hizli_hazirlik|hizli_arama) " | sed -E "s#=> .*:(profil::[a-z_]+) #=> \1 #"
-24,591,969 (100.0%)  PROGRAM TOTALS
+24,592,551 (100.0%)  PROGRAM TOTALS
 21,276,515 (86.52%)  => profil::yavas_arama (1x)
 2,671,669 (10.86%)  => profil::hizli_hazirlik (1x)
 292,013 ( 1.19%)  => profil::hizli_arama (1x)
+$ callgrind_annotate /tmp/cg.out 2>/dev/null | sed -n "/file:function/,+8p" | sed -E "s#/rustc/[0-9a-f]+/library/##; s#<u32, <u32 as core::cmp::PartialOrd>::lt>#<u32, …>#g; s# \[/work/[^]]*\]##"
+Ir                   file:function
+--------------------------------------------------------------------------------
+12,505,000 (50.85%)  core/src/slice/cmp.rs:profil::yavas_arama
+ 5,012,013 (20.38%)  core/src/slice/iter/macros.rs:profil::yavas_arama
+ 3,755,500 (15.27%)  core/src/slice/mod.rs:profil::yavas_arama
+   619,513 ( 2.52%)  core/src/slice/sort/unstable/quicksort.rs:core::slice::sort::unstable::quicksort::quicksort::<u32, …>'2
+   559,442 ( 2.27%)  core/src/ptr/mod.rs:core::slice::sort::unstable::quicksort::quicksort::<u32, …>'2
+   423,948 ( 1.72%)  core/src/cmp.rs:core::slice::sort::unstable::quicksort::quicksort::<u32, …>'2
+   219,935 ( 0.89%)  core/src/hint.rs:core::slice::sort::unstable::quicksort::quicksort::<u32, …>'2

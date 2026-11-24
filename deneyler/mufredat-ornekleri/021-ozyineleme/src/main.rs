@@ -37,11 +37,11 @@ fn main() {
         println!("512 MiB yığınlı iş parçacığında derin({n}) = {sonuc}");
         return;
     }
-    for n in [10, 20, 30] {
+    for n in [5, 10, 20, 30] {
         let mut c1 = 0;
         let mut c2 = 0;
         let a = fib(n, &mut c1);
         let b = fib_hafiza(n, &mut HashMap::new(), &mut c2);
-        println!("fib({n}) = {a:>6}  saf: {c1:>9} çağrı   hafızalı: {c2:>3} çağrı  (aynı mı: {})", a == b);
+        println!("fib({n}) = {a:>6}  saf: {c1:>9} çağrı   memoization ile: {c2:>3} çağrı  (aynı mı: {})", a == b);
     }
 }

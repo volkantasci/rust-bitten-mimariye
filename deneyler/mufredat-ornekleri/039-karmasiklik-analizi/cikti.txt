@@ -1,4 +1,10 @@
 $ cargo run -q --release
-n =        1000: doğrusal        1000 karşılaştırma | ikili 11 (log2 n = 10.0)
-n =     1000000: doğrusal     1000000 karşılaştırma | ikili 21 (log2 n = 19.9)
-n =   100000000: doğrusal   100000000 karşılaştırma | ikili 28 (log2 n = 26.6)
+n =        1000, son eleman: doğrusal        1000 karşılaştırma | ikili 11 (log2 n = 10.0)
+n =        1000, ilk eleman: doğrusal           1 karşılaştırma | ikili 11 (log2 n = 10.0)
+n =     1000000, son eleman: doğrusal     1000000 karşılaştırma | ikili 21 (log2 n = 19.9)
+n =     1000000, ilk eleman: doğrusal           1 karşılaştırma | ikili 21 (log2 n = 19.9)
+n =   100000000, son eleman: doğrusal   100000000 karşılaştırma | ikili 28 (log2 n = 26.6)
+n =   100000000, ilk eleman: doğrusal           1 karşılaştırma | ikili 28 (log2 n = 26.6)
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "intentionally doesn.t have an early exit\|on the size of the input slice" $S/core/src/slice/mod.rs | head -2
+2990:        // This loop intentionally doesn't have an early exit if the comparison
+2992:        // on the size of the input slice so that the CPU can reliably predict

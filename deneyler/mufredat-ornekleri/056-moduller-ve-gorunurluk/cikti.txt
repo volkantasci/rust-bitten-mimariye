@@ -1,13 +1,21 @@
 $ cargo run -q
-Ayşe çekmek istiyor: Err("yetersiz bakiye: 50 < 80")
-bakiye: 50
+liste: [1, 2, 3, 4, 5]
+0 var mı: false, 4 var mı: true
 $ cargo build -q
-error[E0616]: field `bakiye` of struct `Hesap` is private
-  --> src/main.rs:32:7
+error[E0616]: field `ogeler` of struct `SiraliListe` is private
+  --> src/main.rs:31:11
    |
-32 |     h.bakiye = 1_000_000; // kuralı dışarıdan delmeye çalış
-   |       ^^^^^^ private field
+31 |     liste.ogeler.push(0); // değişmezi dışarıdan bozmaya çalış: sona 0 ekle
+   |           ^^^^^^ private field
+   |
+help: a method `ogeler` also exists, call it with parentheses
+   |
+31 |     liste.ogeler().push(0); // değişmezi dışarıdan bozmaya çalış: sona 0 ekle
+   |                 ++
 
 For more information about this error, try `rustc --explain E0616`.
 error: could not compile `gizli_alan` (bin "gizli_alan") due to 1 previous error
 [çıkış kodu: 101]
+$ cargo run -q
+liste: [1, 2, 3, 4, 5, 0]
+0 var mı: false, 4 var mı: true

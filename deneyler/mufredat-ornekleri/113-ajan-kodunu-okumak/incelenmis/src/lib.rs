@@ -36,6 +36,6 @@ mod testler {
     }
     #[test]
     fn buyuk_fiyat() {
-        assert_eq!(indirimli_fiyat(50_000_000, "50%"), Ok(25_000_000));
+        assert_eq!(indirimli_fiyat(50_000_000, "90%"), Ok(5_000_000));
     }
 }

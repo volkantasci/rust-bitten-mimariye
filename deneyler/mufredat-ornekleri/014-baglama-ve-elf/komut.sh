@@ -7,6 +7,8 @@ ks 'readelf -S -W target/release/merhaba | grep -E " \.(text|rodata|data|bss) "'
 # Sembol adları: derleyici "isim karıştırma" (mangling) uygular
 ks 'nm target/release/merhaba | grep "merhaba4main"'
 ks 'nm -C target/release/merhaba | grep "merhaba::main"'
+# Yığın geri sarma (unwinding) için gereken işlevler libgcc_s kütüphanesinden gelir
+ks 'nm -D target/release/merhaba | grep _Unwind | head -n 3'
 # Statik bağlama: C kütüphanesi de ikiliye gömülsün
 ks 'RUSTFLAGS="-C target-feature=+crt-static" cargo build -q --release --target-dir target/statik'
 k file target/statik/release/merhaba

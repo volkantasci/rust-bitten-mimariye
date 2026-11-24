@@ -4,3 +4,21 @@ n =   7:  16 adım, en yüksek değer 52
 n =  27: 111 adım, en yüksek değer 9232
 n =  97: 118 adım, en yüksek değer 9232
 1..1_000_000 arasında en uzun: n = 837799, 524 adım
+$ rustc --edition 2024 -C opt-level=2 --emit=mir -o target/collatz.mir src/main.rs
+$ awk "/^fn adimlar/,/^}/" target/collatz.mir | grep -E "^    bb[0-9]+|switchInt|goto|return"
+    bb0: {
+        goto -> bb1;
+    bb1: {
+        switchInt(copy _4) -> [1: bb6, otherwise: bb2];
+    bb2: {
+        switchInt(copy _6) -> [0: bb3, otherwise: bb4];
+    bb3: {
+        goto -> bb5;
+    bb4: {
+        goto -> bb5;
+    bb5: {
+        _9 = integer_max::<u64>(move _3, move _10) -> [return: bb7, unwind unreachable];
+    bb6: {
+        return;
+    bb7: {
+        goto -> bb1;

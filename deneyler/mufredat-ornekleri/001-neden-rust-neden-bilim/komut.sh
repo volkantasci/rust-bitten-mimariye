@@ -1,16 +1,23 @@
 #@ video: 001-neden-rust-neden-bilim
-#@ degisken: valgrind satırlarındaki süreç kimliği (==N==) ve adresler
-#@ goster: ^isim =
-# C: derlenir (en fazla bir uyarıyla), çalışır, yanlış veriyi sessizce basar
-mkdir -p target
-k gcc -Wall -Wextra -O0 -g -o target/kullan_sonra_birak c/kullan_sonra_birak.c
-k ./target/kullan_sonra_birak
-# İade başka fonksiyonda olunca uyarı da yok
-k gcc -Wall -Wextra -O0 -g -o target/kullan_sonra_birak2 c/kullan_sonra_birak2.c
-k ./target/kullan_sonra_birak2
-# valgrind belleği izleyerek hatayı yakalar (ve davranış değişir!)
-ks 'valgrind -q ./target/kullan_sonra_birak2 2>&1 | head -14'
-k valgrind -q --error-exitcode=1 ./target/kullan_sonra_birak2
-# Rust: aynı hata derleme aşamasında reddedilir
-cd rust
-k cargo build
+#@ degisken: adresler her çalıştırmada değişir (ASLR); miri çıktısındaki alloc numaraları
+# 1) Güvenli Rust: iade edilen blok bir sonraki isteğe yeniden verilir (adresler yalnızca sayı olarak karşılaştırılıyor)
+cd yeniden-kullanim
+k cargo build -q
+k ./target/debug/yeniden_kullanim
+ks 'for i in $(seq 100); do ./target/debug/yeniden_kullanim | tail -n 1; done | sort | uniq -c'
+cd ..
+# 2) unsafe Rust: sarkan işaretçiyle okumak tanımsız davranıştır; sonuç derleme ayarına göre değişebilir
+cd sarkan
+k cargo build -q
+k ./target/debug/sarkan
+k cargo build -q --release
+k ./target/release/sarkan
+# 3) miri programı yorumlayarak çalıştırır ve tanımsız davranışı yakalar
+k cargo +nightly miri run -q
+cd ..
+# 4) Güvenli Rust: aynı desen derlenmez (E0505)
+cd odunc && k cargo build -q; cd ..
+# 5) Kendin dene: ödüncün son kullanımı iadeden önceye alınınca program derlenir
+cd dogru-sira && k cargo run -q; cd ..
+# 6) Derleyicinin önerisi (help: clone) uygulanınca program derlenir; referans artık bir kopyaya bakar
+cd klon && k cargo run -q; cd ..

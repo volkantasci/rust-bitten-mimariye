@@ -3,14 +3,57 @@ Cell sayaç: 2
 RefCell: [1, 2, 3]
 --- Rc + RefCell ile döngü:
 x sayaç 2, y sayaç 2
-kapsam bitti, hiçbiri bırakılmadı: bellek sızdı (güvenli ama sızıntı)
+kapsam bitti: x'in güçlü sayacı hâlâ 1, hiçbiri bırakılmadı: bellek sızdı (güvenli ama sızıntı)
 --- Weak geri bağlantı ile:
 ebeveyn güçlü 1, zayıf 1
   ebeveyn bırakıldı
 kapsam bitti
 --- aynı anda iki borrow_mut:
 
-thread 'main' (6846) panicked at src/main.rs:62:25:
+thread 'main' (10098) panicked at src/main.rs:64:25:
 RefCell already borrowed
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]
+$ cargo +nightly miri run -q
+x sayaç 2, y sayaç 2
+error: memory leaked: alloc385 (Rust heap, size: 32, align: 8), allocated here:
+   --> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49
+    |
+438 |               Self::from_inner(Box::into_non_null(Box::new(RcInner {
+    |  _________________________________________________^
+439 | |                 strong: Cell::new(1),
+440 | |                 weak: Cell::new(1),
+441 | |                 value,
+442 | |             })))
+    | |______________^
+    |
+    = note: stack backtrace:
+            0: std::rc::Rc::<Dugum>::new
+                at /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49: 442:15
+            1: main
+                at src/main.rs:10:13: 10:72
+
+error: memory leaked: alloc319 (Rust heap, size: 32, align: 8), allocated here:
+   --> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49
+    |
+438 |               Self::from_inner(Box::into_non_null(Box::new(RcInner {
+    |  _________________________________________________^
+439 | |                 strong: Cell::new(1),
+440 | |                 weak: Cell::new(1),
+441 | |                 value,
+442 | |             })))
+    | |______________^
+    |
+    = note: stack backtrace:
+            0: std::rc::Rc::<Dugum>::new
+                at /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49: 442:15
+            1: main
+                at src/main.rs:9:13: 9:57
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+note: set `MIRIFLAGS=-Zmiri-ignore-leaks` to disable this check
+
+error: aborting due to 2 previous errors
+
+[çıkış kodu: 1]

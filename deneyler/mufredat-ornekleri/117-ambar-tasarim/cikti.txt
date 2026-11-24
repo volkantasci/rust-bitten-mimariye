@@ -1,16 +1,37 @@
+$ cargo test --lib -- --test-threads=1 2>&1 | grep "^test "
+test gunluk::testler::silme_kaydi_uzunluk_alaninda_isaretlenir ... ok
+test gunluk::testler::uzunluk_bayt_sayar_karakter_degil ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
-$ ./target/release/ambar demo calisma/veri
-bellekteki durum: [("dil", "Rust"), ("maskot", "Ferris")]
-$ ./target/release/ambar kurtar calisma/veri
-geçerli kayıt: 5, geçerli bayt: 96, atılan bayt: 0
-anahtar sayısı: 2
+$ ./target/release/ambar yaz calisma dil rust
+$ ./target/release/ambar yaz calisma yil 2015
+$ ./target/release/ambar yaz calisma dil Rust
+$ ./target/release/ambar sil calisma yil
+$ ./target/release/ambar yaz calisma şehir İzmir
+$ ./target/release/ambar listele calisma
+günlük: 5 kayıt, 76 bayt; canlı anahtar: 2
   dil = Rust
-  maskot = Ferris
-$ od -A d -c calisma/veri/gunluk.ambar
-0000000 210 353 301 272 003  \0  \0  \0 004  \0  \0  \0   d   i   l   r
-0000016   u   s   t 021   ] 031 222 003  \0  \0  \0 004  \0  \0  \0   y
-0000032   i   l   2   0   1   5 266   D 363 032 003  \0  \0  \0 004  \0
-0000048  \0  \0   d   i   l   R   u   s   t   .   Y 355   ; 003  \0  \0
-0000064  \0 377 377 377 377   y   i   l   b 031 307   N 006  \0  \0  \0
-0000080 006  \0  \0  \0   m   a   s   k   o   t   F   e   r   r   i   s
-0000096
+  şehir = İzmir
+$ ./target/release/ambar oku calisma yil
+yok
+[çıkış kodu: 1]
+$ od -A d -t x1z -v calisma/gunluk.ambar
+0000000 03 00 00 00 04 00 00 00 64 69 6c 72 75 73 74 03  >........dilrust.<
+0000016 00 00 00 04 00 00 00 79 69 6c 32 30 31 35 03 00  >.......yil2015..<
+0000032 00 00 04 00 00 00 64 69 6c 52 75 73 74 03 00 00  >......dilRust...<
+0000048 00 ff ff ff ff 79 69 6c 06 00 00 00 06 00 00 00  >.....yil........<
+0000064 c5 9f 65 68 69 72 c4 b0 7a 6d 69 72              >..ehir..zmir<
+0000076
+# aynı beş komut bir kez daha çalıştırıldı
+$ ./target/release/ambar listele calisma
+günlük: 10 kayıt, 152 bayt; canlı anahtar: 2
+  dil = Rust
+  şehir = İzmir
+$ truncate -s -3 calisma/gunluk.ambar
+$ ./target/release/ambar listele calisma
+
+thread 'main' (35149) panicked at src/gunluk.rs:53:29:
+range end index 152 out of range for slice of length 149
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]

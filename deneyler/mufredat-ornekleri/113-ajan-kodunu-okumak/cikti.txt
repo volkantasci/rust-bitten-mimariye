@@ -1,12 +1,15 @@
 $ cargo test -q ajanin_testleri 2>&1 | grep "test result"
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
-$ cargo test -q inceleme_testleri 2>&1 | grep -E "^---- |panicked|attempt|ParseIntError|test result"
+$ cargo test -q inceleme_testleri -- --test-threads=1 2>&1 | grep -E "^---- |panicked|attempt|ParseIntError|test result"
 ---- inceleme_testleri::bozuk_girdi stdout ----
-thread 'inceleme_testleri::bozuk_girdi' (22120) panicked at src/lib.rs:4:54:
+thread 'inceleme_testleri::bozuk_girdi' (32528) panicked at src/lib.rs:4:54:
 called `Result::unwrap()` on an `Err` value: ParseIntError { kind: InvalidDigit }
+---- inceleme_testleri::buyuk_fiyat stdout ----
+thread 'inceleme_testleri::buyuk_fiyat' (32529) panicked at src/lib.rs:5:19:
+attempt to multiply with overflow
 ---- inceleme_testleri::yuzden_fazla stdout ----
-thread 'inceleme_testleri::yuzden_fazla' (22122) panicked at src/lib.rs:5:5:
+thread 'inceleme_testleri::yuzden_fazla' (32530) panicked at src/lib.rs:5:5:
 attempt to subtract with overflow
-test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
 $ cargo test -q 2>&1 | grep "test result" | head -n 1
 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

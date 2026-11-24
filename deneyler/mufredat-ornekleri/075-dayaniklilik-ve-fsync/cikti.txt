@@ -1,15 +1,24 @@
 $ cargo build -q --release
 $ ./target/release/dayaniklilik olc calisma
-her kayıtta fsync : 200 kayıt   163.71 ms (0.819 ms/kayıt)
-sonda tek fsync   : 200 kayıt     2.62 ms (0.013 ms/kayıt)
+her kayıtta fsync : 200 kayıt   170.81 ms (0.854 ms/kayıt)
+sonda tek fsync   : 200 kayıt     2.90 ms (0.015 ms/kayıt)
+$ strace -c -e trace=fsync,fdatasync ./target/release/dayaniklilik olc calisma 2>&1 | grep -E "fdatasync$|^her|^sonda"
+her kayıtta fsync : 200 kayıt   179.44 ms (0.897 ms/kayıt)
+sonda tek fsync   : 200 kayıt    12.04 ms (0.060 ms/kayıt)
+100.00    0.023037         114       202           fdatasync
 $ ./target/release/dayaniklilik olc /tmp
-her kayıtta fsync : 200 kayıt     1.69 ms (0.008 ms/kayıt)
-sonda tek fsync   : 200 kayıt     1.60 ms (0.008 ms/kayıt)
+her kayıtta fsync : 200 kayıt     1.89 ms (0.009 ms/kayıt)
+sonda tek fsync   : 200 kayıt     1.69 ms (0.008 ms/kayıt)
 $ grep " / " /proc/mounts | grep -oE "^overlay|fsync=[a-z]+"
 overlay
 fsync=volatile
 $ grep " /work " /proc/mounts | cut -d" " -f1-3
 /dev/mapper/root /work btrfs
+$ cat /proc/sys/vm/dirty_expire_centisecs
+3000
+$ echo "{\"surum\": 1}" > calisma/ayar.json && cat calisma/ayar.json && stat -c "inode %i" calisma/ayar.json
+{"surum": 1}
+inode 80371611
 $ strace -e trace=openat,write,fsync,fdatasync,rename,renameat2 ./target/release/dayaniklilik atomik calisma 2>&1 | grep -v "/lib\|/etc\|/proc\|/sys"
 openat(AT_FDCWD, "calisma/ayar.json.gecici", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
 write(3, "{\"surum\": 2}\n", 13)        = 13
@@ -18,5 +27,13 @@ rename("calisma/ayar.json.gecici", "calisma/ayar.json") = 0
 openat(AT_FDCWD, "calisma", O_RDONLY|O_CLOEXEC) = 4
 fsync(4)                                = 0
 +++ exited with 0 +++
-$ cat calisma/ayar.json
+$ cat calisma/ayar.json && stat -c "inode %i" calisma/ayar.json
 {"surum": 2}
+inode 80371612
+$ strace -c -e trace=fsync,fdatasync ./target/release/dayaniklilik olc-tum calisma 2>&1 | grep -E "fsync$|^her|^sonda"
+her kayıtta fsync : 200 kayıt   190.01 ms (0.950 ms/kayıt)
+sonda tek fsync   : 200 kayıt    14.59 ms (0.073 ms/kayıt)
+100.00    0.023794         117       202           fsync
+$ ./target/release/dayaniklilik olc-tum calisma
+her kayıtta fsync : 200 kayıt   164.38 ms (0.822 ms/kayıt)
+sonda tek fsync   : 200 kayıt     3.00 ms (0.015 ms/kayıt)

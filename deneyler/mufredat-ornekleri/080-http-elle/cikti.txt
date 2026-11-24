@@ -1,5 +1,5 @@
 $ cargo build -q
-$ exec 3<>/dev/tcp/127.0.0.1/8099; printf "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" >&3; cat <&3 | od -c | head -n 12
+$ ./target/debug/http_elle istemci | od -c | head -n 12
 0000000   H   T   T   P   /   1   .   1       2   0   0       O   K  \r
 0000020  \n   C   o   n   t   e   n   t   -   T   y   p   e   :       t
 0000040   e   x   t   /   p   l   a   i   n   ;       c   h   a   r   s
@@ -24,3 +24,5 @@ Merhaba, HTTP!
 $ cat calisma_sunucu.log
 [sunucu] istek: GET / HTTP/1.1
 [sunucu] istek: GET / HTTP/1.1
+$ curl -s http://127.0.0.1:8099/; echo " ← curl çıktısının sonu"
+Merhaba, H ← curl çıktısının sonu

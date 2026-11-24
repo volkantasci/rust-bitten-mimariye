@@ -4,13 +4,37 @@ $ cargo run -q
 Box<dyn Sekil>  : 16 bayt
 alan = 3.142
 alan = 4.000
-veri işaretçisi : 0x558d2d6374c0
-vtable          : 0x558d2d688a58
+veri işaretçisi : 0x55dfe0719500
+  Daire'nin adresiyle aynı mı: true
+vtable          : 0x55dfe076ab78
   [0] drop      : 0x0
   [1] boyut     : 8
   [2] hizalama  : 8
-  [3] alan()    : 0x558d2d648150
-<Daire as Sekil>::alan adresi: 0x558d2d648150
+  [3] alan()    : 0x55dfe072a260
+<Daire as Sekil>::alan adresi: 0x55dfe072a260
+$ cargo +nightly miri run -q
+&Daire          :  8 bayt
+&dyn Sekil      : 16 bayt (veri işaretçisi + vtable işaretçisi)
+Box<dyn Sekil>  : 16 bayt
+alan = 3.142
+alan = 4.000
+veri işaretçisi : 0x51ca8
+  Daire'nin adresiyle aynı mı: true
+vtable          : 0x51cb8
+error: Undefined Behavior: constructing invalid value of type &usize: encountered a dangling reference (going beyond the bounds of its allocation)
+  --> src/main.rs:35:45
+   |
+35 |         println!("  [0] drop      : {:#x}", *vtablo);
+   |                                             ^^^^^^^ Undefined Behavior occurred here
+   |
+   = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+   = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
 $ cargo build -q
 error[E0038]: the trait `Kaydedici` is not dyn compatible
   --> src/main.rs:13:17

@@ -17,5 +17,5 @@ $ diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/
 7a7
 > xor    eax,eax
 [çıkış kodu: 1]
-$ diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) <(objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) && echo "aynı 64 komut, yalnızca sıralama farklı"
-aynı 64 komut, yalnızca sıralama farklı
+$ diff <(objdump -d -M intel --no-show-raw-insn --disassemble=elle_dongu target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) <(objdump -d -M intel --no-show-raw-insn --disassemble=iterator_zinciri target/iki_yol.o | grep -P "^\s+[0-9a-f]+:" | cut -f2- | sed "s/<[^>]*>//" | sort) && echo "aynı komut kümesi, yalnızca sıralama farklı"
+aynı komut kümesi, yalnızca sıralama farklı

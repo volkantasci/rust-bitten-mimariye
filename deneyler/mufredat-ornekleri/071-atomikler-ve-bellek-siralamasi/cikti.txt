@@ -1,17 +1,37 @@
 $ cargo build -q --release
 $ ./target/release/siralama_testi
-Relaxed : 1000000 turda r1 = r2 = 0 sonucu 495535 kez görüldü
-SeqCst  : 1000000 turda r1 = r2 = 0 sonucu 0 kez görüldü
-$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_oku_gevsek>:"
-00000000000182e0 <siralama_testi::yaz_oku_gevsek>:
-   182e0:	mov    DWORD PTR [rdi],0x1
-   182e6:	mov    eax,DWORD PTR [rsi]
-   182e8:	ret
-   182e9:	int3
-$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A5 "<siralama_testi::yaz_oku_sirali>:"
-00000000000182f0 <siralama_testi::yaz_oku_sirali>:
-   182f0:	mov    eax,0x1
-   182f5:	xchg   DWORD PTR [rdi],eax
-   182f7:	mov    eax,DWORD PTR [rsi]
-   182f9:	ret
-   182fa:	int3
+Relaxed                : 1000000 turda r1 = r2 = 0 sonucu 412797 kez görüldü
+Release/Acquire        : 1000000 turda r1 = r2 = 0 sonucu 307631 kez görüldü
+SeqCst                 : 1000000 turda r1 = r2 = 0 sonucu 0 kez görüldü
+Relaxed + fence(SeqCst): 1000000 turda r1 = r2 = 0 sonucu 0 kez görüldü
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A3 "<siralama_testi::yaz_oku_gevsek>:"
+0000000000018780 <siralama_testi::yaz_oku_gevsek>:
+   18780:	mov    DWORD PTR [rdi],0x1
+   18786:	mov    eax,DWORD PTR [rsi]
+   18788:	ret
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A3 "<siralama_testi::yaz_oku_edin_birak>:"
+00000000000187b0 <siralama_testi::yaz_oku_edin_birak>:
+   187b0:	mov    DWORD PTR [rdi],0x1
+   187b6:	mov    eax,DWORD PTR [rsi]
+   187b8:	ret
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_oku_sirali>:"
+0000000000018790 <siralama_testi::yaz_oku_sirali>:
+   18790:	mov    eax,0x1
+   18795:	xchg   DWORD PTR [rdi],eax
+   18797:	mov    eax,DWORD PTR [rsi]
+   18799:	ret
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A4 "<siralama_testi::yaz_bariyer_oku>:"
+00000000000187a0 <siralama_testi::yaz_bariyer_oku>:
+   187a0:	mov    DWORD PTR [rdi],0x1
+   187a6:	lock or DWORD PTR [rsp-0x40],0x0
+   187ac:	mov    eax,DWORD PTR [rsi]
+   187ae:	ret
+$ taskset -c 0,1 ./target/release/siralama_testi gevsek
+Relaxed                : 1000000 turda r1 = r2 = 0 sonucu 0 kez görüldü
+$ ./target/release/siralama_testi zayif-bariyer
+Relaxed + fence(AcqRel): 1000000 turda r1 = r2 = 0 sonucu 275178 kez görüldü
+$ objdump -d -M intel --no-show-raw-insn -C target/release/siralama_testi | grep -A3 "<siralama_testi::yaz_zayif_bariyer_oku>:"
+00000000000187c0 <siralama_testi::yaz_zayif_bariyer_oku>:
+   187c0:	mov    DWORD PTR [rdi],0x1
+   187c6:	mov    eax,DWORD PTR [rsi]
+   187c8:	ret

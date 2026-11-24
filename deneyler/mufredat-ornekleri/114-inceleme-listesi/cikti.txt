@@ -1,5 +1,7 @@
 $ cargo run -q
 2 kayıt, toplam 48 bayt, ilk: ELMA
+$ cargo test -q 2>&1 | grep "test result"
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo clippy -q 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c
       1 iter_next_slice
 $ cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c | sort -rn
@@ -10,3 +12,22 @@ $ cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used 2>&1 | grep -oE 
       1 implicit_hasher
       1 cast_possible_truncation
       1 cast_lossless
+$ cargo clippy -q -- -W clippy::pedantic -W clippy::unwrap_used -W clippy::nursery 2>&1 | grep -oE "index.html#[a-z_]+" | sed "s/index.html#//" | sort | uniq -c | sort -rn
+      2 unwrap_used
+      2 needless_pass_by_value
+      1 redundant_clone
+      1 missing_panics_doc
+      1 iter_next_slice
+      1 implicit_hasher
+      1 cast_possible_truncation
+      1 cast_lossless
+$ cargo clippy -q -- -W clippy::nursery 2>&1 | grep -A3 "redundant clone"
+warning: redundant clone
+  --> src/main.rs:10:42
+   |
+10 |         onbellek.lock().unwrap().insert(k.clone(), uzunluk as usize);
+$ cargo clippy -q --message-format=short -- -W clippy::all -W clippy::pedantic -W clippy::restriction -W clippy::nursery -W clippy::cargo 2>&1 | grep -E "^src/main.rs:(7|10):" | sed -E "s/^src\/main.rs:([0-9]+):[0-9]+: warning: /satır \1: /" | sort | uniq
+satır 10: redundant clone: help: remove this
+satır 10: used `unwrap()` on a `Result` value
+satır 10: using a potentially dangerous silent `as` conversion
+satır 7: this identifier consists of only a single character

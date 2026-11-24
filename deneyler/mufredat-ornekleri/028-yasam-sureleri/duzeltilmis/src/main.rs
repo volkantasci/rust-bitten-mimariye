@@ -4,10 +4,10 @@ fn uzun<'a>(a: &'a str, b: &'a str) -> &'a str {
 }
 
 fn main() {
-    let birinci = String::from("ödünç");
+    let birinci = String::from("sahiplik");
     let sonuc;
     {
-        let ikinci = String::from("sahiplik");
+        let ikinci = String::from("dilim");
         sonuc = uzun(&birinci, &ikinci);
         println!("daha uzun: {sonuc}");
     }

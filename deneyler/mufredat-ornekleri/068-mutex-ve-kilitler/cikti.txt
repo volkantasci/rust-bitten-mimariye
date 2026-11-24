@@ -1,9 +1,33 @@
-$ cargo run -q --release
-Mutex           : 8000000 ( 216.9 ms)
-AtomicU64       : 8000000 (  90.0 ms)
+$ cargo build -q --release
+$ ./target/release/kilitler sayaclar
+Mutex           : 8000000 ( 223.4 ms)
+AtomicU64       : 8000000 (  82.7 ms)
 yerel + toplama : 8000000 (   0.6 ms)
+$ strace -f -c -e trace=futex ./target/release/kilitler mutex 1 2>&1 | grep -E "^Mutex|futex$|total$"
+Mutex, 1 iş parçacığı: sayaç = 1000000
+100.00    0.000224         224         1           futex
+100.00    0.000224         224         1           total
+$ strace -f -c -e trace=futex ./target/release/kilitler mutex 8 2>&1 | grep -E "^Mutex|futex$|total$"
+Mutex, 8 iş parçacığı: sayaç = 8000000
+100.00    0.175140          14     11947      2251 futex
+100.00    0.175140          14     11947      2251 total
+$ strace -f -e trace=futex,clone3 ./target/release/kilitler mutex 1 2>&1 | grep -E "clone3|futex"
+clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7f2e27d5a990, parent_tid=0x7f2e27d5a990, exit_signal=0, stack=0x7f2e27b5a000, stack_size=0x1fff00, tls=0x7f2e27d5a6c0}strace: Process 14916 attached
+[pid 14915] futex(0x7f2e27d5a990, FUTEX_WAIT_BITSET|FUTEX_CLOCK_REALTIME, 14916, NULL, FUTEX_BITSET_MATCH_ANY) = 0
+$ ./target/release/kilitler kilitte-bekleme
+iş kilidin içinde : 8 × 20 iş, iş başına 1 ms,  168.8 ms
+iş kilidin dışında: 8 × 20 iş, iş başına 1 ms,   21.2 ms
+$ ./target/release/kilitler zehir
 
-thread '<unnamed>' (11251) panicked at src/main.rs:50:9:
+thread '<unnamed>' (14935) panicked at src/main.rs:102:9:
 kilit elimdeyken çöktüm
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 kilit zehirlenmiş! içerik yine de okunabilir: [1, 2, 3, 4]
+$ for n in 2 4; do strace -f -c -e trace=futex ./target/release/kilitler mutex $n 2>&1 | grep -E "^Mutex|futex$"; done
+Mutex, 2 iş parçacığı: sayaç = 2000000
+100.00    0.009229           7      1236       211 futex
+Mutex, 4 iş parçacığı: sayaç = 4000000
+100.00    0.041286           9      4279       797 futex
+$ ./target/release/kilitler kilitte-bekleme 5
+iş kilidin içinde : 8 × 20 iş, iş başına 5 ms,  809.5 ms
+iş kilidin dışında: 8 × 20 iş, iş başına 5 ms,  101.5 ms

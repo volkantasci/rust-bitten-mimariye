@@ -1,3 +1,7 @@
 $ cargo run -q
-BFS: S → E en kısa yol 12 adım
-Dijkstra: İstanbul → Ankara 450 km, yol: İstanbul → Bolu → Ankara
+BFS (kuyruk): S → E yolu 12 adım, 21 hücre ziyaret edildi
+DFS (yığın) : S → E yolu 14 adım, 20 hücre ziyaret edildi
+Dijkstra (öncelik kuyruğu): İstanbul → Ankara 450 km, yol: İstanbul → Bolu → Ankara
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^/// A double-ended queue implemented with a growable ring buffer" $S/alloc/src/collections/vec_deque/mod.rs; grep -n "^/// A priority queue implemented with a binary heap" $S/alloc/src/collections/binary_heap/mod.rs
+75:/// A double-ended queue implemented with a growable ring buffer.
+159:/// A priority queue implemented with a binary heap.

@@ -1,13 +1,23 @@
-$ cargo test -q --lib -- --list 2>/dev/null | grep ": test$"
-ayristirici::testler::bayt_bayt_beslemek_ayni_sonucu_verir: test
-ayristirici::testler::bozuk_istek_satiri: test
-ayristirici::testler::sonsuz_baslik_reddedilir: test
-ayristirici::testler::tek_parcada_iki_istek: test
-$ cargo test -q --lib 2>&1 | grep "test result"
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test ayristirici::testler::ad_ile_iki_nokta_arasinda_bosluk_reddedilir ... ok
+test ayristirici::testler::bayt_bayt_beslemek_ayni_sonucu_verir ... ok
+test ayristirici::testler::bozuk_istek_satiri ... ok
+test ayristirici::testler::content_length_yalniz_rakam ... ok
+test ayristirici::testler::sinirsiz_baslik_reddedilir ... ok
+test ayristirici::testler::tek_parcada_iki_istek ... ok
+test ayristirici::testler::transfer_encoding_desteklenmiyor ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
-$ ./target/release/kapi parca-parca
-besle("GET /belgeler/not") → Ok(None)
-besle(".txt HTTP/1.1\r\nHo") → Ok(None)
-besle("st: kapi\r\n") → Ok(None)
-besle("\r\n") → Ok(Some(("GET", "/belgeler/not.txt", [("Host", "kapi")])))
+$ ./target/release/kapi parca-parca "GET /belgeler/not" ".txt HTTP/1.1\r\nHo" "st: kapi\r\n\r" "\n"
+besle("GET /belgeler/not") → eksik; tamponda 17 bayt, durum: Basliklar
+besle(".txt HTTP/1.1\r\nHo") → eksik; tamponda 34 bayt, durum: Basliklar
+besle("st: kapi\r\n\r") → eksik; tamponda 45 bayt, durum: Basliklar
+besle("\n") → istek: GET /belgeler/not.txt HTTP/1.1, başlıklar: [("Host", "kapi")], gövde: 0 bayt
+$ ./target/release/kapi parca-parca "POST /kayit HTTP/1.1\r\nContent-Length: 5\r\n\r\nmer" ha
+besle("POST /kayit HTTP/1.1\r\nContent-Length: 5\r\n\r\nmer") → eksik; tamponda 3 bayt, durum: Govde { uzunluk: 5 }
+besle("ha") → istek: POST /kayit HTTP/1.1, başlıklar: [("Content-Length", "5")], gövde: 5 bayt
+$ ./target/release/kapi parca-parca "MERHABA\r\n\r\n"
+besle("MERHABA\r\n\r\n") → hata: BozukIstekSatiri("MERHABA")
+[çıkış kodu: 1]
+$ ./target/release/kapi tarama-olc
+8019 baytlık başlık bayt bayt: kaldığı yerden arama 0.144 ms, her baytta baştan arama 7.699 ms (54 kat)

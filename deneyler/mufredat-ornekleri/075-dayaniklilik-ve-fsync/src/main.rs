@@ -17,6 +17,9 @@ fn main() {
         File::open(dizin).unwrap().sync_all().unwrap(); // dizin girdisini de kalıcı yap
         return;
     }
+    // "olc": her kayıtta sync_data (fdatasync); "olc-tum": her kayıtta sync_all (fsync)
+    let tum = kip == "olc-tum";
+    let esitle = |f: &File| if tum { f.sync_all().unwrap() } else { f.sync_data().unwrap() };
     let yol = dizin.join("gunluk.log");
     for (ad, her_kayitta) in [("her kayıtta fsync", true), ("sonda tek fsync", false)] {
         let _ = fs::remove_file(&yol);
@@ -25,10 +28,10 @@ fn main() {
         for i in 0..200 {
             writeln!(f, "kayıt {i}").unwrap();
             if her_kayitta {
-                f.sync_data().unwrap();
+                esitle(&f);
             }
         }
-        f.sync_data().unwrap();
+        esitle(&f);
         let ms = t.elapsed().as_secs_f64() * 1e3;
         println!("{ad:<18}: 200 kayıt {ms:>8.2} ms ({:.3} ms/kayıt)", ms / 200.0);
     }

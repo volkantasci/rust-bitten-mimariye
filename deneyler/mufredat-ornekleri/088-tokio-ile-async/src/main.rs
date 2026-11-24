@@ -1,15 +1,23 @@
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpSocket, TcpStream};
 use tokio::task::JoinSet;
 
 #[tokio::main]
 async fn main() {
     let adet: usize = std::env::args().nth(1).map_or(100, |s| s.parse().unwrap());
+    let kuyruk: Option<u32> = std::env::args().nth(2).map(|s| s.parse().unwrap()); // verilmezse bind'in varsayılanı
     let isci = tokio::runtime::Handle::current().metrics().num_workers();
     println!("çalışma zamanı işçi iş parçacığı: {isci}");
 
-    let dinleyici = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let dinleyici = match kuyruk {
+        None => TcpListener::bind("127.0.0.1:0").await.unwrap(),
+        Some(n) => {
+            let soket = TcpSocket::new_v4().unwrap();
+            soket.bind("127.0.0.1:0".parse().unwrap()).unwrap();
+            soket.listen(n).unwrap() // bekleyen bağlantı kuyruğunun uzunluğunu kendimiz veriyoruz
+        }
+    };
     let adres = dinleyici.local_addr().unwrap();
     tokio::spawn(async move {
         loop {
@@ -40,8 +48,15 @@ async fn main() {
         let ms = ms.unwrap();
         kova[((ms + 500) / 1000).min(3) as usize] += 1;
     }
-    println!("{adet} eşzamanlı istemci (her biri sunucuda 100 ms bekletildi): toplam {:.0} ms", t.elapsed().as_secs_f64() * 1e3);
-    println!("  istemci süreleri: <0,5 s: {}  ~1 s: {}  ~2 s: {}  ≥2,5 s: {}", kova[0], kova[1], kova[2], kova[3]);
+    let kuyruk_metni = kuyruk.map_or("128 (bind varsayılanı)".to_string(), |n| n.to_string());
+    println!(
+        "{adet} istemci, kuyruk {kuyruk_metni}: toplam {:.0} ms | süreler <0,5 s: {}  ~1 s: {}  ~2 s: {}  ≥2,5 s: {}",
+        t.elapsed().as_secs_f64() * 1e3,
+        kova[0],
+        kova[1],
+        kova[2],
+        kova[3]
+    );
 
     // Zaman aşımı: select! ile iki geleceği yarıştır
     let sonuc = tokio::select! {

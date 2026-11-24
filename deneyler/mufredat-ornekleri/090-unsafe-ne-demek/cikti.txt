@@ -2,7 +2,7 @@ $ cargo build -q
 error[E0133]: dereference of raw pointer is unsafe and requires unsafe block
  --> src/main.rs:4:20
   |
-4 |     println!("{}", *p); // izlemek (dereference) değil
+4 |     println!("{}", *p); // içeriğine erişmek (dereference) ayrı iş
   |                    ^^ dereference of raw pointer
   |
   = note: raw pointers may be null, dangling or unaligned; they can violate aliasing rules and cause data races: all of these are undefined behavior
@@ -10,24 +10,18 @@ error[E0133]: dereference of raw pointer is unsafe and requires unsafe block
 For more information about this error, try `rustc --explain E0133`.
 error: could not compile `ham_isaretci` (bin "ham_isaretci") due to 1 previous error
 [çıkış kodu: 101]
-$ rustc --explain E0133 | head -n 12
-Unsafe code was used outside of an unsafe block.
+$ rustc --explain E0133 | sed -n "/^Using unsafe/,/^\* Calling functions marked/p"
+Using unsafe functionality is potentially dangerous and disallowed by safety
+checks. Examples:
 
-Erroneous code example:
-
-```
-unsafe fn f() { return; } // This is the unsafe code
-
-fn main() {
-    f(); // error: call to unsafe function requires unsafe function or block
-}
-```
-
+* Dereferencing raw pointers
+* Calling functions via FFI
+* Calling functions marked unsafe
 $ cargo run -q
 warning[E0133]: dereference of raw pointer is unsafe and requires unsafe block
  --> src/main.rs:4:5
   |
-4 |     *p // 2024 sürümünde: unsafe fn gövdesi de unsafe blok ister (uyarı)
+4 |     *p // 2024 baskısında: unsafe fn gövdesi de unsafe blok ister (uyarı)
   |     ^^ dereference of raw pointer
   |
   = note: raw pointers may be null, dangling or unaligned; they can violate aliasing rules and cause data races: all of these are undefined behavior
@@ -67,3 +61,8 @@ help: wrap the attribute in `unsafe(...)`
 
 error: could not compile `surum_2024` (bin "surum_2024") due to 2 previous errors
 [çıkış kodu: 101]
+$ rustc --edition 2021 -o /tmp/surum2021 surum-2024/src/main.rs && /tmp/surum2021
+4
+$ rm -rf /tmp/sozlesme-kopya && mkdir /tmp/sozlesme-kopya && cp -r sozlesme/Cargo.toml sozlesme/Cargo.lock sozlesme/src /tmp/sozlesme-kopya/ && cd /tmp/sozlesme-kopya && sed -i "s/^    \*p \/\/.*/    unsafe { *p }/" src/main.rs && grep -n "unsafe { \*p }" src/main.rs && cargo run -q 2>&1
+4:    unsafe { *p }
+7

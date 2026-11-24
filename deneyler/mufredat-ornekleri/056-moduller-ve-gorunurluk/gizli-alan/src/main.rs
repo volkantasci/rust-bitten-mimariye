@@ -1,34 +1,33 @@
-mod banka {
-    pub struct Hesap {
-        pub sahip: String,
-        bakiye: u64, // gizli: değişmez kural "bakiye eksiye düşmez" burada korunur
+mod sirali {
+    /// Tip değişmezi: `ogeler` her an küçükten büyüğe sıralıdır.
+    pub struct SiraliListe {
+        ogeler: Vec<i32>, // gizli: dışarıdan yalnız aşağıdaki metotlarla değişir
     }
 
-    impl Hesap {
-        pub fn ac(sahip: &str) -> Self {
-            Hesap { sahip: sahip.to_string(), bakiye: 0 }
+    impl SiraliListe {
+        pub fn new() -> Self {
+            SiraliListe { ogeler: Vec::new() }
         }
-        pub fn yatir(&mut self, tutar: u64) {
-            self.bakiye += tutar;
+        /// Yeni öğeyi sıranın bozulmayacağı yere koyar.
+        pub fn ekle(&mut self, x: i32) {
+            let yer = self.ogeler.binary_search(&x).unwrap_or_else(|y| y);
+            self.ogeler.insert(yer, x);
         }
-        pub fn cek(&mut self, tutar: u64) -> Result<(), String> {
-            if tutar > self.bakiye {
-                return Err(format!("yetersiz bakiye: {} < {tutar}", self.bakiye));
-            }
-            self.bakiye -= tutar;
-            Ok(())
+        /// İkili arama yalnız sıralı dizide doğru çalışır: değişmez burada işe yarar.
+        pub fn iceriyor(&self, x: i32) -> bool {
+            self.ogeler.binary_search(&x).is_ok()
         }
-        pub fn bakiye(&self) -> u64 {
-            self.bakiye
+        pub fn ogeler(&self) -> &[i32] {
+            &self.ogeler
         }
     }
 }
 
 fn main() {
-    let mut h = banka::Hesap::ac("Ayşe");
-    h.yatir(50);
-    let sonuc = h.cek(80);
-    println!("{} çekmek istiyor: {:?}", h.sahip, sonuc);
-    h.bakiye = 1_000_000; // kuralı dışarıdan delmeye çalış
-    println!("bakiye: {}", h.bakiye());
+    let mut liste = sirali::SiraliListe::new();
+    for x in [5, 1, 4, 2, 3] {
+        liste.ekle(x);
+    }
+    liste.ogeler.push(0); // değişmezi dışarıdan bozmaya çalış: sona 0 ekle
+    println!("liste: {:?}", liste.ogeler());
 }

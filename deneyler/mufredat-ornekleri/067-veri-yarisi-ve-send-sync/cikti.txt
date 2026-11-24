@@ -1,16 +1,46 @@
-$ gcc -O2 -pthread -o target/yaris c/yaris.c
-$ ./target/yaris
-beklenen 20000000, bulunan 10006703
-$ ./target/yaris
-beklenen 20000000, bulunan 10726010
-$ gcc -O1 -g -fsanitize=thread -pthread -o target/yaris_tsan c/yaris.c
-$ ./target/yaris_tsan 2>&1 | grep -E "WARNING|Write of size|Previous write|SUMMARY" | head -n 6
-WARNING: ThreadSanitizer: data race (pid=11088)
-  Previous write of size 8 at 0x562caf17f058 by thread T1:
-SUMMARY: ThreadSanitizer: data race c/yaris.c:8 in artir
-WARNING: ThreadSanitizer: data race (pid=11088)
-  Write of size 8 at 0x562caf17f058 by thread T2:
-  Previous write of size 8 at 0x562caf17f058 by thread T1:
+$ cargo build -q --release
+$ ./target/release/yaris
+beklenen 20000000, bulunan 11033628
+$ ./target/release/yaris
+beklenen 20000000, bulunan 13847993
+$ objdump -d -M intel --no-show-raw-insn -C target/release/yaris | grep -A12 "<yaris::artir>:" | grep -m1 "inc"
+   18e60:	inc    QWORD PTR [rip+0x44851]        # 5d6b8 <yaris::SAYAC>
+$ cargo +nightly miri run -q -- 100 2>&1 | head -n 12
+error: Undefined Behavior: Data race detected between (1) non-atomic write on thread `unnamed-1` and (2) non-atomic read on thread `unnamed-2` at alloc1
+  --> src/main.rs:13:24
+   |
+13 |             let eski = p.read_volatile(); // 1) oku
+   |                        ^^^^^^^^^^^^^^^^^ (2) just happened here
+   |
+help: and (1) occurred earlier here
+  --> src/main.rs:14:13
+   |
+14 |             p.write_volatile(eski + 1); //   2) bir ekle, 3) yaz
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+$ cargo build -q
+error[E0499]: cannot borrow `sayac` as mutable more than once at a time
+ --> src/main.rs:8:17
+  |
+6 |     thread::scope(|s| {
+  |                    - has type `&'1 Scope<'1, '_>`
+7 |         s.spawn(|| sayac += 1);
+  |         ----------------------
+  |         |       |  |
+  |         |       |  first borrow occurs due to use of `sayac` in closure
+  |         |       first mutable borrow occurs here
+  |         argument requires that `sayac` is borrowed for `'1`
+8 |         s.spawn(|| sayac += 1);
+  |                 ^^ ----- second borrow occurs due to use of `sayac` in closure
+  |                 |
+  |                 second mutable borrow occurs here
+  |
+note: requirement that the value outlives `'1` introduced here
+ --> /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/thread/scoped.rs:203:34
+
+For more information about this error, try `rustc --explain E0499`.
+error: could not compile `ortak_mut` (bin "ortak_mut") due to 1 previous error
+[çıkış kodu: 101]
 $ cargo build -q
 error[E0277]: `Rc<RefCell<i32>>` cannot be sent between threads safely
   --> src/main.rs:8:27
@@ -39,3 +69,7 @@ error: could not compile `rc_gonderilemez` (bin "rc_gonderilemez") due to 1 prev
 [çıkış kodu: 101]
 $ cargo run -q --release
 beklenen 20000000, bulunan 20000000
+$ objdump -d -M intel --no-show-raw-insn -C target/release/atomik | grep -A12 "<atomik::artir>:" | grep -m1 lock
+   18a70:	lock inc QWORD PTR [rip+0x44718]        # 5d190 <atomik::SAYAC>
+$ cargo run -q
+1

@@ -1,12 +1,12 @@
 $ cargo build -q --release
 $ ./target/release/dallanma
-dallanan, karışık veri          272.2 ms   (toplam 9577481740)
-dalsız,   karışık veri           29.1 ms   (toplam 9577481740)
-dallanan, sıralı veri            28.9 ms   (toplam 9577481740)
-dalsız,   sıralı veri            29.2 ms   (toplam 9577481740)
+dallanan,    karışık veri     282.4 ms   (toplam 9577481740)
+dallanmasız, karışık veri      30.7 ms   (toplam 9577481740)
+dallanan,    sıralı veri       34.2 ms   (toplam 9577481740)
+dallanmasız, sıralı veri       30.2 ms   (toplam 9577481740)
 $ objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dallanma::dallanan>:/,/^$/" | grep -E "\bj(ns|s)\b"
-   1829e:	jns    18290 <dallanma::dallanan+0x20>
-$ objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dallanma::dalsiz>:/,/^$/" | grep -oE "\b(pcmpgtb|pand|paddq)\b" | sort | uniq -c
+   182ae:	jns    182a0 <dallanma::dallanan+0x20>
+$ objdump -d -M intel --no-show-raw-insn -C target/release/dallanma | awk "/<dallanma::dallanmasiz>:/,/^$/" | grep -oE "\b(pcmpgtb|pand|paddq)\b" | sort | uniq -c
       4 paddq
       2 pand
       2 pcmpgtb

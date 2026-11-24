@@ -1,29 +1,51 @@
 $ wc -l src/main.rs
 40004 src/main.rs
 $ /usr/bin/time -f "temiz derleme (debug): %e s" cargo build -q
-temiz derleme (debug): 4.01 s
+temiz derleme (debug): 4.20 s
+$ cd target/debug/incremental/buyuk-*/s-*/ && md5sum *.o > /tmp/buyuk-once.txt && echo "kod üretim birimi (.o): $(ls *.o | wc -l)" && ls -S *.o | head -n 1 | xargs stat -c "en büyüğü: %s bayt"
+kod üretim birimi (.o): 8
+en büyüğü: 18065424 bayt
+$ cd target/debug/incremental/buyuk-*/s-*/ && ls -l *.o | awk "{print \$5}" | sort -n | tr "\n" " " | sed "s/^/bütün birimler (bayt): /"; echo
+bütün birimler (bayt): 3088 3288 3936 5728 5928 6272 7344 18065424 
 $ /usr/bin/time -f "değişiklik yok: %e s" cargo build -q
 değişiklik yok: 0.01 s
 $ sed -i "s/(x ^ 15000)/(x ^ 15001)/" src/main.rs && /usr/bin/time -f "tek satır değişti (artımlı): %e s" cargo build -q
-tek satır değişti (artımlı): 2.61 s
+tek satır değişti (artımlı): 2.69 s
+$ cd target/debug/incremental/buyuk-*/s-*/ && echo "yeniden üretilen .o: $(md5sum *.o | grep -vxFf /tmp/buyuk-once.txt | wc -l)" && md5sum *.o | grep -vxFf /tmp/buyuk-once.txt | awk "{print \$2}" | xargs stat -c "yeniden üretilenin boyutu: %s bayt"
+yeniden üretilen .o: 1
+yeniden üretilenin boyutu: 18065424 bayt
 $ CARGO_INCREMENTAL=0 /usr/bin/time -f "aynı değişiklik, artımlı kapalı: %e s" cargo build -q --target-dir target/artimsiz
-aynı değişiklik, artımlı kapalı: 3.28 s
-$ sed -i "s/(x ^ 15001)/(x ^ 15002)/" src/main.rs && CARGO_INCREMENTAL=0 /usr/bin/time -f "tek satır değişti, artımlı kapalı: %e s" cargo build -q --target-dir target/artimsiz
-tek satır değişti, artımlı kapalı: 3.51 s
+aynı değişiklik, artımlı kapalı: 3.57 s
+$ grep -c "^mod " src/main.rs
+100
+$ /usr/bin/time -f "100 modül, temiz derleme (debug): %e s" cargo build -q
+100 modül, temiz derleme (debug): 3.18 s
+$ cd target/debug/incremental/moduler-*/s-*/ && md5sum *.o > /tmp/moduler-once.txt && echo "kod üretim birimi (.o): $(ls *.o | wc -l)" && ls -S *.o | head -n 1 | xargs stat -c "en büyüğü: %s bayt"
+kod üretim birimi (.o): 108
+en büyüğü: 2273808 bayt
+$ cd target/debug/incremental/moduler-*/s-*/ && ls -l *.o | awk "{print \$5}" | sort -n | awk "{a[NR]=\$1} END {printf \"en küçük 7 birim (bayt): \"; for (i = 1; i <= 7; i++) printf \"%d \", a[i]; printf \"\\nsonraki %d birim: %d – %d bayt\\nen büyük birim: %d bayt\\n\", NR - 8, a[8], a[NR - 1], a[NR]}"
+en küçük 7 birim (bayt): 3096 3304 3944 5744 5944 6280 7368 
+sonraki 100 birim: 174264 – 177680 bayt
+en büyük birim: 2273808 bayt
+$ sed -i "s/(x ^ 15000)/(x ^ 15001)/" src/main.rs && /usr/bin/time -f "100 modül, tek satır değişti (artımlı): %e s" cargo build -q
+100 modül, tek satır değişti (artımlı): 1.10 s
+$ cd target/debug/incremental/moduler-*/s-*/ && echo "yeniden üretilen .o: $(md5sum *.o | grep -vxFf /tmp/moduler-once.txt | wc -l)" && md5sum *.o | grep -vxFf /tmp/moduler-once.txt | awk "{print \$2}" | xargs stat -c "yeniden üretilenin boyutu: %s bayt"
+yeniden üretilen .o: 1
+yeniden üretilenin boyutu: 177680 bayt
 $ CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 /usr/bin/time -f "release, codegen-units=16: %e s" cargo build -q --release --target-dir target/cgu16
-release, codegen-units=16: 4.04 s
+release, codegen-units=16: 4.26 s
 $ CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 /usr/bin/time -f "release, codegen-units=1 : %e s" cargo build -q --release --target-dir target/cgu1
-release, codegen-units=1 : 6.14 s
+release, codegen-units=1 : 6.11 s
 $ ./target/cgu16/release/buyuk; ./target/cgu1/release/buyuk
-9356063799146033477
-9356063799146033477
+6347231679757235248
+6347231679757235248
 $ cargo +nightly build -q --target-dir target/nightly
-$ sed -i "s/(x ^ 15002)/(x ^ 15003)/" src/main.rs && cargo +nightly rustc -q --target-dir target/nightly -- -Ztime-passes 2>&1 | grep -E "time: +[0-9.]+;" | sort -k2 -n -r | head -n 8
-time:   2.419; rss:   32MB ->  277MB ( +245MB)	total
-time:   1.021; rss:  566MB ->  527MB (  -39MB)	LLVM_passes
-time:   0.924; rss:  501MB ->  494MB (   -7MB)	finish_ongoing_codegen
-time:   0.325; rss:  455MB ->  577MB ( +122MB)	codegen_crate
-time:   0.247; rss:  487MB ->  577MB (  +90MB)	codegen_to_LLVM_IR
-time:   0.244; rss:  487MB ->  566MB (  +79MB)	compile_first_CGU_batch
-time:   0.141; rss:  387MB ->  455MB (  +67MB)	misc_checking_3
-time:   0.118; rss:   55MB ->  167MB ( +111MB)	parse_crate
+$ sed -i "s/(x ^ 15001)/(x ^ 15002)/" src/main.rs && cargo +nightly rustc -q --target-dir target/nightly -- -Ztime-passes 2>&1 | grep -E "time: +[0-9.]+;" | sort -k2 -n -r | head -n 8
+time:   2.493; rss:   26MB ->  288MB ( +262MB)	total
+time:   1.029; rss:  554MB ->  536MB (  -17MB)	LLVM_passes
+time:   0.933; rss:  484MB ->  516MB (  +32MB)	finish_ongoing_codegen
+time:   0.344; rss:  441MB ->  565MB ( +124MB)	codegen_crate
+time:   0.261; rss:  474MB ->  566MB (  +92MB)	codegen_to_LLVM_IR
+time:   0.257; rss:  474MB ->  554MB (  +80MB)	compile_first_CGU_batch
+time:   0.148; rss:  372MB ->  441MB (  +68MB)	misc_checking_3
+time:   0.125; rss:   36MB ->  151MB ( +115MB)	parse_crate

@@ -1,13 +1,26 @@
 $ cargo run -q
+size_of::<Vec<u64>>() = 24 bayt: işaretçi + kapasite + uzunluk
 başlangıç: len 0, cap 0
-len    1 → cap    4
-len    5 → cap    8
-len    9 → cap   16
-len   17 → cap   32
-len   33 → cap   64
-len   65 → cap  128
-len  129 → cap  256
-len  257 → cap  512
-len  513 → cap 1024
-1000 push, yeniden ayırmada en fazla 1020 eleman taşındı (≈ push başına 1.02)
+len    1 → cap    4  (ilk ayırma)
+len    5 → cap    8  (taşındı)
+len    9 → cap   16  (yerinde büyüdü)
+len   17 → cap   32  (yerinde büyüdü)
+len   33 → cap   64  (yerinde büyüdü)
+len   65 → cap  128  (yerinde büyüdü)
+len  129 → cap  256  (yerinde büyüdü)
+len  257 → cap  512  (yerinde büyüdü)
+len  513 → cap 1024  (yerinde büyüdü)
+1000 push: üst sınır 1020 eleman (≈ push başına 1.02), bu çalıştırmada gerçekte taşınan 4
 Vec::with_capacity(1000): cap 1000
+ilk push sonrası cap: u8 → 8, u64 → 4, [u8; 2048] → 1
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "let cap = cmp::max(self.cap.as_inner() \* 2, required_cap)" $S/alloc/src/raw_vec/mod.rs; grep -n -A8 "^const fn min_non_zero_cap" $S/alloc/src/raw_vec/mod.rs
+544:        let cap = cmp::max(self.cap.as_inner() * 2, required_cap);
+168:const fn min_non_zero_cap(size: usize) -> usize {
+169-    if size == 1 {
+170-        8
+171-    } else if size <= 1024 {
+172-        4
+173-    } else {
+174-        1
+175-    }
+176-}

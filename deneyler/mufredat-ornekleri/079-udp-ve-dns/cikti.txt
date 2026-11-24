@@ -1,8 +1,25 @@
-$ cargo run -q
-3 bayt datagram (127.0.0.1:46781 kaynaklı): "bir"
-3 bayt datagram (127.0.0.1:46781 kaynaklı): "iki"
-4 bayt datagram (127.0.0.1:46781 kaynaklı): "üç"
+$ cargo build -q
+$ ./target/debug/udp_dns
+3 bayt datagram (127.0.0.1:49181 kaynaklı): "bir"
+3 bayt datagram (127.0.0.1:49181 kaynaklı): "iki"
+4 bayt datagram (127.0.0.1:49181 kaynaklı): "üç"
+dinleyeni olmayan 127.0.0.1:45336 portuna send: Ok(13)
+sonraki recv: Connection refused (os error 111) (ConnectionRefused)
+$ ./target/debug/udp_dns coz
 localhost:80 → [[::1]:80, 127.0.0.1:80]
+$ grep -E "^hosts:" /etc/nsswitch.conf
+hosts:          files dns
 $ grep -v "^#" /etc/hosts | grep localhost
 127.0.0.1	localhost
 ::1	localhost
+$ strace -e trace=openat ./target/debug/udp_dns coz 2>&1 | grep -E "nsswitch|hosts|resolv"
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/hosts", O_RDONLY|O_CLOEXEC) = 3
+$ echo "127.0.0.1 laboratuvar.test" >> /etc/hosts && strace -e trace=openat,connect,sendto ./target/debug/udp_dns coz laboratuvar.test 2>&1 | grep -E "nsswitch|hosts|resolv|connect|sendto|laboratuvar"
+connect(3, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+connect(3, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/hosts", O_RDONLY|O_CLOEXEC) = 3
+laboratuvar.test:80 → [127.0.0.1:80]

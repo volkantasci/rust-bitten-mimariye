@@ -1,6 +1,6 @@
 $ cargo run -q
-s1: yığındaki yapı 0x7ffce72081c8, öbekteki veri 0x5622bbebcd60
-s2: yığındaki yapı 0x7ffce7208230, öbekteki veri 0x5622bbebcd60
+s1: yığındaki yapı 0x7ffee0366da8, öbekteki veri 0x559880e3dd60, uzunluk 4, kapasite 4
+s2: yığındaki yapı 0x7ffee0366e80, öbekteki veri 0x559880e3dd60, uzunluk 4, kapasite 4
 $ cargo build -q
 error[E0382]: borrow of moved value: `s1`
  --> src/main.rs:4:16

@@ -1,22 +1,40 @@
 $ grep tokio Cargo.toml
 tokio = { version = "1", features = ["full"] }
 $ cargo fetch -q
-$ cargo tree --prefix none -e normal | sort -u | wc -l
-22
+$ cargo tree --prefix none -e normal --no-dedupe | sort -u | wc -l
+20
 $ cargo tree --depth 1 -e normal
 tam v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/tam)
 └── tokio v1.54.1
+$ cargo tree -e normal -i proc-macro2
+proc-macro2 v1.0.107
+├── quote v1.0.47
+│   ├── syn v3.0.10
+│   │   └── tokio-macros v2.7.2 (proc-macro)
+│   │       └── tokio v1.54.1
+│   │           └── tam v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/tam)
+│   └── tokio-macros v2.7.2 (proc-macro) (*)
+├── syn v3.0.10 (*)
+└── tokio-macros v2.7.2 (proc-macro) (*)
 $ grep tokio Cargo.toml
 tokio = { version = "1", default-features = false, features = ["rt"] }
 $ cargo fetch -q
+$ cargo tree --prefix none -e normal --no-dedupe | sort -u | wc -l
+3
 $ cargo tree -e normal
 asgari v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/asgari)
 └── tokio v1.54.1
     └── pin-project-lite v0.2.18
+$ cargo build 2>&1 | grep -v "^ *Finished"
+   Compiling yardimci v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/derleme-betigi/yardimci)
+warning: yardimci@0.1.0: build.rs çalıştı: HOME = /root, orada 2 girdi görebiliyorum
+   Compiling uygulama v0.1.0 (/work/mufredat-ornekleri/058-tedarik-zinciri-guvenligi/derleme-betigi)
+$ ./target/debug/uygulama
+merhaba, ben yardimci crate'iyim
 $ for a in cargo-audit cargo-deny cargo-vet; do cargo search --limit 1 $a | head -n 1; done
 cargo-audit = "0.23.0"    # Audit Cargo.lock for crates with security vulnerabilities
 note: to learn more about a package, run `cargo info <name>`
-cargo-deny = "0.22.0"    # Cargo plugin to help you manage large dependency graphs
+cargo-deny = "0.22.1"    # Cargo plugin to help you manage large dependency graphs
 note: to learn more about a package, run `cargo info <name>`
 cargo-vet = "0.10.3"    # Supply-chain security for Rust
 note: to learn more about a package, run `cargo info <name>`

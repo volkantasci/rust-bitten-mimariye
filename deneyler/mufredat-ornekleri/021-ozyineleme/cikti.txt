@@ -1,15 +1,16 @@
 $ cargo build -q
 $ ./target/debug/ozyineleme
-fib(10) =     55  saf:       177 çağrı   hafızalı:  19 çağrı  (aynı mı: true)
-fib(20) =   6765  saf:     21891 çağrı   hafızalı:  39 çağrı  (aynı mı: true)
-fib(30) = 832040  saf:   2692537 çağrı   hafızalı:  59 çağrı  (aynı mı: true)
+fib(5) =      5  saf:        15 çağrı   memoization ile:   9 çağrı  (aynı mı: true)
+fib(10) =     55  saf:       177 çağrı   memoization ile:  19 çağrı  (aynı mı: true)
+fib(20) =   6765  saf:     21891 çağrı   memoization ile:  39 çağrı  (aynı mı: true)
+fib(30) = 832040  saf:   2692537 çağrı   memoization ile:  59 çağrı  (aynı mı: true)
 $ ulimit -s
 8192
 $ ./target/debug/ozyineleme derin 1000
 derin(1000) = 124948
 $ ./target/debug/ozyineleme derin 100000
 
-thread 'main' (182) has overflowed its stack
+thread 'main' (3334) has overflowed its stack
 fatal runtime error: stack overflow, aborting
 [çıkış kodu: 134 = 128 + 6 (SIGABRT)]
 $ ./target/debug/ozyineleme buyuk-yigin 100000

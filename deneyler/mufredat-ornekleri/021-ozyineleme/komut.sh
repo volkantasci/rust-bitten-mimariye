@@ -1,4 +1,5 @@
 #@ video: 021-ozyineleme
+#@ degisken: taşma mesajındaki iş parçacığı kimliği (thread 'main' (N)); Linux'ta ana iş parçacığının kimliği süreç kimliğidir
 k cargo build -q
 k ./target/debug/ozyineleme
 # Ana iş parçacığının yığını 8 MiB (ulimit -s); 1 KiB'lik çerçevelerle 100 bin seviye sığmaz

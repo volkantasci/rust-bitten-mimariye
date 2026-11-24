@@ -1,4 +1,4 @@
-// Sözdizimi ağacına değil, token'lara örüntü eşleme
+// Örüntü eşleme belirteçler (token) üzerinde: $anahtar ve $deger birer ifade (expr) parçası
 macro_rules! harita {
     ( $( $anahtar:expr => $deger:expr ),* $(,)? ) => {{
         let mut h = std::collections::BTreeMap::new();
@@ -30,5 +30,5 @@ fn main() {
     println!("{h:?}");
     println!("en_buyuk!(3, 9, 4, 7) = {}", en_buyuk!(3, 9, 4, 7));
     let x = 10;
-    println!("iki_kati!(x) = {} (C önişlemcisi gibi metin yapıştırsaydı 2 * 2 = 4 olurdu)", iki_kati!(x));
+    println!("iki_kati!(x) = {} (makronun x'i 2, bizim x'imiz 10)", iki_kati!(x));
 }

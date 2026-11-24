@@ -1,5 +1,14 @@
 $ cargo run -q -p kullanici
 Siparis alanları: ["numara", "musteri", "tutar_kurus"]
+$ file $(find target/debug -name "libtanit_turet-*.so") | sed -E "s#/[0-9a-f]{16}/#/…/#; s#-[0-9a-f]{16}\.so#.so#; s#, BuildID[^,]*##"
+target/debug/build/tanit-turet/…/out/libtanit_turet.so: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, with debug_info, not stripped
+$ cargo +nightly rustc -q -p kullanici --target-dir target/nightly -- -Zunpretty=expanded 2>&1 | sed -n "/^impl Siparis/,/^}/p"
+impl Siparis {
+    pub fn tip_adi() -> &'static str { "Siparis" }
+    pub fn alan_adlari() -> &'static [&'static str] {
+        &["numara", "musteri", "tutar_kurus"]
+    }
+}
 $ cargo build -q -p hatali-kullanim
 error: Tanit yalnızca struct'lar için türetilebilir
  --> hatali-kullanim/src/main.rs:4:6
@@ -14,3 +23,11 @@ tanit-turet v0.1.0 (proc-macro) (/work/mufredat-ornekleri/097-prosedurel-makrola
 ├── proc-macro2 v1.0.107
 ├── quote v1.0.47
 └── syn v3.0.10
+$ touch kullanici/src/main.rs && strace -f -Y -e trace=openat cargo build -q -p kullanici 2>&1 | grep -E "libtanit_turet-[0-9a-f]+\.so\", O_RDONLY" | head -n 1 | sed -E "s#^\[pid +[0-9]+(<[^>]+>)\] #\1 #; s#/[0-9a-f]{16}/#/…/#; s#-[0-9a-f]{16}\.so#-….so#; s#= [0-9]+\$#= (fd)#"
+<rustc> openat(AT_FDCWD, "/work/mufredat-ornekleri/097-prosedurel-makrolar/target/debug/build/tanit-turet/…/out/libtanit_turet-….so", O_RDONLY|O_CLOEXEC) = (fd)
+$ rm -rf /tmp/tanit-kopya && mkdir /tmp/tanit-kopya && cp -r Cargo.toml Cargo.lock tanit-turet kullanici hatali-kullanim /tmp/tanit-kopya/ && cd /tmp/tanit-kopya && sed -i "s/            _ => Vec::new(),/            _ => return syn::Error::new_spanned(ad, \"Tanit adlı alanları olan struct ister\").to_compile_error().into(),/" tanit-turet/src/lib.rs && printf "\n#[derive(Tanit)]\nstruct Nokta(i32, i32);\n" >> kullanici/src/main.rs && cargo build -q -p kullanici 2>&1 | grep -A4 "^error: Tanit adlı"
+error: Tanit adlı alanları olan struct ister
+  --> kullanici/src/main.rs:16:8
+   |
+16 | struct Nokta(i32, i32);
+   |        ^^^^^

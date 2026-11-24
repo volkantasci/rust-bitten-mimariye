@@ -8,7 +8,7 @@ failures:
 
 ---- testler::cift_uzunlukta_medyan stdout ----
 
-thread 'testler::cift_uzunlukta_medyan' (5761) panicked at src/lib.rs:40:9:
+thread 'testler::cift_uzunlukta_medyan' (8978) panicked at src/lib.rs:40:9:
 assertion `left == right` failed
   left: Some(3.0)
  right: Some(2.5)
@@ -31,13 +31,13 @@ running 1 test
 .
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
-all doctests ran in 0.15s; merged doctests compilation took 0.14s
+all doctests ran in 0.12s; merged doctests compilation took 0.11s
 error: 1 target failed:
     `--lib`
 [çıkış kodu: 101]
-$ diff -u hatali/src/lib.rs duzeltilmis/src/lib.rs
---- hatali/src/lib.rs	2026-11-20 15:28:52.858579606 +0000
-+++ duzeltilmis/src/lib.rs	2026-11-20 15:29:51.180755268 +0000
+$ diff -u --label hatali/src/lib.rs --label duzeltilmis/src/lib.rs hatali/src/lib.rs duzeltilmis/src/lib.rs
+--- hatali/src/lib.rs
++++ duzeltilmis/src/lib.rs
 @@ -18,7 +18,12 @@
          return None;
      }

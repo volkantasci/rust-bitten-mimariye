@@ -1,4 +1,5 @@
-$ cargo run -q
+$ cargo build -q
+$ ./target/debug/durum_makinesi
 size_of_val(bos())                  = 1 bayt
 size_of_val(tampon_await_boyunca()) = 4098 bayt
 size_of_val(tampon_await_oncesi())  = 16 bayt
@@ -9,3 +10,40 @@ poll 1 → Pending
 poll 2 → Pending
 poll 3 → Pending
 poll 4 → Ready("bitti")
+$ touch src/main.rs && CARGO_INCREMENTAL=0 cargo +nightly rustc -q -- -Zprint-type-sizes > target/tip-boyutlari.txt 2>&1; grep -A7 "async fn body of tampon_await_boyunca()}" target/tip-boyutlari.txt
+print-type-size type: `{async fn body of tampon_await_boyunca()}`: 4098 bytes, alignment: 1 bytes
+print-type-size     discriminant: 1 bytes
+print-type-size     variant `Unresumed`: 0 bytes
+print-type-size     variant `Suspend0`: 4097 bytes
+print-type-size         local `.tampon`: 4096 bytes
+print-type-size         local `.__awaitee`: 1 bytes, type: {async fn body of bos()}
+print-type-size     variant `Returned`: 0 bytes
+print-type-size     variant `Panicked`: 0 bytes
+$ grep -A8 "async fn body of tampon_await_oncesi()}" target/tip-boyutlari.txt
+print-type-size type: `{async fn body of tampon_await_oncesi()}`: 16 bytes, alignment: 8 bytes
+print-type-size     discriminant: 1 bytes
+print-type-size     variant `Unresumed`: 0 bytes
+print-type-size     variant `Suspend0`: 9 bytes
+print-type-size         local `.n`: 8 bytes, offset: 0 bytes, alignment: 8 bytes
+print-type-size         local `.__awaitee`: 1 bytes, type: {async fn body of bos()}
+print-type-size     variant `Returned`: 0 bytes
+print-type-size     variant `Panicked`: 0 bytes
+print-type-size     end padding: 6 bytes
+$ ./target/debug/durum_makinesi kendin-dene
+size_of_val(tampon_iki_await())          = 24 bayt
+size_of_val(kucuk_tampon_await_boyunca()) = 66 bayt
+$ grep -A13 "async fn body of tampon_iki_await()}" target/tip-boyutlari.txt
+print-type-size type: `{async fn body of tampon_iki_await()}`: 24 bytes, alignment: 8 bytes
+print-type-size     discriminant: 1 bytes
+print-type-size     variant `Unresumed`: 0 bytes
+print-type-size     variant `Suspend0`: 16 bytes
+print-type-size         local `.n`: 8 bytes, offset: 0 bytes, alignment: 8 bytes
+print-type-size         padding: 8 bytes
+print-type-size         local `.__awaitee`: 1 bytes, alignment: 1 bytes, type: {async fn body of bos()}
+print-type-size     variant `Suspend1`: 16 bytes
+print-type-size         local `.n`: 8 bytes, offset: 0 bytes, alignment: 8 bytes
+print-type-size         padding: 8 bytes
+print-type-size         local `.__awaitee`: 1 bytes, alignment: 1 bytes, type: {async fn body of bos()}
+print-type-size     variant `Returned`: 0 bytes
+print-type-size     variant `Panicked`: 0 bytes
+print-type-size     end padding: 7 bytes

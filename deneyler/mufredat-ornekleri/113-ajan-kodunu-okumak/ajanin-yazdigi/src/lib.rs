@@ -1,5 +1,5 @@
 /// Kullanıcının girdiği yüzde indirimi (ör. "15%") fiyata uygular.
-/// (Bir ajanın ilk denemede yazdığı, testleri geçen sürüm.)
+/// (Ajanın getirdiği kodu canlandıran örnek: derlenir, kendi iki testini geçer.)
 pub fn indirimli_fiyat(fiyat_kurus: u32, yuzde: &str) -> u32 {
     let y: u32 = yuzde.trim_end_matches('%').parse().unwrap();
     fiyat_kurus - fiyat_kurus * y / 100
@@ -31,6 +31,6 @@ mod inceleme_testleri {
     }
     #[test]
     fn buyuk_fiyat() {
-        assert_eq!(indirimli_fiyat(50_000_000, "50%"), 25_000_000); // 500 bin TL
+        assert_eq!(indirimli_fiyat(50_000_000, "90%"), 5_000_000); // 500 bin TL'ye %90: ara çarpım 4,5 milyar
     }
 }

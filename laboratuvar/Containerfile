@@ -1,7 +1,15 @@
 # NewKindLearn Rust deney imajı. Taban: resmî Docker Hub "rust" imajı (Debian trixie).
+# Nightly bir tarihe sabitlenmiştir (nightly-2026-11-20 = rustc 1.102.0-nightly 6905905bb, 2026-11-19);
+# deney kayıtlarındaki Miri, sanitizer ve -Z çıktıları bu sürüme aittir. Komutlar `+nightly` ile çağırdığı
+# için sabit sürüm "nightly" adıyla kurulur.
 FROM docker.io/library/rust:1.100.0
+ARG NIGHTLY=2026-11-20
 RUN rustup component add clippy rustfmt \
- && rustup toolchain install nightly --profile minimal --component miri,rust-src \
+ && rustup toolchain install nightly-${NIGHTLY} --profile minimal --component miri,rust-src \
+ && mv "$RUSTUP_HOME/toolchains/nightly-${NIGHTLY}-x86_64-unknown-linux-gnu" \
+       "$RUSTUP_HOME/toolchains/nightly-x86_64-unknown-linux-gnu" \
+ && rm -f "$RUSTUP_HOME/update-hashes/nightly-${NIGHTLY}-x86_64-unknown-linux-gnu" \
+ && rustc +nightly -V | grep -q '6905905bb' \
  && apt-get update \
  && apt-get install -y --no-install-recommends valgrind strace gdb hyperfine time \
  && rm -rf /var/lib/apt/lists/*

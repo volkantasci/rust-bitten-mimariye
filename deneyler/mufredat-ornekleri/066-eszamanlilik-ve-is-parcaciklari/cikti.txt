@@ -1,9 +1,27 @@
-$ nproc
-12
-$ cargo run -q --release
-1000 denemede 7 farklı sıra görüldü; en sık: [("0123", 976), ("0132", 14), ("0213", 3), ("1023", 3)]
- 1 iş parçacığı: 216816 asal,   439.6 ms, hızlanma 1.00×
- 2 iş parçacığı: 216816 asal,   272.7 ms, hızlanma 1.61×
- 4 iş parçacığı: 216816 asal,   149.3 ms, hızlanma 2.95×
- 6 iş parçacığı: 216816 asal,   108.0 ms, hızlanma 4.07×
-12 iş parçacığı: 216816 asal,    84.7 ms, hızlanma 5.19×
+$ lscpu | grep -E "^(CPU\(s\)|Thread\(s\) per core|Core\(s\) per socket):"
+CPU(s):                                  12
+Thread(s) per core:                      2
+Core(s) per socket:                      6
+$ cargo build -q --release
+$ ./target/release/is_parcacigi sira
+1000 denemede 10 farklı sıra görüldü; en sık: [("0123", 972), ("0132", 15), ("0213", 4), ("0231", 3)]
+$ /usr/bin/time -f "bağlam değiştirme: gönüllü %w, zorunlu %c" ./target/release/is_parcacigi hizlanma 2>&1
+available_parallelism = 12
+4 iş parçacığının kendi süreleri (ms), blok    :  63 103 127 145
+4 iş parçacığının kendi süreleri (ms), döngüsel:   1 218   1 217
+4 iş parçacığının kendi süreleri (ms), dinamik : 110 110 109 110
+1 iş parçacığı: 216816 asal, 446.6 ms
+ 2 iş parçacığı | blok 271.8 ms (1.64×) | döngüsel 442.5 ms (1.01×) | dinamik 222.5 ms (2.01×)
+ 4 iş parçacığı | blok 147.5 ms (3.03×) | döngüsel 220.1 ms (2.03×) | dinamik 111.6 ms (4.00×)
+ 6 iş parçacığı | blok  99.6 ms (4.49×) | döngüsel 218.6 ms (2.04×) | dinamik  74.0 ms (6.03×)
+12 iş parçacığı | blok  87.2 ms (5.12×) | döngüsel 109.9 ms (4.06×) | dinamik  74.7 ms (5.98×)
+bağlam değiştirme: gönüllü 62, zorunlu 888
+$ /usr/bin/time -f "bağlam değiştirme: gönüllü %w, zorunlu %c" taskset -c 0 ./target/release/is_parcacigi hizlanma 2>&1
+available_parallelism = 1
+4 iş parçacığının kendi süreleri (ms), blok    : 247 367 415 433
+4 iş parçacığının kendi süreleri (ms), döngüsel:   4 435   6 434
+4 iş parçacığının kendi süreleri (ms), dinamik : 435 433 431 433
+1 iş parçacığı: 216816 asal, 435.6 ms
+ 2 iş parçacığı | blok 436.6 ms (1.00×) | döngüsel 437.0 ms (1.00×) | dinamik 437.0 ms (1.00×)
+ 4 iş parçacığı | blok 436.4 ms (1.00×) | döngüsel 437.4 ms (1.00×) | dinamik 436.8 ms (1.00×)
+bağlam değiştirme: gönüllü 27, zorunlu 1954

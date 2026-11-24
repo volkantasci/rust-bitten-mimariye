@@ -3,3 +3,7 @@ $ cargo test -q 2>&1 | grep -E "not yet implemented|test result" | sort | uniq -
       1 test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo test -q 2>&1 | grep "test result" | head -n 1
 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ rm -rf /tmp/sarmala-kopya && mkdir /tmp/sarmala-kopya && cp -r 2-uygulama/Cargo.toml 2-uygulama/Cargo.lock 2-uygulama/src /tmp/sarmala-kopya/ && cd /tmp/sarmala-kopya && sed -i "\$ d" src/lib.rs && printf "    #[test]\n    fn genislik_sifir_bos_liste() {\n        assert_eq!(sarmala(\"bir iki\", 0), Vec::<String>::new());\n    }\n}\n" >> src/lib.rs && cargo test -q 2>&1 | grep -E "^test result|left:|right:"
+  left: ["bir", "iki"]
+ right: []
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

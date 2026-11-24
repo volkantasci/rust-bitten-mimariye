@@ -1,4 +1,25 @@
 $ cargo run -q
 {"armut": 5, "ayva": 1, "elma": 3}
 en_buyuk!(3, 9, 4, 7) = 9
-iki_kati!(x) = 20 (C önişlemcisi gibi metin yapıştırsaydı 2 * 2 = 4 olurdu)
+iki_kati!(x) = 20 (makronun x'i 2, bizim x'imiz 10)
+$ cargo +nightly rustc -q -- -Zunpretty=expanded,hygiene 2>&1 | grep -A4 "iki_kati!(x) ="
+                */(format_args!("iki_kati!(x) = {0} (makronun x\'i 2, bizim x\'imiz 10)\n",
+                {
+                    let x /* 2417#15 */ = 2;
+                    x /* 2417#15 */ * x /* 2417#0 */
+                }));
+$ rm -rf /tmp/makro-kopya && mkdir /tmp/makro-kopya && cp -r Cargo.toml Cargo.lock src /tmp/makro-kopya/ && cd /tmp/makro-kopya && sed -i "s/(\$e:expr) => {{/(\$ad:ident, \$e:expr) => {{/; s/let x = 2;/let \$ad = 2;/; s/x \* \$e/\$ad * \$e/; s/iki_kati!(x))/iki_kati!(x, x))/; s/(makronun x.i 2, bizim x.imiz 10)/(adı çağıran verdi: tek bir x)/" src/main.rs && cargo run -q | grep iki_kati && cargo +nightly rustc -q -- -Zunpretty=expanded,hygiene 2>&1 | grep -A4 "iki_kati!(x) ="
+warning: unused variable: `x`
+  --> src/main.rs:32:9
+   |
+32 |     let x = 10;
+   |         ^ help: if this is intentional, prefix it with an underscore: `_x`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+iki_kati!(x) = 4 (adı çağıran verdi: tek bir x)
+                */(format_args!("iki_kati!(x) = {0} (adı çağıran verdi: tek bir x)\n",
+                { let x /* 2417#0 */ = 2; x /* 2417#0 */ * x /* 2417#0 */ }));
+    };
+}
+

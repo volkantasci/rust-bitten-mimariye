@@ -31,3 +31,82 @@ fn uzunluk(_1: String) -> usize {
         resume;
     }
 }
+$ rustc --edition 2024 --crate-type=lib --out-dir target odunc.rs 2>&1
+error[E0502]: cannot borrow `*v` as mutable because it is also borrowed as immutable
+  --> odunc.rs:19:5
+   |
+18 |     let ilk = &v[0];
+   |                - immutable borrow occurs here
+19 |     v.push(4); // ilk hâlâ canlı: push için &mut gerekir
+   |     ^^^^^^^^^ mutable borrow occurs here
+20 |     println!("{ilk}");
+   |                --- immutable borrow later used here
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0502`.
+[çıkış kodu: 1]
+$ sed "/^pub fn sira_yanlis/,/^}/d" odunc.rs > target/odunc_mir.rs && rustc --edition 2024 --crate-type=lib -C opt-level=0 --emit=mir -o target/odunc.mir target/odunc_mir.rs && sed -n "/fn yola_gore/,/^}/p" target/odunc.mir
+fn yola_gore(_1: &mut Vec<i32>, _2: bool) -> () {
+    debug v => _1;
+    debug kosul => _2;
+    let mut _0: ();
+    let _3: &i32;
+    let _4: &i32;
+    let mut _5: &std::vec::Vec<i32>;
+    let _6: ();
+    let _7: ();
+    let mut _8: std::fmt::Arguments<'_>;
+    let mut _10: &&i32;
+    let mut _12: core::fmt::rt::Argument<'_>;
+    let mut _13: &[u8; 4];
+    let _14: &[core::fmt::rt::Argument<'_>; 1];
+    let mut _15: &&i32;
+    scope 1 {
+        debug ilk => _3;
+        let _9: (&&i32,);
+        scope 2 {
+            debug args => _9;
+            let _11: [core::fmt::rt::Argument<'_>; 1];
+            scope 3 {
+                debug args => _11;
+            }
+        }
+    }
+
+    bb0: {
+        _5 = &(*_1);
+        _4 = <Vec<i32> as Index<usize>>::index(move _5, const 0_usize) -> [return: bb1, unwind continue];
+    }
+
+    bb1: {
+        _3 = copy _4;
+        switchInt(copy _2) -> [0: bb3, otherwise: bb2];
+    }
+
+    bb2: {
+        _6 = Vec::<i32>::push(copy _1, const 4_i32) -> [return: bb6, unwind continue];
+    }
+
+    bb3: {
+        _10 = &_3;
+        _9 = (move _10,);
+        _15 = no_retag copy (_9.0: &&i32);
+        _12 = core::fmt::rt::Argument::<'_>::new_display::<&i32>(copy _15) -> [return: bb4, unwind continue];
+    }
+
+    bb4: {
+        _11 = [move _12];
+        _13 = const b"\xc0\x01\n\x00";
+        _14 = &_11;
+        _8 = Arguments::<'_>::new::<4, 1>(move _13, copy _14) -> [return: bb5, unwind continue];
+    }
+
+    bb5: {
+        _7 = std::io::_print(move _8) -> [return: bb6, unwind continue];
+    }
+
+    bb6: {
+        return;
+    }
+}

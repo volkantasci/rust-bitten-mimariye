@@ -6,6 +6,44 @@ $ uname -r
 7.2.15-1-omarchy
 $ grep PRETTY_NAME /etc/os-release
 PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+$ ls /proc/self/ns
+cgroup
+ipc
+mnt
+net
+pid
+pid_for_children
+time
+time_for_children
+user
+uts
+$ ps -e -o pid,comm
+    PID COMMAND
+      1 bash
+    962 bash
+    986 ps
+$ hostname
+c8a1a101fed7
+$ readlink /proc/self/ns/pid /proc/self/ns/uts /proc/self/ns/net
+pid:[4026534006]
+uts:[4026534004]
+net:[4026533945]
+$ cat /proc/self/cgroup
+0::/
+$ cat /sys/fs/cgroup/pids.max
+2048
+$ cargo clippy --version
+clippy 0.1.100 (0ef1bc3860 2026-11-09)
+$ rustfmt --version
+rustfmt 1.11.0-stable (0ef1bc3860 2026-11-09)
+$ valgrind --version
+valgrind-3.24.0
+$ strace -V | head -n 1
+strace -- version 6.13
+$ gdb --version | head -n 1
+GNU gdb (Debian 16.3-1) 16.3
+$ hyperfine --version
+hyperfine 1.19.0
 $ cargo new merhaba
     Creating binary (application) `merhaba` package
 note: see more `Cargo.toml` keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

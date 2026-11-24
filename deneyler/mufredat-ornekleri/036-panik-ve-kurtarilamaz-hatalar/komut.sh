@@ -1,5 +1,5 @@
 #@ video: 036-panik-ve-kurtarilamaz-hatalar
-#@ degisken: iş parçacığı kimliği; geri izdeki adres/çerçeve sayısı
+#@ degisken: süreç kimliği (PID) ve panik satırındaki iş parçacığı kimliği (ana iş parçacığında aynı sayı); geri izdeki adres/çerçeve sayısı
 #@ goster: panik::bol|panik::main|panicked at
 k cargo run -q -- 2
 k cargo run -q -- 0

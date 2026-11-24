@@ -1,10 +1,10 @@
 $ cargo run -q
-onluk      : 1000000
-ikilik     : 00000000000011110100001001000000
-onaltılık  : 0x000f4240
-bellekte   : [40, 42, 0f, 00]
-küçük uçlu : [40, 42, 0f, 00]
-büyük uçlu : [00, 0f, 42, 40]
-'A' baytı  : 65 = 0x41 = 01000001
+onluk         : 1000000
+ikilik        : 00000000000011110100001001000000
+onaltılık     : 0x000f4240
+bellekte      : [40, 42, 0f, 00]
+little-endian : [40, 42, 0f, 00]
+big-endian    : [00, 0f, 42, 40]
+'A' baytı     : 65 = 0x41 = 01000001
 $ lscpu | grep "Byte Order"
 Byte Order:                              Little Endian

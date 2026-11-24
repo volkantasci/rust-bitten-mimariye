@@ -15,3 +15,30 @@ Caused by:
     0: ayar dosyası okunamadı: ayarlar/yok.conf
     1: No such file or directory (os error 2)
 [çıkış kodu: 1]
+$ cargo build -q --release
+$ ./target/release/ajan 8080
+sunucu 8080 numaralı portta başlıyor
+$ ./target/release/ajan abc
+
+thread 'main' (6323) panicked at src/bin/ajan.rs:4:42:
+called `Result::unwrap()` on an `Err` value: ParseIntError { kind: InvalidDigit }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]
+$ ./target/release/ajan 70000
+
+thread 'main' (6324) panicked at src/bin/ajan.rs:4:42:
+called `Result::unwrap()` on an `Err` value: ParseIntError { kind: PosOverflow }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[çıkış kodu: 101]
+$ ./target/release/duzeltilmis abc
+Error: port numarası okunamadı: "abc"
+
+Caused by:
+    invalid digit found in string
+[çıkış kodu: 1]
+$ ./target/release/duzeltilmis 70000
+Error: port numarası okunamadı: "70000"
+
+Caused by:
+    number too large to fit in target type
+[çıkış kodu: 1]

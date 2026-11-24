@@ -2,6 +2,15 @@ $ cargo run -q --release
 sıralı      : {"Ada": 64, "Ali": 72, "Can": 85, "Ece": 91, "Naz": 78}
 'B'..'D'    : [("Can", 85)]
 ilk / son   : Some(("Ada", 64)) / Some(("Naz", 78))
-1e6 arama   : HashMap   66.2 ms, BTreeMap  129.3 ms
-$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^const B: usize\|^pub const CAPACITY" $S/alloc/src/collections/btree/node.rs
+1000000 arama, arama başına karşılaştırma: BTreeMap 32.8 | sıralı dizide ikili arama 21.0
+1000000 arama   : HashMap   45.2 ms, BTreeMap  115.9 ms
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "^const B: usize\|const CAPACITY: usize" $S/alloc/src/collections/btree/node.rs
 43:const B: usize = 6;
+44:pub(super) const CAPACITY: usize = 2 * B - 1;
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "for (offset, k) in\|Ordering::Greater => {}" $S/alloc/src/collections/btree/search.rs
+234:        for (offset, k) in unsafe { keys.get_unchecked(start_index..) }.iter().enumerate() {
+236:                Ordering::Greater => {}
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n -A2 "A B-Tree instead makes each node contain" $S/alloc/src/collections/btree/map.rs
+166:/// A B-Tree instead makes each node contain B-1 to 2B-1 elements in a contiguous array. By doing
+167-/// this, we reduce the number of allocations by a factor of B, and improve cache efficiency in
+168-/// searches. However, this does mean that searches will have to do *more* comparisons on average.

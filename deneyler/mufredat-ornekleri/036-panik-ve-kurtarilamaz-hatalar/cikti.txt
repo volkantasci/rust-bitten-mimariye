@@ -1,22 +1,25 @@
 $ cargo run -q -- 2
+süreç kimliği (PID): 5672
 10 / 2 = 5
 $ cargo run -q -- 0
+süreç kimliği (PID): 5734
 
-thread 'main' (3227) panicked at src/main.rs:3:9:
+thread 'main' (5734) panicked at src/main.rs:3:9:
 sıfıra bölme: 10 / 0
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]
 $ RUST_BACKTRACE=1 cargo run -q -- 0 2>&1 | grep -E -A1 "panicked at|panik::"
-thread 'main' (3239) panicked at src/main.rs:3:9:
+thread 'main' (5746) panicked at src/main.rs:3:9:
 sıfıra bölme: 10 / 0
 --
    2: panik::bol
              at ./src/main.rs:3:9
    3: panik::main
-             at ./src/main.rs:10:31
+             at ./src/main.rs:11:31
 $ cargo run -q --release -- 0
+süreç kimliği (PID): 5758
 
-thread 'main' (3251) panicked at src/main.rs:3:9:
+thread 'main' (5758) panicked at src/main.rs:3:9:
 sıfıra bölme: 10 / 0
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 134 = 128 + 6 (SIGABRT)]

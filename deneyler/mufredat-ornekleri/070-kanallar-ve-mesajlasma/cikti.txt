@@ -1,9 +1,12 @@
-$ cargo run -q
+$ cargo build -q
+$ ./target/debug/kanallar boru-hatti
 1² = 1
 2² = 4
 3² = 9
 4² = 16
 5² = 25
+$ ./target/debug/kanallar 2
+sync_channel(2):
 [   0 ms] üretici 1 gönderdi
 [   0 ms] üretici 2 gönderdi
 [ 300 ms] yavaş tüketici 1 aldı
@@ -14,3 +17,34 @@ $ cargo run -q
 [ 500 ms] üretici 5 gönderdi
 [ 600 ms] yavaş tüketici 4 aldı
 [ 700 ms] yavaş tüketici 5 aldı
+$ ./target/debug/kanallar 0
+sync_channel(0):
+[ 300 ms] yavaş tüketici 1 aldı
+[ 300 ms] üretici 1 gönderdi
+[ 400 ms] yavaş tüketici 2 aldı
+[ 400 ms] üretici 2 gönderdi
+[ 500 ms] yavaş tüketici 3 aldı
+[ 500 ms] üretici 3 gönderdi
+[ 600 ms] yavaş tüketici 4 aldı
+[ 600 ms] üretici 4 gönderdi
+[ 700 ms] yavaş tüketici 5 aldı
+[ 700 ms] üretici 5 gönderdi
+$ cargo build -q
+error[E0382]: borrow of moved value: `olcumler`
+ --> src/main.rs:9:16
+  |
+7 |     let olcumler = vec![1, 2, 3];
+  |         -------- move occurs because `olcumler` has type `Vec<u32>`, which does not implement the `Copy` trait
+8 |     tx.send(olcumler).unwrap(); // değer kanala taşındı: sahibi artık alıcı
+  |             -------- value moved here
+9 |     println!("{olcumler:?}"); // gönderdikten sonra kullanmaya çalışmak
+  |                ^^^^^^^^ value borrowed here after move
+  |
+help: consider cloning the value if the performance cost is acceptable
+  |
+8 |     tx.send(olcumler.clone()).unwrap(); // değer kanala taşındı: sahibi artık alıcı
+  |                     ++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `gonderince_tasinir` (bin "gonderince_tasinir") due to 1 previous error
+[çıkış kodu: 101]

@@ -1,48 +1,179 @@
-$ gcc -O0 -fstack-protector-strong -o target/tasma c/tasma.c
-$ ./target/tasma Ferris
-tampon = Ferris
-$ ./target/tasma "bu metin sekiz bayttan cok daha uzun"
-*** stack smashing detected ***: terminated
-[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
-$ gcc -O0 -o target/cift_birak c/cift_birak.c
-$ ./target/cift_birak
-free(): double free detected in tcache 2
-[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
-$ gcc -O0 -g -fsanitize=address -o target/uaf_asan c/kullan_sonra_birak.c
-$ ./target/uaf_asan 2>&1 | head -n 30
-=================================================================
-==1891==ERROR: AddressSanitizer: heap-use-after-free on address 0x502000000010 at pc 0x7f321abb379c bp 0x7ffc9ff9b000 sp 0x7ffc9ff9a7c0
-READ of size 2 at 0x502000000010 thread T0
-    #0 0x7f321abb379b in printf_common ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors_format.inc:563
-    #1 0x7f321abdf49a in vprintf ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:1644
-    #2 0x7f321abe108e in printf ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:1702
-    #3 0x55b287cec244 in main c/kullan_sonra_birak.c:16
-    #4 0x7f321a94cca7 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
-    #5 0x7f321a94cd64 in __libc_start_main_impl ../csu/libc-start.c:360
-    #6 0x55b287cec0e0 in _start (/work/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/target/uaf_asan+0x10e0) (BuildId: 95fedd94862cd2cc868a045a076292f8485e9a31)
-
-0x502000000010 is located 0 bytes inside of 16-byte region [0x502000000010,0x502000000020)
-freed by thread T0 here:
-    #0 0x7f321ac0a8f8 in free ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:52
-    #1 0x55b287cec1c0 in temizle c/kullan_sonra_birak.c:6
-    #2 0x55b287cec200 in main c/kullan_sonra_birak.c:11
-    #3 0x7f321a94cca7 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
-
-previously allocated by thread T0 here:
-    #0 0x7f321ac0bc57 in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:69
-    #1 0x55b287cec1d5 in main c/kullan_sonra_birak.c:9
-    #2 0x7f321a94cca7 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
-
-SUMMARY: AddressSanitizer: heap-use-after-free ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors_format.inc:563 in printf_common
-Shadow bytes around the buggy address:
-  0x501ffffffd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-  0x501ffffffe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-  0x501ffffffe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-  0x501fffffff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-  0x501fffffff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 $ cargo run -q
 
-thread 'main' (1893) panicked at src/main.rs:4:34:
+thread 'main' (3375) panicked at src/main.rs:4:34:
 index out of bounds: the len is 8 but the index is 20
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 [çıkış kodu: 101]
+$ cargo run -q
++0 : 46 65 72 72 69 73 00 00
++8 : 00 00 00 00 00 00 00 00
++16: 00 00 00 00 00 00 00 00
++24: 21 00 00 00 00 00 00 00
++32: 67 69 7a 6c 69 31 32 33
+$ cargo +nightly miri run -q
++0 : 46 65 72 72 69 73 00 00
+error: Undefined Behavior: memory access failed: attempting to access 1 byte, but got alloc313+0x8 which is at or beyond the end of the allocation of size 8 bytes
+ --> src/main.rs:9:33
+  |
+9 |             let bayt = unsafe { *p.add(satir * 8 + i) }; // 8 ve ötesi: ayırmanın dışı
+  |                                 ^^^^^^^^^^^^^^^^^^^^^ Undefined Behavior occurred here
+  |
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc313 was allocated here:
+ --> src/main.rs:3:28
+  |
+3 |     let ad: Box<[u8; 8]> = Box::new(*b"Ferris\0\0");
+  |                            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
+$ MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri run -q
++0 : 46 65 72 72 69 73 00 00
+error: Undefined Behavior: memory access failed: attempting to access 1 byte, but got alloc313+0x8 which is at or beyond the end of the allocation of size 8 bytes
+ --> src/main.rs:9:33
+  |
+9 |             let bayt = unsafe { *p.add(satir * 8 + i) }; // 8 ve ötesi: ayırmanın dışı
+  |                                 ^^^^^^^^^^^^^^^^^^^^^ Undefined Behavior occurred here
+  |
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc313 was allocated here:
+ --> src/main.rs:3:28
+  |
+3 |     let ad: Box<[u8; 8]> = Box::new(*b"Ferris\0\0");
+  |                            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
+$ cargo run -q
+birinci iade tamam
+free(): double free detected in tcache 2
+[çıkış kodu: 134 = 128 + 6 (SIGABRT)]
+$ cargo +nightly miri run -q
+birinci iade tamam
+error: Undefined Behavior: constructing invalid value of type std::boxed::Box<u64>: encountered a dangling box (use-after-free)
+    --> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/boxed.rs:1700:9
+     |
+1700 |         Box(unsafe { BoxRaw::new_unchecked(raw) }, alloc)
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Undefined Behavior occurred here
+     |
+     = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+     = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+     = note: stack backtrace:
+             0: std::boxed::Box::<u64>::from_raw_in
+                 at /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/boxed.rs:1700:9: 1700:58
+             1: std::boxed::Box::<u64>::from_raw
+                 at /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/boxed.rs:1444:18: 1444:48
+             2: main
+                 at src/main.rs:8:14: 8:30
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
+$ cargo build -q
+error[E0382]: use of moved value: `kutu`
+ --> src/main.rs:5:10
+  |
+3 |     let kutu = Box::new(42u64);
+  |         ---- move occurs because `kutu` has type `Box<u64>`, which does not implement the `Copy` trait
+4 |     drop(kutu); // birinci iade: sahiplik drop'a geçti
+  |          ---- value moved here
+5 |     drop(kutu); // ikinci iade denemesi
+  |          ^^^^ value used here after move
+  |
+help: consider cloning the value if the performance cost is acceptable
+  |
+4 |     drop(kutu.clone()); // birinci iade: sahiplik drop'a geçti
+  |              ++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `cifte_iade_guvenli` (bin "cifte_iade_guvenli") due to 1 previous error
+[çıkış kodu: 101]
+$ cargo run -q
+ilk bayt: 0x67
+$ ASAN_SYMBOLIZER_PATH=/usr/bin/addr2line RUSTFLAGS="-Zsanitizer=address" cargo +nightly run -q --target x86_64-unknown-linux-gnu 2>&1
+=================================================================
+==3776==ERROR: AddressSanitizer: heap-use-after-free on address 0x7b5b6a7e0010 at pc 0x55c523c08d61 bp 0x7fff53250e30 sp 0x7fff53250e28
+READ of size 1 at 0x7b5b6a7e0010 thread T0
+    #0 0x55c523c08d60 in asan::main /work/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/asan/src/main.rs:8
+    #1 0x55c523c0890a in <fn() as core::ops::function::FnOnce<()>>::call_once /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/function.rs:250
+    #2 0x55c523c08a25 in std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/sys/backtrace.rs:166
+    #3 0x55c523c083a8 in std::rt::lang_start::<()>::{closure#0} /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/rt.rs:206
+    #4 0x55c523c2b9ce in <&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe as core::ops::function::FnOnce<()>>::call_once /rustc/6905905bb7727fd0f9223f5fdc9ad4e62236d5a2/library/core/src/ops/function.rs:287
+    #5 0x55c523c2b9ce in std::panicking::catch_unwind::do_call::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32> /rustc/6905905bb7727fd0f9223f5fdc9ad4e62236d5a2/library/std/src/panicking.rs:573
+    #6 0x55c523c2b9ce in std::panicking::catch_unwind::<i32, &dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe> /rustc/6905905bb7727fd0f9223f5fdc9ad4e62236d5a2/library/std/src/panicking.rs:541
+    #7 0x55c523c2b9ce in std::panic::catch_unwind::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32> /rustc/6905905bb7727fd0f9223f5fdc9ad4e62236d5a2/library/std/src/panic.rs:359
+    #8 0x55c523c2b9ce in std::rt::lang_start_internal::{closure#0} /rustc/6905905bb7727fd0f9223f5fdc9ad4e62236d5a2/library/std/src/rt.rs:175
+    #9 0x55c523c2b9ce in std::panicking::catch_unwind::do_call::<std::rt::lang_start_internal::{closure#0}, isize> /rustc/6905905bb7727fd0f9223f5fdc9ad4e62236d5a2/library/std/src/panicking.rs:573
+    #10 0x55c523c2b9ce in std::panicking::catch_unwind::<isize, std::rt::lang_start_internal::{closure#0}> /rustc/6905905bb7727fd0f9223f5fdc9ad4e62236d5a2/library/std/src/panicking.rs:541
+    #11 0x55c523c2b9ce in std::panic::catch_unwind::<std::rt::lang_start_internal::{closure#0}, isize> /rustc/6905905bb7727fd0f9223f5fdc9ad4e62236d5a2/library/std/src/panic.rs:359
+    #12 0x55c523c2b9ce in std::rt::lang_start_internal /rustc/6905905bb7727fd0f9223f5fdc9ad4e62236d5a2/library/std/src/rt.rs:171
+    #13 0x55c523c0831d in std::rt::lang_start::<()> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/rt.rs:205
+    #14 0x55c523c08fbd in main ??:?
+    #15 0x7f3b6b54bca7 in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58
+    #16 0x7f3b6b54bd64 in __libc_start_main_impl csu/../csu/libc-start.c:360
+    #17 0x55c523b44870 in _start ??:?
+
+0x7b5b6a7e0010 is located 0 bytes inside of 6-byte region [0x7b5b6a7e0010,0x7b5b6a7e0016)
+freed by thread T0 here:
+    #0 0x55c523bd9736 in free ??:?
+    #1 0x55c523c088b6 in core::ptr::drop_glue::<alloc::raw_vec::RawVec<u8>> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:853
+    #2 0x55c523c0890a in <fn() as core::ops::function::FnOnce<()>>::call_once /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/function.rs:250
+    #3 0x55c523c0831d in std::rt::lang_start::<()> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/rt.rs:205
+    #4 0x55c523c08fbd in main ??:?
+
+previously allocated by thread T0 here:
+    #0 0x55c523bd9d04 in malloc ??:?
+    #1 0x55c523c3539b in <alloc::raw_vec::RawVecInner>::try_allocate_in ??:?
+    #2 0x55c523c084aa in <alloc::raw_vec::RawVecInner>::with_capacity_in /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/raw_vec/mod.rs:453
+    #3 0x55c523c086ac in <u8 as <[_]>::to_vec_in::ConvertVec>::to_vec::<alloc::alloc::Global> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/raw_vec/mod.rs:187
+    #4 0x55c523c086ac in with_capacity_in<u8, alloc::alloc::Global> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/mod.rs:939
+    #5 0x55c523c086ac in to_vec<u8, alloc::alloc::Global> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/slice.rs:448
+    #6 0x55c523c08c6a in asan::main /work/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/asan/src/main.rs:4
+    #7 0x55c523c0890a in <fn() as core::ops::function::FnOnce<()>>::call_once /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/function.rs:250
+    #8 0x55c523c0831d in std::rt::lang_start::<()> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/rt.rs:205
+    #9 0x55c523c08fbd in main ??:?
+
+SUMMARY: AddressSanitizer: heap-use-after-free /work/mufredat-ornekleri/022-bellek-hatalarinin-anatomisi/asan/src/main.rs:8 in asan::main
+Shadow bytes around the buggy address:
+  0x7b5b6a7dfd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7b5b6a7dfe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7b5b6a7dfe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7b5b6a7dff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7b5b6a7dff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7b5b6a7e0000: fa fa[fd]fa fa fa 00 01 fa fa fa fa fa fa fa fa
+  0x7b5b6a7e0080: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7b5b6a7e0100: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7b5b6a7e0180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7b5b6a7e0200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x7b5b6a7e0280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==3776==ABORTING
+[çıkış kodu: 1]

@@ -1,53 +1,57 @@
 $ cargo build -q
 $ ./target/debug/surecler
-ebeveyn: pid 11889
-çocuk: pid 11890, ebeveyni 11889
-çocuğun çıkış durumu: exit status: 3 (code = Some(3))
+üst süreç: pid 16044
+alt süreç: pid 16045, üst süreci 16044
+alt sürecin çıkış durumu: exit status: 3 (code = Some(3))
 uname -sr çıktısı yakalandı: "Linux 7.2.15-1-omarchy"
 başlatılamadı: No such file or directory (os error 2)
-$ strace -f -e trace=clone,clone3,vfork,execve,wait4,exit_group ./target/debug/surecler 2>&1 | grep -vE "^(ebeveyn|çocuk|uname|başlatıl)"
-execve("./target/debug/surecler", ["./target/debug/surecler"], 0x7ffc43765eb8 /* 15 vars */) = 0
-clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7f8f6f122000, stack_size=0x9000}, 88strace: Process 11899 attached
- <unfinished ...>
-[pid 11899] execve("/usr/local/cargo/bin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11899] execve("/usr/local/sbin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11899] execve("/usr/local/bin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11899] execve("/usr/sbin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11899] execve("/usr/bin/sh", ["sh", "-c", "echo \"\303\247ocuk: pid $$, ebeveyni $"...], 0x7fff27ae6418 /* 15 vars */ <unfinished ...>
-[pid 11898] <... clone3 resumed>)       = 11899
-[pid 11898] wait4(11899,  <unfinished ...>
-[pid 11899] <... execve resumed>)       = 0
-[pid 11899] exit_group(3)               = ?
-[pid 11899] +++ exited with 3 +++
-<... wait4 resumed>[{WIFEXITED(s) && WEXITSTATUS(s) == 3}], 0, NULL) = 11899
---- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=11899, si_uid=0, si_status=3, si_utime=0, si_stime=0} ---
-çocuğun çıkış durumu: exit status: 3 (code = Some(3))
-clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7f8f6f122000, stack_size=0x9000}, 88strace: Process 11900 attached
- <unfinished ...>
-[pid 11900] execve("/usr/local/cargo/bin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11900] execve("/usr/local/sbin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11900] execve("/usr/local/bin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11900] execve("/usr/sbin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11900] execve("/usr/bin/uname", ["uname", "-sr"], 0x7fff27ae6418 /* 15 vars */ <unfinished ...>
-[pid 11898] <... clone3 resumed>)       = 11900
-[pid 11900] <... execve resumed>)       = 0
-[pid 11900] exit_group(0)               = ?
-[pid 11898] wait4(11900,  <unfinished ...>
-[pid 11900] +++ exited with 0 +++
-<... wait4 resumed>[{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0, NULL) = 11900
---- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=11900, si_uid=0, si_status=0, si_utime=0, si_stime=0} ---
-clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7f8f6f122000, stack_size=0x9000}, 88strace: Process 11901 attached
- <unfinished ...>
-[pid 11901] execve("/usr/local/cargo/bin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/usr/local/sbin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/usr/local/bin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/usr/sbin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/usr/bin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/sbin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] execve("/bin/olmayan-program", ["olmayan-program"], 0x7fff27ae6418 /* 15 vars */) = -1 ENOENT (No such file or directory)
-[pid 11901] exit_group(127)             = ?
-[pid 11898] <... clone3 resumed>)       = 11901
-[pid 11901] +++ exited with 127 +++
---- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=11901, si_uid=0, si_status=127, si_utime=0, si_stime=0} ---
-exit_group(0)                           = ?
-+++ exited with 0 +++
+$ echo "$PATH"
+/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+$ ldd --version | head -n 1
+ldd (Debian GLIBC 2.41-12+deb13u5) 2.41
+$ strace -f -qq -e trace=clone,clone3,vfork,execve,wait4,exit_group -o /tmp/iz.txt ./target/debug/surecler > /dev/null; cat /tmp/iz.txt
+16056 execve("./target/debug/surecler", ["./target/debug/surecler"], 0x7ffe50a259a0 /* 15 vars */) = 0
+16056 clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7fa7869a2000, stack_size=0x9000}, 88 <unfinished ...>
+16057 execve("/usr/local/cargo/bin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16057 execve("/usr/local/sbin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16057 execve("/usr/local/bin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16057 execve("/usr/sbin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16057 execve("/usr/bin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff23857c38 /* 15 vars */ <unfinished ...>
+16056 <... clone3 resumed>)             = 16057
+16056 wait4(16057,  <unfinished ...>
+16057 <... execve resumed>)             = 0
+16057 exit_group(3)                     = ?
+16056 <... wait4 resumed>[{WIFEXITED(s) && WEXITSTATUS(s) == 3}], 0, NULL) = 16057
+16056 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=16057, si_uid=0, si_status=3, si_utime=0, si_stime=0} ---
+16056 clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7fa7869a2000, stack_size=0x9000}, 88 <unfinished ...>
+16058 execve("/usr/local/cargo/bin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16058 execve("/usr/local/sbin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16058 execve("/usr/local/bin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16058 execve("/usr/sbin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16058 execve("/usr/bin/uname", ["uname", "-sr"], 0x7fff23857c38 /* 15 vars */ <unfinished ...>
+16056 <... clone3 resumed>)             = 16058
+16058 <... execve resumed>)             = 0
+16058 exit_group(0)                     = ?
+16056 wait4(16058, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0, NULL) = 16058
+16056 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=16058, si_uid=0, si_status=0, si_utime=0, si_stime=0} ---
+16056 clone3({flags=CLONE_VM|CLONE_VFORK|CLONE_CLEAR_SIGHAND, exit_signal=SIGCHLD, stack=0x7fa7869a2000, stack_size=0x9000}, 88 <unfinished ...>
+16059 execve("/usr/local/cargo/bin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/usr/local/sbin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/usr/local/bin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/usr/sbin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/usr/bin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/sbin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 execve("/bin/olmayan-program", ["olmayan-program"], 0x7fff23857c38 /* 15 vars */) = -1 ENOENT (No such file or directory)
+16059 exit_group(127)                   = ?
+16056 <... clone3 resumed>)             = 16059
+16056 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=16059, si_uid=0, si_status=127, si_utime=0, si_stime=0} ---
+16056 exit_group(0)                     = ?
+$ ./target/debug/surecler zombi
+alt süreç 16061 bitti, 200 ms sonra henüz beklenmedi: durum = Z
+wait() → exit status: 0; şimdi durum = yok (/proc'ta kaydı kalmadı)
+$ PATH=/usr/bin strace -f -qq -e trace=execve -o /tmp/iz2.txt ./target/debug/surecler > /dev/null; grep -E "execve\(\"/usr/bin/(sh|uname)\"" /tmp/iz2.txt
+16067 execve("/usr/bin/sh", ["sh", "-c", "echo \"alt s\303\274re\303\247: pid $$, \303\274st "...], 0x7fff90cc79d8 /* 15 vars */) = 0
+16068 execve("/usr/bin/uname", ["uname", "-sr"], 0x7fff90cc79d8 /* 15 vars */) = 0
+$ ./target/debug/surecler zombi-beklemesiz
+beklenmeyen alt süreç 16071, başlatıldıktan 200 ms sonra: durum = Z
+beklenmeyen alt süreç 16071, başlatıldıktan 1200 ms sonra: durum = Z

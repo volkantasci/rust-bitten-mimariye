@@ -1,7 +1,36 @@
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test lexer::testler::anahtar_sozcuk_once_ad_gibi_okunur ... ok
+test lexer::testler::en_uzun_eslesme ... ok
+test lexer::testler::sutun_karakter_sayar_bayt_degil ... ok
+test lexer::testler::yorum_atlanir_ve_hata_konumu_bildirilir ... ok
+test parser::testler::hata_konumu_bildirilir ... ok
+test parser::testler::oncelik_ve_sola_birlesme ... ok
+test parser::testler::parantez_onceligi_degistirir ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
 $ ./target/release/minik ast ornekler/ifade.mk
 (let x (+ 2 (* 3 (- 4 1))))
 (print x)
+$ cat ornekler/oncelik.mk
+print(1 + 2 * 3 - 4);
+$ ./target/release/minik iz ornekler/oncelik.mk
+ifade(en_az = 0)
+  önek: 1
+  '+' gücü 5 > 0: sağ işleneni oku
+  ifade(en_az = 5)
+    önek: 2
+    '*' gücü 6 > 5: sağ işleneni oku
+    ifade(en_az = 6)
+      önek: 3
+      '-' gücü 5 ≤ 6: dur
+    kuruldu: (* 2 3)
+    '-' gücü 5 ≤ 5: dur
+  kuruldu: (+ 1 (* 2 3))
+  '-' gücü 5 > 0: sağ işleneni oku
+  ifade(en_az = 5)
+    önek: 4
+  kuruldu: (- (+ 1 (* 2 3)) 4)
+(print (- (+ 1 (* 2 3)) 4))
 $ cat ornekler/fib.mk
 // Özyinelemeli Fibonacci
 fn fib(n) {

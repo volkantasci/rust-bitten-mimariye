@@ -1,24 +1,53 @@
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test crc::testler::her_tek_bit_degisimi_crcyi_degistirir ... ok
+test crc::testler::yayimlanmis_denetim_degeri ... ok
+test gunluk::testler::kuyruktaki_yarim_kayit_kirpilabilir ... ok
+test gunluk::testler::ortadaki_kaydin_hicbir_tek_bit_bozulmasi_kirpilmaz ... ok
+test gunluk::testler::ortadaki_veri_bozulmasi_kuyruk_sayilmaz ... ok
+test gunluk::testler::uzunluk_bozulmasi_baslik_crcsine_takilir ... ok
+test motor::testler::ortadaki_bozulmada_acilmaz_ve_dosyaya_dokunmaz ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test protokol::testler::degerde_bosluk_olabilir ... ok
+test protokol::testler::eksik_arguman_ve_bilinmeyen_komut ... ok
+test protokol::testler::komut_adi_ascii_harf_duyarsiz ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+$ cargo test --doc -- --nocapture 2>&1 | grep -E "^error|^ *--> |^ *= help|^test "
+error[E0596]: cannot borrow data in an `Arc` as mutable
+  --> src/sunucu.rs:11:28
+   = help: trait `DerefMut` is required to modify through a dereference, but it is not implemented for `Arc<Motor>`
+error: aborting due to 1 previous error
+test src/sunucu.rs - sunucu (line 5) - compile fail ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
 $ cargo build -q --release
-$ ./target/release/ambar istemci 127.0.0.1:7001 "SET dil rust" "GET dil" "SET selam merhaba dünya" "GET selam" "DEL dil" "GET dil" SAY "UCUR hepsini"
-> SET dil rust
-< OK
-> GET dil
-< DEGER rust
-> SET selam merhaba dünya
-< OK
-> GET selam
-< DEGER merhaba dünya
-> DEL dil
-< OK
-> GET dil
-< YOK
-> SAY
-< SAYI 1
-> UCUR hepsini
-< HATA bilinmeyen komut: "UCUR hepsini"
-$ exec 3<>/dev/tcp/127.0.0.1/7001; printf "GET selam\nSAY\n" >&3; head -n 2 <&3
-DEGER merhaba dünya
-SAYI 1
-$ cat calisma/sunucu.log
-kurtarıldı: 0 kayıt
+$ ./target/release/ambar istemci 127.0.0.1:7001 "yaz dil rust" "oku dil" "yaz selam merhaba dünya" "oku selam" "sil dil" "oku dil" say "uçur hepsini"
+> yaz dil rust
+< tamam
+> oku dil
+< değer rust
+> yaz selam merhaba dünya
+< tamam
+> oku selam
+< değer merhaba dünya
+> sil dil
+< tamam
+> oku dil
+< yok
+> say
+< sayı 1
+> uçur hepsini
+< hata: bilinmeyen komut: "uçur hepsini"
+$ exec 3<>/dev/tcp/127.0.0.1/7001; printf "oku selam\nsay\n" >&3; head -n 2 <&3
+değer merhaba dünya
+sayı 1
+$ exec 3<>/dev/tcp/127.0.0.1/7001; printf "yaz not birinci satır\nikinci satır\n" >&3; head -n 2 <&3
+tamam
+hata: bilinmeyen komut: "ikinci satır"
+$ exec 3<>/dev/tcp/127.0.0.1/7001; head -c 1049616 /dev/zero | tr "\0" a >&3; head -n 1 <&3
+hata: satır çok uzun
+$ cat sunucu.log
+günlükten 0 kayıt okundu
 ambar dinliyor: 127.0.0.1:7001
+$ ./target/release/ambar listele calisma
+günlük: 4 kayıt; canlı anahtar: 2
+  not = birinci satır
+  selam = merhaba dünya

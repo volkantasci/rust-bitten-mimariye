@@ -1,13 +1,36 @@
+$ cargo test --lib -- --test-threads=1 2>&1 | grep -E "^test "
+test crc::testler::her_tek_bit_degisimi_crcyi_degistirir ... ok
+test crc::testler::yayimlanmis_denetim_degeri ... ok
+test gunluk::testler::kuyruktaki_yarim_kayit_kirpilabilir ... ok
+test gunluk::testler::ortadaki_kaydin_hicbir_tek_bit_bozulmasi_kirpilmaz ... ok
+test gunluk::testler::ortadaki_veri_bozulmasi_kuyruk_sayilmaz ... ok
+test gunluk::testler::uzunluk_bozulmasi_baslik_crcsine_takilir ... ok
+test motor::testler::gunluk_sirasi_indeks_sirasiyla_ayni ... ok
+test motor::testler::toplu_kipte_onay_kalicilikten_sonra_gelir ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test protokol::testler::degerde_bosluk_olabilir ... ok
+test protokol::testler::eksik_arguman_ve_bilinmeyen_komut ... ok
+test protokol::testler::komut_adi_ascii_harf_duyarsiz ... ok
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
 $ cargo build -q --release
-# fsync kipi: her (veri: ana makinenin diski, btrfs)
+$ grep " /work " /proc/mounts | cut -d" " -f1-3
+/dev/mapper/root /work btrfs
+# fsync kipi: her (veri: /work, ana makinenin diski)
 $ ./target/release/ambar yuk 127.0.0.1:7011 16 300
-16 istemci × 300 SET = 4800 yazma, 4.89 s, 981 yazma/s, sunucu: SAYI 4800
-# fsync kipi: toplu (veri: ana makinenin diski, btrfs)
+16 istemci × 300 yazma = 4800 yazma, 4.82 s, 996 yazma/s
+  gecikme: ortalama 16.03 ms, ortanca 16.03 ms, %99 21.69 ms; sunucu: sayı 4800, yazma 4800 fsync 4800
+# fsync kipi: toplu (veri: /work, ana makinenin diski)
 $ ./target/release/ambar yuk 127.0.0.1:7012 16 300
-16 istemci × 300 SET = 4800 yazma, 0.95 s, 5065 yazma/s, sunucu: SAYI 4800
-# fsync kipi: yok (veri: ana makinenin diski, btrfs)
+16 istemci × 300 yazma = 4800 yazma, 0.95 s, 5050 yazma/s
+  gecikme: ortalama 3.17 ms, ortanca 3.12 ms, %99 4.14 ms; sunucu: sayı 4800, yazma 4800 fsync 300
+# fsync kipi: yok (veri: /work, ana makinenin diski)
 $ ./target/release/ambar yuk 127.0.0.1:7013 16 300
-16 istemci × 300 SET = 4800 yazma, 0.04 s, 114916 yazma/s, sunucu: SAYI 4800
+16 istemci × 300 yazma = 4800 yazma, 0.05 s, 92635 yazma/s
+  gecikme: ortalama 0.17 ms, ortanca 0.15 ms, %99 0.75 ms; sunucu: sayı 4800, yazma 4800 fsync 0
+$ grep " / " /proc/mounts | grep -oE "^overlay|fsync=[a-z]+"
+overlay
+fsync=volatile
 # fsync kipi: her (veri: konteynerin /tmp'si)
 $ ./target/release/ambar yuk 127.0.0.1:7019 16 300
-16 istemci × 300 SET = 4800 yazma, 0.04 s, 135009 yazma/s, sunucu: SAYI 4800
+16 istemci × 300 yazma = 4800 yazma, 0.04 s, 119279 yazma/s
+  gecikme: ortalama 0.13 ms, ortanca 0.12 ms, %99 0.58 ms; sunucu: sayı 4800, yazma 4800 fsync 4800

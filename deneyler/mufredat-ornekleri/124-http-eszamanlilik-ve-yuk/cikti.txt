@@ -1,12 +1,23 @@
+$ cargo test --lib 2>&1 | grep -E "^test result"
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 $ cargo build -q --release
 # 8 işçili havuz:
 $ ./target/release/kapi yuk 127.0.0.1:8101 100 200
-100 bağlantı × 200 istek: 249533 istek/s; bağlantı süresi en kısa 6 ms, ortanca 46 ms, en uzun 77 ms
-# tokio (görev başına bağlantı):
+100 bağlantı × 200 istek: 244608 istek/s; bağlantının bitme süresi en kısa 6 ms, ortanca 45 ms, en uzun 77 ms
+# tokio (her bağlantıya bir görev):
 $ ./target/release/kapi yuk 127.0.0.1:8102 100 200
-100 bağlantı × 200 istek: 300508 istek/s; bağlantı süresi en kısa 45 ms, ortanca 61 ms, en uzun 64 ms
-# 8 yavaş istemci (başlığı bitirmiyor) varken:
+100 bağlantı × 200 istek: 304796 istek/s; bağlantının bitme süresi en kısa 32 ms, ortanca 57 ms, en uzun 62 ms
+# 8 yavaş istemci (başlığı bitirmeyen) varken; sunucularda son süre yok:
 $ ./target/release/kapi yavas 127.0.0.1:8101 8
-8 yavaş bağlantı açıkken normal bir istek: 3061 ms → yanıt yok (Resource temporarily unavailable (os error 11))
+8 yavaş bağlantı açıkken normal bir istek: 3006 ms → yanıt yok (Resource temporarily unavailable (os error 11))
+  yavaş bağlantılardan 0/8 tanesi sunucu tarafından 408 ile kapatıldı
 $ ./target/release/kapi yavas 127.0.0.1:8102 8
 8 yavaş bağlantı açıkken normal bir istek: 0 ms → HTTP/1.1 200 OK
+  yavaş bağlantılardan 0/8 tanesi sunucu tarafından 408 ile kapatıldı
+# aynı deneme, sunucularda 1000 ms istek son süresiyle:
+$ ./target/release/kapi yavas 127.0.0.1:8103 8
+8 yavaş bağlantı açıkken normal bir istek: 717 ms → HTTP/1.1 200 OK
+  yavaş bağlantılardan 8/8 tanesi sunucu tarafından 408 ile kapatıldı
+$ ./target/release/kapi yavas 127.0.0.1:8104 8
+8 yavaş bağlantı açıkken normal bir istek: 0 ms → HTTP/1.1 200 OK
+  yavaş bağlantılardan 8/8 tanesi sunucu tarafından 408 ile kapatıldı

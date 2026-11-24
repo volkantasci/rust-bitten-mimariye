@@ -2,7 +2,7 @@ use std::hint::black_box;
 use std::time::Instant;
 
 #[inline(never)]
-fn sradan(x: u32) -> u32 {
+fn siradan(x: u32) -> u32 {
     black_box(x)
 }
 
@@ -12,7 +12,7 @@ fn main() {
 
     let t = Instant::now();
     for i in 0..n {
-        toplam += sradan(i) as u64; // sıradan fonksiyon çağrısı
+        toplam += siradan(i) as u64; // sıradan fonksiyon çağrısı
     }
     let fonk = t.elapsed();
 

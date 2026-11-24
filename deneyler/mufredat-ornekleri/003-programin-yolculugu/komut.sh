@@ -1,5 +1,5 @@
 #@ video: 003-programin-yolculugu
-#@ degisken: strace -c süreleri; ikili dosya boyutu derleyici sürümüne bağlı
+#@ degisken: strace -c süreleri ve satır sırası (tablo sürelere göre sıralanır; sayılar aynı kalır); ikili dosya boyutu derleyici sürümüne bağlı
 k cargo build --release -q
 ks 'stat -c "%s bayt  %n" target/release/merhaba'
 k file target/release/merhaba
@@ -12,3 +12,10 @@ ks 'strace -e trace=write ./target/release/merhaba'
 ks 'strace -c ./target/release/merhaba > /dev/null'
 # main fonksiyonu makine kodunda
 ks 'nm target/release/merhaba | grep -i "merhaba.*main"'
+# Kendin dene: iki println! kaç write çağrısı yapar?
+cd iki-satir && k cargo build --release -q && ks 'strace -e trace=write ./target/release/iki_satir > /dev/null'; cd ..
+# Çözülmüş sembol adı
+ks 'nm -C target/release/merhaba | grep "merhaba::main"'
+# Çağrıların kaçı yükleyiciye ve C kütüphanesine ait? Rust'ın kendi hazırlığı poll ile başlar
+ks 'strace ./target/release/merhaba 2>&1 >/dev/null | grep -c ""'
+ks 'strace ./target/release/merhaba 2>&1 >/dev/null | grep -n -m1 "^poll"'

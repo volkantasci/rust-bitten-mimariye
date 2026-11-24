@@ -1,4 +1,17 @@
 $ cargo run -q --release
 sunucu tek read ile 13 bayt aldı: "bir|iki|üç|"
-TCP_NODELAY = false: 20 istek   781.6 ms (istek başına 39.08 ms)
-TCP_NODELAY = true : 20 istek     0.4 ms (istek başına 0.02 ms)
+iki küçük yazma, TCP_NODELAY = false    : 20 istek  780.9 ms (istek başına 39.04 ms)
+iki küçük yazma, TCP_NODELAY = true     : 20 istek    0.4 ms (istek başına 0.02 ms)
+tek yazma,       TCP_NODELAY = false    : 20 istek    0.3 ms (istek başına 0.01 ms)
+$ strace -f -e trace=setsockopt ./target/release/tcp_akis 2>&1 | grep TCP_NODELAY
+[pid 16623] setsockopt(5, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+[pid 16625] setsockopt(6, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+iki küçük yazma, TCP_NODELAY = false    : 20 istek  781.1 ms (istek başına 39.06 ms)
+[pid 16623] setsockopt(5, SOL_TCP, TCP_NODELAY, [1], 4) = 0
+[pid 16626] setsockopt(6, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+iki küçük yazma, TCP_NODELAY = true     : 20 istek    1.4 ms (istek başına 0.07 ms)
+[pid 16623] setsockopt(5, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+[pid 16627] setsockopt(6, SOL_TCP, TCP_NODELAY, [0], 4) = 0
+tek yazma,       TCP_NODELAY = false    : 20 istek    0.9 ms (istek başına 0.04 ms)
+$ ./target/release/tcp_akis sunucu-nodelay
+iki küçük yazma, yalnız sunucuda NODELAY: 20 istek  781.9 ms (istek başına 39.09 ms)

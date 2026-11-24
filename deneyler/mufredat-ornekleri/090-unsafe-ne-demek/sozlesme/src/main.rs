@@ -1,7 +1,7 @@
 /// # Safety
 /// `p` geçerli, hizalı ve okunabilir bir i32'yi göstermelidir.
 unsafe fn oku(p: *const i32) -> i32 {
-    *p // 2024 sürümünde: unsafe fn gövdesi de unsafe blok ister (uyarı)
+    *p // 2024 baskısında: unsafe fn gövdesi de unsafe blok ister (uyarı)
 }
 
 fn main() {

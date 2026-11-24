@@ -1,19 +1,28 @@
 $ cargo run -q --release
-matris satır-öncelikli gezinme         3.03 ms
-matris sütun-öncelikli gezinme         2.39 ms
-Vec<u64> toplamı                       1.27 ms
-LinkedList<u64> toplamı                6.97 ms
-AoS: Vec<Parcacik> içinden kütle       3.83 ms
-SoA: Vec<f32> kütle dizisi             2.79 ms
+matris satır-öncelikli gezinme         3.13 ms
+matris sütun-öncelikli gezinme         2.38 ms
+Vec<u64> toplamı                       1.98 ms
+LinkedList<u64> toplamı                7.38 ms
+AoS: Vec<Parcacik> içinden kütle       4.26 ms
+SoA: Vec<f32> kütle dizisi             2.72 ms
 $ cargo run -q --release | grep matris
-matris satır-öncelikli gezinme         2.69 ms
-matris sütun-öncelikli gezinme       117.23 ms
+matris satır-öncelikli gezinme         3.48 ms
+matris sütun-öncelikli gezinme        74.74 ms
+$ RUSTFLAGS="-C llvm-args=-print-changed=quiet" cargo build -q --release --target-dir target/gecisler 2>&1 | grep -c "IR Dump After LoopInterchangePass" | xargs echo "n bilinirken LoopInterchangePass değişikliği:"
+n bilinirken LoopInterchangePass değişikliği: 1
+$ RUSTFLAGS="-C llvm-args=-print-changed=quiet" cargo build -q --release --target-dir target/gecisler 2>&1 | grep -c "IR Dump After LoopInterchangePass" | xargs echo "n gizlenince LoopInterchangePass değişikliği:"
+n gizlenince LoopInterchangePass değişikliği: 0
+$ RUSTFLAGS="-C llvm-args=-enable-loopinterchange=false" cargo run -q --release --target-dir target/donusumsuz | grep matris
+matris satır-öncelikli gezinme         3.20 ms
+matris sütun-öncelikli gezinme        98.70 ms
 $ cargo run -q --release
 sonuç atılınca      :      0.000 ms
-black_box ile       :     31.996 ms
+black_box ile       :     32.332 ms
 $ cargo build -q --release
-$ hyperfine -N --warmup 3 --runs 30 --style basic ./target/release/black_box
+$ hyperfine -N --warmup 3 --runs 30 --style basic --export-json target/olcum.json ./target/release/black_box
 Benchmark 1: ./target/release/black_box
-  Time (mean ± σ):      32.8 ms ±   0.4 ms    [User: 32.0 ms, System: 0.5 ms]
-  Range (min … max):    32.1 ms …  33.6 ms    30 runs
+  Time (mean ± σ):      33.3 ms ±   1.0 ms    [User: 32.5 ms, System: 0.5 ms]
+  Range (min … max):    32.2 ms …  36.2 ms    30 runs
  
+$ python3 -c "import json; t=sorted(x*1000 for x in json.load(open(\"target/olcum.json\"))[\"results\"][0][\"times\"]); print(\" \".join(f\"{x:.1f}\" for x in t))"
+32.2 32.2 32.2 32.3 32.3 32.4 32.4 32.7 32.7 32.7 32.8 33.0 33.1 33.1 33.2 33.3 33.3 33.3 33.3 33.3 33.4 33.6 33.6 33.8 34.2 34.7 34.7 34.8 35.3 36.2

@@ -6,7 +6,7 @@ use syn::{Data, DeriveInput, Fields, parse_macro_input};
 /// `tip_adi()` ve `alan_adlari()` metotlarını üretir.
 #[proc_macro_derive(Tanit)]
 pub fn tanit(girdi: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(girdi as DeriveInput); // token'lar → sözdizimi ağacı
+    let ast = parse_macro_input!(girdi as DeriveInput); // belirteçler → söz dizimi ağacı
     let ad = &ast.ident;
     let alanlar: Vec<String> = match &ast.data {
         Data::Struct(s) => match &s.fields {
@@ -20,7 +20,7 @@ pub fn tanit(girdi: TokenStream) -> TokenStream {
         }
     };
     let ad_metni = ad.to_string();
-    quote! { // sözdizimi ağacı → yeni token'lar
+    quote! { // söz dizimi ağacı → yeni belirteçler
         impl #ad {
             pub fn tip_adi() -> &'static str { #ad_metni }
             pub fn alan_adlari() -> &'static [&'static str] { &[#(#alanlar),*] }

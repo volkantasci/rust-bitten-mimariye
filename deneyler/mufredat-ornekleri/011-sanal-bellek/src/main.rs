@@ -6,7 +6,7 @@ fn durum(alan: &str) -> String {
 }
 
 fn kucuk_hata() -> u64 {
-    // /proc/self/stat 10. alan: minflt (küçük sayfa hatası sayısı)
+    // /proc/self/stat 10. alan: minflt (diske gitmeyen, küçük sayfa hatası sayısı)
     let s = fs::read_to_string("/proc/self/stat").unwrap();
     let sonra = &s[s.rfind(')').unwrap() + 2..];
     sonra.split_whitespace().nth(7).unwrap().parse().unwrap()
@@ -24,6 +24,6 @@ fn main() {
     println!("sayfalara dokundu: VmRSS {:>12}  sayfa hatası {:>7}", durum("VmRSS:"), kucuk_hata());
     let dev = fs::read_to_string("/proc/self/smaps_rollup").unwrap();
     let dev = dev.lines().find(|l| l.starts_with("AnonHugePages:")).unwrap();
-    println!("{dev}   (2 MiB'lik dev sayfalarla karşılanan kısım)");
+    println!("{dev}   (2 MiB'lik büyük sayfalarla karşılanan kısım)");
     println!("toplam: {}", v.iter().step_by(4096).map(|&b| b as u64).sum::<u64>());
 }

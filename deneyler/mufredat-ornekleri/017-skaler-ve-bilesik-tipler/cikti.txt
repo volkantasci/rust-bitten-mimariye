@@ -12,6 +12,7 @@ char         boyut  4  hizalama  4
 ()           boyut  0  hizalama  1
 (u8, u32)    boyut  8  hizalama  4
 [u16; 5]     boyut 10  hizalama  2
+(u8, u32) alanları: .0@0 .1@4
 
 300_i32 as u8     = 44
 -1_i32 as u32     = 4294967295

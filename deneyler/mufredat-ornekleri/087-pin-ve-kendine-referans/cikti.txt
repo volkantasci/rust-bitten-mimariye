@@ -1,6 +1,26 @@
 $ cargo run -q
-a.veri @ 0x7ffeed0fbb08   a.isaretci = 0x7ffeed0fbb08
-b.veri @ 0x7ffeed0fbb68   b.isaretci = 0x7ffeed0fbb08  ← hâlâ eski yeri gösteriyor
+a.veri @ 0x7ffcefd44c00   a.isaretci = 0x7ffcefd44c00
+b.veri @ 0x7ffcefd44c60   b.isaretci = 0x7ffcefd44c00  ← hâlâ eski yeri gösteriyor
+sabitlenmiş değer @ 0x5613c0990d68, isaretci = 0x5613c0990d68
+kutu taşındıktan sonra @ 0x5613c0990d68, isaretci = 0x5613c0990d68  ← aynı yer
+$ cargo +nightly miri run -q -- oku 2>&1 | head -n 12
+error: Undefined Behavior: memory access failed: alloc869 has been freed, so this pointer is dangling
+  --> src/main.rs:24:28
+   |
+24 |         let ilk = unsafe { *b.isaretci }; // eski (artık geçersiz) yeri okumak
+   |                            ^^^^^^^^^^^ Undefined Behavior occurred here
+   |
+   = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+   = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+help: alloc869 was allocated here:
+  --> src/main.rs:10:9
+   |
+10 |     let mut k = KendineBakan { veri: *b"abcd", isaretci: std::ptr::null() };
+$ cargo +nightly miri run -q 2>&1 | head -n 6
+a.veri @ 0x237a0   a.isaretci = 0x237a0
+b.veri @ 0x2c8f8   b.isaretci = 0x237a0  ← hâlâ eski yeri gösteriyor
+sabitlenmiş değer @ 0x34608, isaretci = 0x34608
+kutu taşındıktan sonra @ 0x34608, isaretci = 0x34608  ← aynı yer
 $ cargo build -q
 error[E0277]: `PhantomPinned` cannot be unpinned
   --> src/main.rs:10:23
@@ -21,6 +41,19 @@ note: required because it appears within the type `Sabit`
 note: required by a bound in `Pin::<Ptr>::new`
   --> /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/core/src/pin.rs:1181:4
 
+error[E0277]: `{async block@src/main.rs:13:23: 13:28}` cannot be unpinned
+  --> src/main.rs:19:23
+   |
+19 |     let _q = Pin::new(&mut gelecek);
+   |              -------- ^^^^^^^^^^^^ the trait `Unpin` is not implemented for `{async block@src/main.rs:13:23: 13:28}`
+   |              |
+   |              required by a bound introduced by this call
+   |
+   = note: consider using the `pin!` macro
+           consider using `Box::pin` if you need to access the pinned value outside of the current scope
+note: required by a bound in `Pin::<Ptr>::new`
+  --> /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/core/src/pin.rs:1181:4
+
 For more information about this error, try `rustc --explain E0277`.
-error: could not compile `sabitlenmis` (bin "sabitlenmis") due to 1 previous error
+error: could not compile `sabitlenmis` (bin "sabitlenmis") due to 2 previous errors
 [çıkış kodu: 101]

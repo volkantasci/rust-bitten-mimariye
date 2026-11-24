@@ -1,6 +1,6 @@
-//! Minik: bitirme projesi için küçük bir programlama dili.
-//! Kaynak metin → sözcük çözümleyici (lexer) → ayrıştırıcı (parser) → AST
-//! → (a) ağaç yürüten yorumlayıcı  (b) bayt kod derleyici + yığın makinesi (VM)
+//! Minik — bitirme projesi, 128. adım (bitmiş hâl): kaynak metin → sözcüksel çözümleyici
+//! (lexer) → ayrıştırıcı (parser) → AST → (a) ağaç dolaşan yorumlayıcı, (b) bayt kod
+//! derleyicisi + yığın makinesi (VM). İki motor aynı programda aynı çıktıyı vermeli.
 pub mod ast;
 pub mod derleyici;
 pub mod lexer;
@@ -9,38 +9,39 @@ pub mod vm;
 pub mod yorumlayici;
 
 #[cfg(test)]
-mod testler {
-    use crate::ast::{IkiliOp, Deyim, s_ifade};
-    use crate::yorumlayici::{Deger, ikili};
+mod fark_testi {
+    //! Fark testi (differential testing): aynı program iki ayrı gerçekleştirime verilir;
+    //! çıktılar ve hata mesajları aynı olmalı. Farkı, bir tarafta hata olduğunu gösterir.
+    use crate::{derleyici, parser, vm, yorumlayici};
 
-    fn ifade(kaynak: &str) -> String {
-        match crate::parser::ayristir(kaynak).unwrap().remove(0) {
-            Deyim::Ifade(i) => s_ifade(&i),
-            d => panic!("ifade bekleniyordu: {d:?}"),
+    type Sonuc = (String, Result<(), String>);
+
+    fn iki_motor(kaynak: &str) -> (Sonuc, Sonuc) {
+        let program = parser::ayristir(kaynak).unwrap();
+        let mut a = Vec::new();
+        let ra = yorumlayici::calistir(&program, yorumlayici::AZAMI_DERINLIK, &mut a).map(|_| ());
+        let mut b = Vec::new();
+        let rb = derleyici::derle(&program)
+            .and_then(|p| vm::calistir(&p, yorumlayici::AZAMI_DERINLIK, &mut b))
+            .map(|_| ());
+        ((String::from_utf8(a).unwrap(), ra), (String::from_utf8(b).unwrap(), rb))
+    }
+
+    #[test]
+    fn ornek_programlarda_iki_motor_ayni() {
+        for ad in ["fib", "kare", "kisa_devre", "sifira_bolme", "sonsuz", "ifade", "esitlik", "oncelik"] {
+            let yol = format!("{}/ornekler/{ad}.mk", env!("CARGO_MANIFEST_DIR"));
+            let kaynak = std::fs::read_to_string(&yol).unwrap();
+            let (agac, vm) = iki_motor(&kaynak);
+            assert_eq!(agac, vm, "{ad}.mk");
         }
     }
 
     #[test]
-    fn oncelik_ve_sola_baglilik() {
-        assert_eq!(ifade("1 + 2 * 3 - 4;"), "(- (+ 1 (* 2 3)) 4)");
-        assert_eq!(ifade("a < b && !c || d;"), "(|| (&& (< a b) (! c)) d)");
-    }
-
-    #[test]
-    fn hata_konumu_bildirilir() {
-        let h = crate::parser::ayristir("let x = (1 + 2;").unwrap_err();
-        assert!(h.contains("sütun 15"), "{h}");
-    }
-
-    #[test]
-    fn tasma_sessizce_sarmaz() {
-        assert!(ikili(IkiliOp::Carp, Deger::Sayi(i64::MAX), Deger::Sayi(2)).is_err());
-    }
-
-    #[test]
-    fn iki_motor_ayni_adim_sayisina_gerek_duymaz_ama_ayni_sonucu_verir() {
-        let p = crate::parser::ayristir("fn f(n) { if n < 2 { return n; } return f(n - 1) + f(n - 2); } f(15);").unwrap();
-        assert!(crate::yorumlayici::Yorumlayici::calistir(&p).is_ok());
-        assert!(crate::vm::calistir(&crate::derleyici::derle(&p).unwrap()).is_ok());
+    fn tanimsiz_ad_iki_motorda_farkli_anda_yakalanir() {
+        let (agac, vm) = iki_motor("print(1); print(y);");
+        assert_eq!(agac.0, "1\n"); // ağaç dolaşan: önce 1'i yazar, adı çalışırken arar
+        assert_eq!(vm.0, ""); // derleyici: adı derlerken çözer, hiçbir şey çalışmadan hata
+        assert_ne!(agac.1, vm.1);
     }
 }

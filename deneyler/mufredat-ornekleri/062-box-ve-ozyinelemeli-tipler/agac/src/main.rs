@@ -40,6 +40,6 @@ fn main() {
     }
     let mut v = Vec::new();
     a.sirali(&mut v);
-    println!("sıralı gezinme: {v:?}, derinlik {}", a.derinlik());
+    println!("kök ortada gezinme (sol, kök, sağ): {v:?}, derinlik {}", a.derinlik());
     println!("size_of::<Box<Agac>>() = {} bayt, size_of::<Agac>() = {} bayt", size_of::<Box<Agac>>(), size_of::<Agac>());
 }

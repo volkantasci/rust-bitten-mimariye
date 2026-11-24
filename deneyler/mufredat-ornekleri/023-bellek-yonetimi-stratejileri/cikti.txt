@@ -1,17 +1,102 @@
 $ cargo run -q
+istenen: 32 bayt, hizalama 8
+blok 0x55ad9b885ae0: [0, 10, 20, 30]
+ikinci blok 0x55ad9b885ae0 ayrıldı
+main bitti; ikinci blok hiç iade edilmedi
+$ cargo +nightly miri run -q
+istenen: 32 bayt, hizalama 8
+blok 0x273b8: [0, 10, 20, 30]
+ikinci blok 0x330f8 ayrıldı
+main bitti; ikinci blok hiç iade edilmedi
+error: memory leaked: alloc3654 (Rust heap, size: 32, align: 8), allocated here:
+  --> src/main.rs:17:17
+   |
+17 |         let q = alloc(duzen); // ikinci blok: iade etmeyi "unutuyoruz"
+   |                 ^^^^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+note: set `MIRIFLAGS=-Zmiri-ignore-leaks` to disable this check
+
+error: aborting due to 1 previous error
+
+[çıkış kodu: 1]
+$ cargo run -q
+a'nın sahip sayısı: 2
+a'nın sahip sayısı: 1
+  a bırakıldı
+--- çevrim: x -> y -> x
+x: 2, y: 2
+drop sonrası x: 1, y: 1
+main bitiyor
+$ cargo +nightly miri run -q
+a'nın sahip sayısı: 2
+a'nın sahip sayısı: 1
+  a bırakıldı
+--- çevrim: x -> y -> x
+x: 2, y: 2
+drop sonrası x: 1, y: 1
+main bitiyor
+error: memory leaked: alloc2391 (Rust heap, size: 40, align: 8), allocated here:
+   --> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49
+    |
+438 |               Self::from_inner(Box::into_non_null(Box::new(RcInner {
+    |  _________________________________________________^
+439 | |                 strong: Cell::new(1),
+440 | |                 weak: Cell::new(1),
+441 | |                 value,
+442 | |             })))
+    | |______________^
+    |
+    = note: stack backtrace:
+            0: std::rc::Rc::<Dugum>::new
+                at /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49: 442:15
+            1: dugum
+                at src/main.rs:17:5: 17:53
+            2: main
+                at src/main.rs:28:13: 28:23
+
+error: memory leaked: alloc2452 (Rust heap, size: 40, align: 8), allocated here:
+   --> /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49
+    |
+438 |               Self::from_inner(Box::into_non_null(Box::new(RcInner {
+    |  _________________________________________________^
+439 | |                 strong: Cell::new(1),
+440 | |                 weak: Cell::new(1),
+441 | |                 value,
+442 | |             })))
+    | |______________^
+    |
+    = note: stack backtrace:
+            0: std::rc::Rc::<Dugum>::new
+                at /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/rcs/rc.rs:438:49: 442:15
+            1: dugum
+                at src/main.rs:17:5: 17:53
+            2: main
+                at src/main.rs:29:13: 29:23
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+note: set `MIRIFLAGS=-Zmiri-ignore-leaks` to disable this check
+
+error: aborting due to 2 previous errors
+
+[çıkış kodu: 1]
+$ cargo run -q
+x: 1 güçlü, 1 zayıf; y: 2 güçlü
+  x bırakıldı
+  y bırakıldı
+main bitiyor
+$ cargo run -q
+toplama başlıyor (kök: A)
+  süpürüldü: D
+  süpürüldü: E
+  süpürüldü: F
+kalanlar: ['A', 'B', 'C']
+$ cargo run -q
 iç kapsam bitiyor
   C bırakıldı
   B bırakıldı
   D bırakıldı
 main bitiyor
   A bırakıldı
-$ python3 --version
-Python 3.13.5
-$ python3 python/gc_ornek.py
-a'nın referans sayısı: 1
-  a silindi
---- döngü kuruluyor
-del sonrası: hiçbir şey silinmedi
-  x silindi
-  y silindi
-gc.collect() bulduğu erişilemez nesne: 2

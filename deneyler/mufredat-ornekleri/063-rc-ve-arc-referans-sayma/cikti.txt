@@ -5,3 +5,26 @@ güçlü sayaç: 2 (c kapsam dışında)
 zayıf sayaç: 1, upgrade: Some(18)
 upgrade (sahipler gittikten sonra): None
 Arc ile paylaşılan vektörden: [10, 20, 30], sayaç şimdi 1
+$ cargo build -q
+error[E0277]: `Rc<Vec<i32>>` cannot be sent between threads safely
+ --> src/main.rs:8:27
+  |
+8 |     let t = thread::spawn(move || kopya.len());
+  |             ------------- -------^^^^^^^^^^^^
+  |             |             |
+  |             |             `Rc<Vec<i32>>` cannot be sent between threads safely
+  |             |             within this `{closure@src/main.rs:8:27: 8:34}`
+  |             required by a bound introduced by this call
+  |
+  = help: within `{closure@src/main.rs:8:27: 8:34}`, the trait `Send` is not implemented for `Rc<Vec<i32>>`
+note: required because `kopya` is used within this closure
+ --> src/main.rs:8:35
+  |
+8 |     let t = thread::spawn(move || kopya.len());
+  |                                   ^^^^^
+note: required by a bound in `spawn`
+ --> /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/thread/functions.rs:125:0
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `rc_is_parcacigi` (bin "rc_is_parcacigi") due to 1 previous error
+[çıkış kodu: 101]

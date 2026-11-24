@@ -1,5 +1,12 @@
 $ cargo run -q --release
-String::new + 1000 × push_str              ayırma     1  büyütme   8
-String::with_capacity(2000) + 1000 × push  ayırma     1  büyütme   0
-1000 × format!("{i}") → Vec<String>        ayırma  1001  büyütme   0
-1000 × Box::new(i)                         ayırma  1001  büyütme   0
+istenen   8 bayt → bloklar 32 bayt arayla
+istenen  25 bayt → bloklar 48 bayt arayla
+istenen 100 bayt → bloklar 112 bayt arayla
+24 baytlık yeni kutular, iade edilen 8 baytlıkların adreslerini ters sırayla aldı mı: true
+String::new + 1000 × push_str                 ayırma     1  büyütme   8
+String::with_capacity(2000) + 1000 × push_str ayırma     1  büyütme   0
+1000 × format!("{i}") → Vec<String>           ayırma  1001  büyütme   0
+1000 × Box::new(i)                            ayırma  1001  büyütme   0
+$ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "libc::malloc(layout.size())\|libc::realloc(ptr as \*mut libc::c_void, new_size)" $S/std/src/sys/alloc/unix.rs
+31:        unsafe { libc::malloc(layout.size()) as *mut u8 }
+71:        unsafe { libc::realloc(ptr as *mut libc::c_void, new_size) as *mut u8 }

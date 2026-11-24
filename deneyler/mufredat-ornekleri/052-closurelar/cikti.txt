@@ -2,9 +2,10 @@ $ cargo run -q
 hiçbir şey yakalamayan :  0 bayt
 &u64 yakalayan         :  8 bayt
 &mut u32 yakalayan     :  8 bayt
+&String yakalayan      :  8 bayt
+1 11 1 2 5
 String taşıyan (move)  : 24 bayt
-1 11 1 2
-Ferris
+Deniz
 $ cargo build -q
 error[E0382]: use of moved value: `tuket`
  --> src/main.rs:5:20

@@ -1,8 +1,12 @@
 $ cargo run -q --release
 sort_by_key (kararlı): [("Ayşe", 1), ("Ece", 1), ("Deniz", 2), ("Ali", 3), ("Can", 3)]
-sort (kararlı) :  20832462 karşılaştırma
-sort_unstable  :  20565895 karşılaştırma
-n log2 n       :  19931569
+rastgele     sort (kararlı) :  20832462 karşılaştırma
+rastgele     sort_unstable  :  20565895 karşılaştırma
+zaten sıralı sort (kararlı) :    999999 karşılaştırma
+zaten sıralı sort_unstable  :    999999 karşılaştırma
+n log2 n                    :  19931569
+log2(n!) (alt sınır)        :  18488885
+n - 1                       :    999999
 $ S=$(rustc +nightly --print sysroot)/lib/rustlib/src/rust/library; grep -n "is based on \[driftsort\]" $S/alloc/src/slice.rs | head -1; grep -n "is based on \[ipnsort\]" $S/core/src/slice/mod.rs | head -1
 95:    /// The current implementation is based on [driftsort] by Orson Peters and Lukas Bergdoll, which
 3118:    /// The current implementation is based on [ipnsort] by Lukas Bergdoll and Orson Peters, which

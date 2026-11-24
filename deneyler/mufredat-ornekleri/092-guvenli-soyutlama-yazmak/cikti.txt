@@ -12,10 +12,55 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 $ cargo +nightly miri test -q dogru_surum 2>&1 | grep -E "test result|running"
 running 1 test
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.11s
-$ cargo +nightly miri test -q hatali_surum 2>&1 | grep -E "Undefined Behavior|error:|-->" | head -n 6
+$ cargo +nightly miri test -q hatali_surum 2>&1 | sed -n "/^error: Undefined Behavior/,/this is on thread/p"
 error: Undefined Behavior: trying to retag from <130716> for Unique permission at alloc40299[0x4], but that tag does not exist in the borrow stack for this location
   --> src/lib.rs:23:9
+   |
+23 | /         (
+24 | |             std::slice::from_raw_parts_mut(p, orta),
+25 | |             std::slice::from_raw_parts_mut(p.add(orta - 1), n - orta + 1),
+26 | |         )
+   | |         ^
+   | |         |
+   | |_________this error occurs as part of retag at alloc40299[0x0..0x8]
+   |           while retagging field .0
+   |
+   = help: this indicates a potential bug in the program: it performed an invalid operation, but the Stacked Borrows rules it violated are still experimental
+   = help: see https://github.com/rust-lang/unsafe-code-guidelines/blob/master/wip/stacked-borrows.md for further information
+help: <130716> was created by a Unique retag at offsets [0x0..0x8]
   --> src/lib.rs:24:13
+   |
+24 |             std::slice::from_raw_parts_mut(p, orta),
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: <130716> was later invalidated at offsets [0x4..0x14] by a Unique retag
   --> src/lib.rs:25:13
-error: aborting due to 1 previous error
-error: test failed, to rerun pass `--lib`
+   |
+25 |             std::slice::from_raw_parts_mut(p.add(orta - 1), n - orta + 1),
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this is on thread `testler::hatali`
+$ MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -q hatali_surum 2>&1 | sed -n "/^error: Undefined Behavior/,/this is on thread/p"
+error: Undefined Behavior: write access through <128158> at alloc40274[0x4] is forbidden
+  --> src/lib.rs:48:9
+   |
+48 |         b[0] = 99;
+   |         ^^^^^^^^^ Undefined Behavior occurred here
+   |
+   = help: this indicates a potential bug in the program: it performed an invalid operation, but the Tree Borrows rules it violated are still experimental
+   = help: see https://github.com/rust-lang/unsafe-code-guidelines/blob/master/wip/tree-borrows.md for further information
+   = help: the accessed tag <128158> has state Disabled which forbids this child write access
+help: the accessed tag <128158> was created here, in the initial state Reserved
+  --> src/lib.rs:46:17
+   |
+46 |         let (a, b) = ikiye_bol_hatali(&mut v, 2);
+   |                 ^
+help: the accessed tag <128158> later transitioned to Disabled due to a foreign write access at offsets [0x4..0x8]
+  --> src/lib.rs:47:9
+   |
+47 |         a[1] = 20; // aynı elemana iki ayrı &mut üzerinden yazılıyor
+   |         ^^^^^^^^^
+   = help: this transition corresponds to a loss of read and write permissions
+   = note: this is on thread `testler::hatali`
+$ rm -rf /tmp/bolme-kopya && mkdir /tmp/bolme-kopya && cp -r Cargo.toml Cargo.lock src /tmp/bolme-kopya/ && cd /tmp/bolme-kopya && sed -i "/a\[1\] = 20;/d; /b\[0\] = 99;/d; /assert_eq!(v\[1\], 99);/d" src/lib.rs && cargo +nightly miri test -q hatali_surum 2>&1 | grep -E "^error: Undefined Behavior|^test result"
+error: Undefined Behavior: trying to retag from <130716> for Unique permission at alloc40938[0x4], but that tag does not exist in the borrow stack for this location
+$ cd /tmp/bolme-kopya && MIRIFLAGS=-Zmiri-tree-borrows cargo +nightly miri test -q hatali_surum 2>&1 | grep -E "^error: Undefined Behavior|^test result"
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.13s

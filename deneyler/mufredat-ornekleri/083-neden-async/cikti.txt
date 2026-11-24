@@ -2,14 +2,23 @@ $ cat /sys/fs/cgroup/pids.max
 2048
 $ cargo build -q --release
 $ ./target/release/neden_async is-parcacigi 1000
-1000 iş parçacığı : başlatma   19.5 ms, RSS 12672 kB, sanal 8294860 kB
+1000 iş parçacığı : başlatma   19.9 ms, RSS 12716 kB, sanal 8294860 kB
     toplam süre 1.02 s
 $ ./target/release/neden_async gorev 1000
-1000 async görev   : başlatma    0.9 ms, RSS 3656 kB, sanal 816016 kB
+1000 async görev   : başlatma    0.9 ms, RSS 3588 kB, sanal 816016 kB
     toplam süre 1.00 s
 $ ./target/release/neden_async gorev 100000
-100000 async görev   : başlatma   32.9 ms, RSS 41504 kB, sanal 853892 kB
-    toplam süre 1.03 s
+100000 async görev   : başlatma   34.9 ms, RSS 41668 kB, sanal 853892 kB
+    toplam süre 1.04 s
+$ MALLOC_ARENA_MAX=1 ./target/release/neden_async is-parcacigi 1000
+1000 iş parçacığı : başlatma   21.4 ms, RSS 12112 kB, sanal 2069864 kB
+    toplam süre 1.02 s
+$ MALLOC_ARENA_MAX=1 RUST_MIN_STACK=65536 ./target/release/neden_async is-parcacigi 1000
+1000 iş parçacığı : başlatma   19.7 ms, RSS 12148 kB, sanal 85864 kB
+    toplam süre 1.02 s
+$ RUST_MIN_STACK=65536 ./target/release/neden_async is-parcacigi 1000
+1000 iş parçacığı : başlatma   19.9 ms, RSS 12540 kB, sanal 6310860 kB
+    toplam süre 1.02 s
 $ ./target/release/neden_async is-parcacigi 5000 2>&1 | grep -E "panicked|failed|Resource" | head -n 3
-thread 'main' (14541) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/thread/functions.rs:131:29:
+thread 'main' (21862) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/thread/functions.rs:131:29:
 failed to spawn thread: Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }

@@ -1,31 +1,61 @@
-$ cargo test -q --lib 2>&1 | grep "test result"
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+$ cargo test --lib -- --test-threads=1 2>&1 | grep "^test "
+test crc::testler::her_tek_bit_degisimi_crcyi_degistirir ... ok
+test crc::testler::yayimlanmis_denetim_degeri ... ok
+test gunluk::testler::kuyruktaki_yarim_kayit_kirpilabilir ... ok
+test gunluk::testler::ortadaki_kaydin_hicbir_tek_bit_bozulmasi_kirpilmaz ... ok
+test gunluk::testler::ortadaki_veri_bozulmasi_kuyruk_sayilmaz ... ok
+test gunluk::testler::uzunluk_bozulmasi_baslik_crcsine_takilir ... ok
+test motor::testler::ortadaki_bozulmada_acilmaz_ve_dosyaya_dokunmaz ... ok
+test motor::testler::yeniden_acinca_ayni_durum_kurulur ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 $ cargo build -q --release
-$ ./target/release/ambar doldur calisma/veri 1000
+$ ./target/release/ambar crc 123456789
+cbf43926 (3421780262)
+$ printf 123456789 | cksum -a crc32b
+3421780262 9
+$ ./target/release/ambar crc 123456788
+bcf309b0 (3170044336)
+$ ./target/release/ambar doldur calisma 1000
 1000 kayıt yazıldı
-$ stat -c "%s bayt" calisma/veri/gunluk.ambar
-33890 bayt
-$ truncate -s -5 calisma/veri/gunluk.ambar
-$ ./target/release/ambar kurtar calisma/veri
-geçerli kayıt: 999, geçerli bayt: 33856, atılan bayt: 29
-kurtarma notu: 33856. baytta yarım kayıt (29/34 bayt)
-anahtar sayısı: 999
-  anahtar00000 = değer-0
-  anahtar00001 = değer-1
-  anahtar00002 = değer-2
-$ printf "X" | dd of=calisma/veri/gunluk.ambar bs=1 seek=16910 conv=notrunc status=none
-$ ./target/release/ambar kurtar calisma/veri
-geçerli kayıt: 500, geçerli bayt: 16890, atılan bayt: 17000
-kurtarma notu: 16890. baytta CRC uyuşmazlığı (bozuk kayıt)
-anahtar sayısı: 500
-  anahtar00000 = değer-0
-  anahtar00001 = değer-1
-  anahtar00002 = değer-2
-$ printf "X" | dd of=calisma/veri/gunluk.ambar bs=1 seek=16900 conv=notrunc status=none
-$ ./target/release/ambar kurtar calisma/veri
-geçerli kayıt: 500, geçerli bayt: 16890, atılan bayt: 17000
-kurtarma notu: 16890. baytta yarım kayıt (17000/5767202 bayt)
-anahtar sayısı: 500
-  anahtar00000 = değer-0
-  anahtar00001 = değer-1
-  anahtar00002 = değer-2
+$ stat -c "%s bayt" calisma/gunluk.ambar
+37890 bayt
+$ od -A d -t x1 -j 18890 -N 16 calisma/gunluk.ambar
+0018890 42 2a 30 5d 0c 00 00 00 0a 00 00 00 1f 97 81 31
+0018906
+$ truncate -s -5 calisma/gunluk.ambar
+$ ./target/release/ambar durum calisma
+geçerli kayıt: 999 (37852 bayt); kırpılan kuyruk: 33 bayt
+kurtarma notu: 37852. baytta yarım kayıt (33/38 bayt; başlık sağlam)
+canlı anahtar: 999
+$ stat -c "%s bayt" calisma/gunluk.ambar
+37852 bayt
+$ rm -rf calisma && ./target/release/ambar doldur calisma 1000
+1000 kayıt yazıldı
+$ printf "X" | dd of=calisma/gunluk.ambar bs=1 seek=18914 conv=notrunc status=none
+$ ./target/release/ambar durum calisma
+hata: günlük bozuk: 18890. baytta veri CRC'si tutmuyor; arkasında 18962 bayt daha var; dosyaya dokunulmadı
+[çıkış kodu: 1]
+$ stat -c "%s bayt" calisma/gunluk.ambar
+37890 bayt
+$ rm -rf calisma && ./target/release/ambar doldur calisma 1000
+1000 kayıt yazıldı
+$ printf "X" | dd of=calisma/gunluk.ambar bs=1 seek=18899 conv=notrunc status=none
+$ od -A d -t x1 -j 18890 -N 16 calisma/gunluk.ambar
+0018890 42 2a 30 5d 0c 00 00 00 0a 58 00 00 1f 97 81 31
+0018906
+$ ./target/release/ambar durum calisma
+hata: günlük bozuk: 18890. baytta başlık CRC'si tutmuyor (uzunluk alanları bozuk); dosyada kalan 19000 bayt; dosyaya dokunulmadı
+[çıkış kodu: 1]
+$ rm -rf calisma && ./target/release/ambar doldur calisma 1000
+1000 kayıt yazıldı
+$ printf "X" | dd of=calisma/gunluk.ambar bs=1 seek=18900 conv=notrunc status=none
+$ ./target/release/ambar durum calisma
+hata: günlük bozuk: 18890. baytta başlık CRC'si tutmuyor (uzunluk alanları bozuk); dosyada kalan 19000 bayt; dosyaya dokunulmadı
+[çıkış kodu: 1]
+$ stat -c "%s bayt" calisma/gunluk.ambar
+37890 bayt
+$ ./target/release/ambar kirp calisma
+19000 bayt atıldı; kalan kayıt: 500
+$ ./target/release/ambar durum calisma
+geçerli kayıt: 500 (18890 bayt); kırpılan kuyruk: 0 bayt
+canlı anahtar: 500

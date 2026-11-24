@@ -1,4 +1,7 @@
-//! Bayt kod derleyicisi: AST'yi yığın makinesi komutlarına çevirir.
+//! Bayt kod derleyicisi (128. adım): AST'yi yığın makinesi komutlarına çevirir. Adlar
+//! derleme anında çözülür: her yerel değişkene bir yuva numarası verilir. İleri atlamaların
+//! hedefi henüz bilinmediği için önce yer tutucuyla yazılır, hedef belli olunca geri
+//! dönülüp doldurulur (geri yamalama).
 use crate::ast::{Deyim, IkiliOp, Ifade, TekliOp};
 use std::collections::HashMap;
 
@@ -48,6 +51,7 @@ impl FonksiyonDerleyici<'_> {
         self.hedef.kod.push(k);
         self.hedef.kod.len() - 1
     }
+    /// Geri yamalama: `yer`deki atlama komutunun hedefini şimdiki konuma ayarla.
     fn yamala(&mut self, yer: usize) {
         let hedef = self.hedef.kod.len() as u32;
         match &mut self.hedef.kod[yer] {
