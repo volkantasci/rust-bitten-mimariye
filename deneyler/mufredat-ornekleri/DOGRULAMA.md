@@ -21,7 +21,7 @@ Bilerek çöken deneyler ana makineye çekirdek dökümü göndermesin diye `RLI
 
 ```text
 imaj: localhost/nkl-rust:1.100.0  kimlik: 2fcffdebdebad090ec5450a47230d86cda084c707d95a1bea46897ff3d99f2fc
-tarih: 2026-11-24T20:54:03Z
+tarih: 2026-11-24T21:09:21Z
 rustc 1.100.0 (0ef1bc386 2026-11-09)
 binary: rustc
 commit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a
@@ -4395,8 +4395,9 @@ sonda tek fsync   : 200 kayıt     3.00 ms (0.015 ms/kayıt)
 - Örnek yolu: `deneyler/mufredat-ornekleri/076-borular-ve-sinyaller/`
 - Kaynaklar: `Cargo.toml`, `src/main.rs`
 - Toolchain: stable 1.100.0
+- Bağımlılıklar (Cargo.lock'ta çözülen): `bitflags 2.13.2`, `errno 0.3.15`, `libc 0.2.191`, `linux-raw-sys 0.12.1`, `rustix 1.1.6`, `windows-link 0.2.1`, `windows-sys 0.61.2`
 - Son çalıştırma (UTC): çalıştırılmadı
-- Değişken çıktı: iş parçacığı kimliği; sa_restorer adresi; boru kapasitesi (varsayılan 65 536 bayt; kullanıcının toplam boru sayfaları pipe-user-pages-soft sınırını aşmışsa 8192)
+- Değişken çıktı: iş parçacığı kimliği; sa_restorer adresi; ilk kapasite ölçümü (varsayılan 65 536 bayt; çalıştıran kullanıcının bütün borularının sayfa toplamı pipe-user-pages-soft sınırını aşmışsa 8192 bayt; rootless Podman'da bu toplama ana makinedeki süreçlerimiz de girer)
 - Çalıştırılan betik (`komut.sh`; `k`/`ks` yardımcıları `_araclar/ortak.sh` içinde):
 
 ```bash
@@ -4404,10 +4405,13 @@ k cargo build -q
 k ./target/debug/borular
 # Rust çalışma zamanı, main'den önce SIGPIPE'ı "yok say" olarak ayarlar
 ks 'strace -e trace=rt_sigaction ./target/debug/borular kapasite 2>&1 | grep SIGPIPE'
-# Boru tamponunun kapasitesi ve okuma ucu kapanınca yazma
-# Kullanıcı başına boru sayfası yumuşak sınırı (pipe(7)): aşılınca yeni borular 2 sayfaya (8192 bayt) iner
-k cat /proc/sys/fs/pipe-user-pages-soft
+# Boru tamponunun kapasitesi: program önce çekirdeğe sorar (F_GETPIPE_SZ), sonra ölçer; okuma ucu kapanınca yazma
 k ./target/debug/borular kapasite
+# Yumuşak sınırı aşmış bir kullanıcı (pipe(7)). Kendi kullanıcımızın sayacını doldurmak ana makinedeki
+# programlarımızı da etkilerdi; bu yüzden konteynerde başka bir kimlikle (uid 4242) çalışırız.
+# uid_map: konteynerdeki 0 ana makinede bizim kullanıcımızdır, 1 ve sonrası ayrı bir kimlik aralığına eşlenir.
+k cat /proc/self/uid_map
+k setpriv --reuid=4242 --regid=4242 --clear-groups ./target/debug/borular sinirda
 # Okuyan taraf boruyu erken kapatırsa: yazma EPIPE hatası döner, println! paniğe dönüşür
 ks './target/debug/borular cok-yaz | head -n 2'
 # Kendin dene: hatayı yakalayıp sessizce bitirmek
@@ -4426,18 +4430,29 @@ zeytin
 SIGTERM sonrası: signal: 15 (SIGTERM)
 kill() sonrası  : signal: 9 (SIGKILL)
 $ strace -e trace=rt_sigaction ./target/debug/borular kapasite 2>&1 | grep SIGPIPE
-rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN, sa_mask=[PIPE], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7ff99c315d70}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
-$ cat /proc/sys/fs/pipe-user-pages-soft
-16384
+rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN, sa_mask=[PIPE], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f474320ed70}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
 $ ./target/debug/borular kapasite
-kimse okumazken yazılan: 65536 bayt (yazan şimdi bekliyor)
-4096 bayt okununca     : 69632 bayt
+yumuşak sınır (pipe-user-pages-soft): 16384 sayfa
+borunun kapasitesi (F_GETPIPE_SZ): 8192 bayt
+kimse okumazken yazılan: 8192 bayt (yazan şimdi bekliyor)
+4096 bayt okununca     : 12288 bayt
+okuma ucu kapanınca yazma: Broken pipe (os error 32) (BrokenPipe)
+$ cat /proc/self/uid_map
+         0       1000          1
+         1     100000      65536
+$ setpriv --reuid=4242 --regid=4242 --clear-groups ./target/debug/borular sinirda
+yumuşak sınır (pipe-user-pages-soft): 16384 sayfa
+tutulan borular: 64 tane, toplam 16384 sayfa
+yeni borunun kapasitesi (F_GETPIPE_SZ): 8192 bayt
+65536 bayt isteği (F_SETPIPE_SZ): Operation not permitted (os error 1)
+kimse okumazken yazılan: 8192 bayt (yazan şimdi bekliyor)
+4096 bayt okununca     : 12288 bayt
 okuma ucu kapanınca yazma: Broken pipe (os error 32) (BrokenPipe)
 $ ./target/debug/borular cok-yaz | head -n 2
 satır 0
 satır 1
 
-thread 'main' (193) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/io/stdio.rs:1209:9:
+thread 'main' (93) panicked at /rustc/0ef1bc386059596dada8fb65b50425aab2ea637a/library/std/src/io/stdio.rs:1209:9:
 failed printing to stdout: Broken pipe (os error 32)
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 $ ./target/debug/borular dikkatli-yaz | head -n 2; echo "yazanın çıkış kodu: ${PIPESTATUS[0]}"
