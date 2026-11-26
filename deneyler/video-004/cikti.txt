@@ -1,0 +1,194 @@
+$ cargo run -q --bin tipler
+u8   :  1 bayt,   8 bit
+u16  :  2 bayt,  16 bit
+u32  :  4 bayt,  32 bit
+u64  :  8 bayt,  64 bit
+u128 : 16 bayt, 128 bit
+u8 aralığı   : 0 ..= 255
+u32 aralığı  : 0 ..= 4294967295
+b'A'         : 65 (1 bayt)
+$ cargo run -q --bin basamaklar
+onluk (taban 10): sıfır olmayan basamaklar
+  1 × 10^6 = 1000000
+  toplam   = 1000000
+ikilik (taban 2): 1 olan bitler
+  bit 19 : 2^19 =  524288   ara toplam  524288
+  bit 18 : 2^18 =  262144   ara toplam  786432
+  bit 17 : 2^17 =  131072   ara toplam  917504
+  bit 16 : 2^16 =   65536   ara toplam  983040
+  bit 14 : 2^14 =   16384   ara toplam  999424
+  bit  9 : 2^9  =     512   ara toplam  999936
+  bit  6 : 2^6  =      64   ara toplam 1000000
+  toplam        = 1000000
+onaltılık (taban 16): dörder bit bir hane
+  0000 = 0 :  0 × 16^7 =       0   ara toplam       0
+  0000 = 0 :  0 × 16^6 =       0   ara toplam       0
+  0000 = 0 :  0 × 16^5 =       0   ara toplam       0
+  1111 = f : 15 × 16^4 =  983040   ara toplam  983040
+  0100 = 4 :  4 × 16^3 =   16384   ara toplam  999424
+  0010 = 2 :  2 × 16^2 =     512   ara toplam  999936
+  0100 = 4 :  4 × 16^1 =      64   ara toplam 1000000
+  0000 = 0 :  0 × 16^0 =       0   ara toplam 1000000
+  toplam               = 1000000
+dört bitin 16 değeri:
+  0000 : 0 (0)      1000 : 8 (8)
+  0001 : 1 (1)      1001 : 9 (9)
+  0010 : 2 (2)      1010 : a (10)
+  0011 : 3 (3)      1011 : b (11)
+  0100 : 4 (4)      1100 : c (12)
+  0101 : 5 (5)      1101 : d (13)
+  0110 : 6 (6)      1110 : e (14)
+  0111 : 7 (7)      1111 : f (15)
+$ cargo run -q --bin bellek
+0x7ffcfd3cd574 : 40
+0x7ffcfd3cd575 : 42
+0x7ffcfd3cd576 : 0f
+0x7ffcfd3cd577 : 00
+$ lscpu | grep -E "^(Architecture|Byte Order)"
+Architecture:                            x86_64
+Byte Order:                              Little Endian
+$ strace -e trace=openat lscpu 2>&1 >/dev/null | grep byteorder
+openat(AT_FDCWD, "/sys/kernel/cpu_byteorder", O_RDONLY|O_CLOEXEC) = 5
+$ cat /sys/kernel/cpu_byteorder
+little
+$ rustc --print cfg | grep -E "target_(arch|endian)"
+target_arch="x86_64"
+target_endian="little"
+$ rustc --print cfg --target s390x-unknown-linux-gnu | grep -E "target_(arch|endian)"
+target_arch="s390x"
+target_endian="big"
+$ sed -n 4105,4107p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs
+        pub const fn to_le_bytes(self) -> [u8; size_of::<Self>()] {
+            self.to_le().to_ne_bytes()
+        }
+$ sed -n 4085,4087p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs
+        pub const fn to_be_bytes(self) -> [u8; size_of::<Self>()] {
+            self.to_be().to_ne_bytes()
+        }
+$ sed -n 4142,4146p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs
+        pub const fn to_ne_bytes(self) -> [u8; size_of::<Self>()] {
+            // SAFETY: integers are plain old datatypes so we can always transmute them to
+            // arrays of bytes
+            unsafe { mem::transmute(self) }
+        }
+$ sed -n 986,989p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs
+        /// Converts `self` to little endian from the target's endianness.
+        ///
+        /// On little endian this is a no-op. On big endian the bytes are
+        /// swapped.
+$ sed -n 1007,1012p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs
+        pub const fn to_le(self) -> Self {
+            cfg_select! {
+                target_endian = "little" => self,
+                _ => self.swap_bytes(),
+            }
+        }
+$ sed -n 979,984p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs
+        pub const fn to_be(self) -> Self { // or not to be?
+            cfg_select! {
+                target_endian = "big" => self,
+                _ => self.swap_bytes(),
+            }
+        }
+$ cargo run -q --bin ters_okuma
+baytlar        : [40, 42, 0f, 00]
+from_le_bytes  : 1000000
+from_be_bytes  : 1078071040
+  onaltılık    : 0x40420f00
+$ cargo build -q
+$ od -A d -t x1 -N 20 target/debug/bit_bayt
+0000000 7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00
+0000016 03 00 3e 00
+0000020
+$ file target/debug/bit_bayt | cut -d, -f1-2
+target/debug/bit_bayt: ELF 64-bit LSB pie executable, x86-64
+$ readelf -h target/debug/bit_bayt | grep -E "Data|Type|Machine"
+  Data:                              2's complement, little endian
+  Type:                              DYN (Position-Independent Executable file)
+  Machine:                           Advanced Micro Devices X86-64
+$ grep -n -E "define (EI_NIDENT|EI_DATA|ELFDATA2LSB|ELFDATA2MSB|ET_DYN|EM_X86_64)[[:space:]]" /usr/include/elf.h
+61:#define EI_NIDENT (16)
+125:#define EI_DATA		5		/* Data encoding byte index */
+127:#define ELFDATA2LSB	1		/* 2's complement, little endian */
+128:#define ELFDATA2MSB	2		/* 2's complement, big endian */
+161:#define ET_DYN		3		/* Shared object file */
+219:#define EM_X86_64	62	/* AMD x86-64 architecture */
+$ grep -n "typedef uint16_t Elf64_Half" /usr/include/elf.h
+28:typedef uint16_t Elf64_Half;
+$ sed -n 81,85p /usr/include/elf.h
+typedef struct
+{
+  unsigned char	e_ident[EI_NIDENT];	/* Magic number and other info */
+  Elf64_Half	e_type;			/* Object file type */
+  Elf64_Half	e_machine;		/* Architecture */
+$ cargo run -q --bin elf_makine -- ../bit-bayt/target/debug/bit_bayt
+EI_DATA (6. bayt)     : 01
+e_type baytları       : [03, 00]
+  u16::from_le_bytes  : 3
+e_machine baytları    : [3e, 00]
+  u16::from_le_bytes  : 62
+  u16::from_be_bytes  : 15872
+$ cp target/debug/bit_bayt kopya
+$ printf "\x02" | dd of=kopya bs=1 seek=5 conv=notrunc status=none
+$ od -A d -t x1 -N 20 kopya
+0000000 7f 45 4c 46 02 02 01 00 00 00 00 00 00 00 00 00
+0000016 03 00 3e 00
+0000020
+$ file kopya | cut -d, -f1-2
+kopya: ELF 64-bit MSB *unknown arch 0x3e00* (SYSV)
+$ readelf -h kopya | grep -E "Data|Type|Machine"
+readelf: Warning: The e_shentsize field in the ELF header is larger than the size of an ELF section header
+readelf: Error: Reading 176160768 bytes extends past end of file for section headers
+readelf: Warning: The e_phentsize field in the ELF header is larger than the size of an ELF program header
+readelf: Error: Reading 44040192 bytes extends past end of file for program headers
+  Data:                              2's complement, big endian
+  Type:                              <unknown>: 300
+  Machine:                           <unknown>: 0x3e00
+$ sed -i s/1_000_000/2026/ src/main.rs
+$ grep -n "let n" src/main.rs
+2:    let n: u32 = 2026;
+$ cargo run -q
+onluk         : 2026
+ikilik        : 00000000000000000000011111101010
+onaltılık     : 0x000007ea
+bellekte      : [ea, 07, 00, 00]
+little-endian : [ea, 07, 00, 00]
+big-endian    : [00, 00, 07, ea]
+'A' baytı     : 65 = 0x41 = 01000001
+$ sed -n 4069,4070p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs
+        /// Returns the memory representation of this integer as a byte array in
+        /// big-endian (network) byte order.
+$ sed -n 4089,4090p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs
+        /// Returns the memory representation of this integer as a byte array in
+        /// little-endian byte order.
+$ sed -n 4109,4114p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs
+        /// Returns the memory representation of this integer as a byte array in
+        /// native byte order.
+        ///
+        /// As the target platform's native endianness is used, portable code
+        /// should use [`to_be_bytes`] or [`to_le_bytes`], as appropriate,
+        /// instead.
+$ sed -n 199,203p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/macros/mod.rs
+/// Selects code at compile-time based on `cfg` predicates.
+///
+/// This macro evaluates, at compile-time, a series of `cfg` predicates,
+/// selects the first that is true, and emits the code guarded by that
+/// predicate. The code guarded by other predicates is not emitted.
+$ sed -n 639,641p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/mod.rs
+    pub const fn is_ascii(&self) -> bool {
+        *self <= 127
+    }
+$ sed -n 203p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/fmt.rs
+//!     * `#x` - precedes the argument with a `0x`
+$ sed -n 216,219p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/fmt.rs
+//!         Note that padding zeros are always placed after the sign (if any)
+//!         and before the digits. When used together with the `#` flag, a similar
+//!         rule applies: padding zeros are inserted after the prefix but before
+//!         the digits. The prefix is included in the total width.
+$ readelf -h kopya 2>/dev/null | grep -E "Data|Type|Machine"
+  Data:                              2's complement, big endian
+  Type:                              <unknown>: 300
+  Machine:                           <unknown>: 0x3e00
+$ strace -e trace=openat,read lscpu 2>&1 >/dev/null | grep -A1 byteorder
+openat(AT_FDCWD, "/sys/kernel/cpu_byteorder", O_RDONLY|O_CLOEXEC) = 5
+read(5, "little\n", 8191)               = 7

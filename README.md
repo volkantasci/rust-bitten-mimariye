@@ -51,6 +51,12 @@ laboratuvar/rr.sh video-002 bash calistir.sh
 laboratuvar/rr.sh video-003 bash calistir.sh
 ```
 
+004'ün ek deneyleri (basamak değerleri, tip boyutları, bellekteki baytlar, bayt sırasının kaynakları, ters okuma, ELF başlığının makine alanı):
+
+```bash
+laboratuvar/rr.sh video-004 bash calistir.sh
+```
+
 001'in ek deneyleri:
 
 ```bash
