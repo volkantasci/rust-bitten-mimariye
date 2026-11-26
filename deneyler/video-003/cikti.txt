@@ -1,0 +1,259 @@
+$ cargo build --release -q
+$ readelf -h target/release/merhaba | head -n 8
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              DYN (Position-Independent Executable file)
+$ ./target/release/merhaba | od -A d -t x1z
+0000000 4d 65 72 68 61 62 61 2c 20 64 c3 bc 6e 79 61 21  >Merhaba, d..nya!<
+0000016 0a                                               >.<
+0000017
+$ ./target/release/merhaba | od -A d -c
+0000000   M   e   r   h   a   b   a   ,       d 303 274   n   y   a   !
+0000016  \n
+0000017
+$ grep -boa "Merhaba" target/release/merhaba
+19904:Merhaba
+$ od -A d -t x1z -j 19904 -N 17 target/release/merhaba
+0019904 4d 65 72 68 61 62 61 2c 20 64 c3 bc 6e 79 61 21  >Merhaba, d..nya!<
+0019920 0a                                               >.<
+0019921
+$ nm -C target/release/merhaba | grep " std::io::stdio::_print$"
+00000000000387d0 T std::io::stdio::_print
+$ strace -e trace=openat ./target/release/merhaba > /dev/null
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libgcc_s.so.1", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/proc/self/maps", O_RDONLY|O_CLOEXEC) = 3
++++ exited with 0 +++
+$ strace ./target/release/merhaba 2>&1 >/dev/null | cut -d"(" -f1 | cat -n
+     1	execve
+     2	brk
+     3	mmap
+     4	access
+     5	openat
+     6	fstat
+     7	mmap
+     8	close
+     9	openat
+    10	read
+    11	fstat
+    12	mmap
+    13	mmap
+    14	mmap
+    15	mmap
+    16	close
+    17	openat
+    18	read
+    19	pread64
+    20	fstat
+    21	pread64
+    22	mmap
+    23	mmap
+    24	mmap
+    25	mmap
+    26	mmap
+    27	close
+    28	mmap
+    29	arch_prctl
+    30	set_tid_address
+    31	set_robust_list
+    32	rseq
+    33	mprotect
+    34	mprotect
+    35	mprotect
+    36	mprotect
+    37	prlimit64
+    38	munmap
+    39	poll
+    40	rt_sigaction
+    41	getrandom
+    42	brk
+    43	brk
+    44	openat
+    45	prlimit64
+    46	fstat
+    47	read
+    48	read
+    49	read
+    50	close
+    51	sched_getaffinity
+    52	rt_sigaction
+    53	sigaltstack
+    54	mmap
+    55	mprotect
+    56	sigaltstack
+    57	gettid
+    58	rt_sigaction
+    59	rt_sigaction
+    60	rt_sigaction
+    61	write
+    62	exit_group
+    63	+++ exited with 0 +++
+$ strace -c ./target/release/merhaba 2>&1 >/dev/null | tail -n 1
+100.00    0.000000           0        61         1 total
+$ strace ./target/release/merhaba 2>&1 >/dev/null | grep -c "^exit_group"
+1
+$ strace -k -e trace=poll ./target/release/merhaba > /dev/null
+poll([{fd=0, events=0}, {fd=1, events=0}, {fd=2, events=0}], 3, 0) = 0 (Timeout)
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__internal_syscall_cancel+0x67) [0x8f3a7]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__syscall_cancel+0xd) [0x8f3cd]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_poll+0x16) [0x103906]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x365ac]
+ > /work/video-003/calisma/merhaba/target/release/merhaba(main+0x25) [0x13b75]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_start_call_main+0x78) [0x29ca8]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main_alias_2+0x85) [0x29d65]
+ > /work/video-003/calisma/merhaba/target/release/merhaba(_start+0x21) [0x13a31]
++++ exited with 0 +++
+$ strace -k -e trace=openat -P /proc/self/maps ./target/release/merhaba > /dev/null
+strace: Requested path "/proc/self/maps" resolved into "/proc/107/maps"
+openat(AT_FDCWD, "/proc/self/maps", O_RDONLY|O_CLOEXEC) = 3
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__GI___open_nocancel+0x3c) [0x104abc]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__GI__IO_file_open+0xb5) [0x89e05]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__GI__IO_file_fopen+0xf9) [0x89f19]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__fopen_internal+0x79) [0x7e669]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__pthread_getattr_np+0x223) [0x93dd3]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x367d8]
+ > /work/video-003/calisma/merhaba/target/release/merhaba(main+0x25) [0x13b75]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_start_call_main+0x78) [0x29ca8]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main_alias_2+0x85) [0x29d65]
+ > /work/video-003/calisma/merhaba/target/release/merhaba(_start+0x21) [0x13a31]
++++ exited with 0 +++
+$ strace -k -e trace=write ./target/release/merhaba > /dev/null
+write(1, "Merhaba, d\303\274nya!\n", 17) = 17
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__internal_syscall_cancel+0x67) [0x8f3a7]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__syscall_cancel+0xd) [0x8f3cd]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__GI___write+0x16) [0x104876]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x3e116]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x3c62f]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x3ac97]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x3c13d]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x3782a]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x13b03]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x13b19]
+ > /work/video-003/calisma/merhaba/target/release/merhaba() [0x369d8]
+ > /work/video-003/calisma/merhaba/target/release/merhaba(main+0x25) [0x13b75]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_start_call_main+0x78) [0x29ca8]
+ > /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main_alias_2+0x85) [0x29d65]
+ > /work/video-003/calisma/merhaba/target/release/merhaba(_start+0x21) [0x13a31]
++++ exited with 0 +++
+$ strace -k -o /tmp/yigin-izi.txt ./target/release/merhaba > /dev/null; python3 ../../yigin_ozeti.py /tmp/yigin-izi.txt
+ 1 execve             yükleyici
+ 2 brk                yükleyici
+ 3 mmap               yükleyici
+ 4 access             yükleyici
+ 5 openat             yükleyici
+ 6 fstat              yükleyici
+ 7 mmap               yükleyici
+ 8 close              yükleyici
+ 9 openat             yükleyici
+10 read               yükleyici
+11 fstat              yükleyici
+12 mmap               yükleyici
+13 mmap               yükleyici
+14 mmap               yükleyici
+15 mmap               yükleyici
+16 close              yükleyici
+17 openat             yükleyici
+18 read               yükleyici
+19 pread64            yükleyici
+20 fstat              yükleyici
+21 pread64            yükleyici
+22 mmap               yükleyici
+23 mmap               yükleyici
+24 mmap               yükleyici
+25 mmap               yükleyici
+26 mmap               yükleyici
+27 close              yükleyici
+28 mmap               yükleyici
+29 arch_prctl         yükleyici
+30 set_tid_address    yükleyici
+31 set_robust_list    yükleyici
+32 rseq               yükleyici
+33 mprotect           yükleyici
+34 mprotect           yükleyici
+35 mprotect           yükleyici
+36 mprotect           yükleyici
+37 prlimit64          yükleyici
+38 munmap             yükleyici
+39 poll               main
+40 rt_sigaction       main
+41 getrandom          main
+42 brk                main
+43 brk                main
+44 openat             main
+45 prlimit64          main
+46 fstat              main
+47 read               main
+48 read               main
+49 read               main
+50 close              main
+51 sched_getaffinity  main
+52 rt_sigaction       main
+53 sigaltstack        main
+54 mmap               main
+55 mprotect           main
+56 sigaltstack        main
+57 gettid             main
+58 rt_sigaction       main
+59 rt_sigaction       main
+60 rt_sigaction       main
+61 write              main
+62 exit_group         _start
+$ cat src/main.rs
+fn main() {
+    print!("Merhaba, dünya!");
+}
+$ cargo build --release -q
+$ strace -e trace=write ./target/release/satir_sonu_yok > /dev/null
+write(1, "Merhaba, d\303\274nya!", 16)  = 16
++++ exited with 0 +++
+$ sed -n 143,150p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/macros.rs
+macro_rules! println {
+    () => {
+        $crate::print!("\n")
+    };
+    ($($arg:tt)*) => {{
+        $crate::io::_print($crate::format_args_nl!($($arg)*));
+    }};
+}
+$ sed -n 22,38p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/sys/pal/unix/mod.rs
+pub unsafe fn init(argc: isize, argv: *const *const u8, sigpipe: u8) {
+    // The standard streams might be closed on application startup. To prevent
+    // std::io::{stdin, stdout,stderr} objects from using other unrelated file
+    // resources opened later, we reopen standards streams when they are closed.
+    sanitize_standard_fds();
+
+    // By default, some platforms will send a *signal* when an EPIPE error
+    // would otherwise be delivered. This runtime doesn't install a SIGPIPE
+    // handler, causing it to kill the program, which isn't exactly what we
+    // want!
+    //
+    // Hence, we set SIGPIPE to ignore when the program starts up in order
+    // to prevent this problem. Use `-Zon-broken-pipe=...` to alter this
+    // behavior.
+    reset_sigpipe(sigpipe);
+
+    stack_overflow::init();
+$ sed -n 610,615p /usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/io/stdio.rs
+pub struct Stdout {
+    // FIXME: this should be LineWriter or BufWriter depending on the state of
+    //        stdout (tty or not). Note that if this is not line buffered it
+    //        should also flush-on-panic or some form of flush-on-abort.
+    inner: &'static ReentrantLock<RefCell<LineWriter<StdoutRaw>>>,
+}
+$ strace -e trace=rt_sigaction ./target/release/merhaba 2>&1 >/dev/null | cut -d"{" -f1-2 | cut -d, -f1-2
+rt_sigaction(SIGPIPE, {sa_handler=SIG_IGN
+rt_sigaction(SIGSEGV, NULL
+rt_sigaction(SIGSEGV, {sa_handler=0x557f9716a400
+rt_sigaction(SIGBUS, NULL
+rt_sigaction(SIGBUS, {sa_handler=0x557f9716a400
++++ exited with 0 +++
+$ cargo build --release -v 2>&1 | grep -o -- "-C opt-level=[0-9]"
+-C opt-level=3
+$ cargo build -v 2>&1 | grep -o -- "-C debuginfo=[0-9]"
+-C debuginfo=2

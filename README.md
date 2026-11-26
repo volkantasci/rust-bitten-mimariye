@@ -45,6 +45,12 @@ deneyler/mufredat-ornekleri/calistir.sh 004-bit-ve-bayt
 laboratuvar/rr.sh video-002 bash calistir.sh
 ```
 
+003'ün ek deneyleri (ELF başlığı, çıktının baytları, sistem çağrılarının yığın izleri, satır sonu olmadan `print!`):
+
+```bash
+laboratuvar/rr.sh video-003 bash calistir.sh
+```
+
 001'in ek deneyleri:
 
 ```bash
